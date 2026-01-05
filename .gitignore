@@ -1,0 +1,49 @@
+# Xcode
+build/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcworkspace/
+xcuserdata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.hmap
+*.o
+*.a
+*.la
+*.la
+xcparse-output/
+
+# Swift
+.build/
+*.swiftpm/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+
+# Environment
+.env
+.env.local
+
+# Dependencies
+Pods/
+Carthage/Build/
