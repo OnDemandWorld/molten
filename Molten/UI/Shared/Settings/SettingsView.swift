@@ -152,7 +152,7 @@ struct SettingsView: View {
                         }
                     }
                     
-                    TextField("API Key (optional)", text: $swamaApiKey)
+                    TextField("Bearer Token (optional)", text: $swamaApiKey)
                         .disableAutocorrection(true)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
 #if os(iOS)

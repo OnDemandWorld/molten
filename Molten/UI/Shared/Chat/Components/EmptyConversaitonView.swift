@@ -37,15 +37,10 @@ struct EmptyConversaitonView: View, KeyboardReadable {
             VStack(spacing: 25) {
                 VStack(alignment: .center) {
                     Text("Molten")
-                        .font(Font.system(size: 46, weight: .thin))
+                        .font(Font.system(size: 46, weight: .medium, design: .rounded))
+                        .tracking(2)
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(hex: "4285f4"), Color(hex: "9b72cb"), Color(hex: "d96570"), Color(hex: "#d96570")],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .moltenifyGlow()
                     
 //                    Button(action: onFreysaTap) {
 //                        Text("by FREYSA")

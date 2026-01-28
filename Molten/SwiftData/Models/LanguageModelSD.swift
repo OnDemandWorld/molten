@@ -71,7 +71,7 @@ extension LanguageModelSD {
         return false
     }
     
-    static let sample: [LanguageModelSD] = [
+    nonisolated(unsafe) static let sample: [LanguageModelSD] = [
         .init(name: "qwen3", modelProvider: .swama),
         .init(name: "deepseek-r1", modelProvider: .swama)
     ]

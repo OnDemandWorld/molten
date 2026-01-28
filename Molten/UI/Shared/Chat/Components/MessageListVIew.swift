@@ -79,7 +79,7 @@ struct MessageListView: View {
                             
                             ChatMessageView(
                                 message: message,
-                                showLoader: conversationState == .loading && messages.last == message,
+                                isStreaming: conversationState == .loading && messages.last == message && !message.done,
                                 userInitials: userInitials,
                                 editMessage: $editMessage
                             )
@@ -90,18 +90,18 @@ struct MessageListView: View {
                             .contentShape(Rectangle())
                             .contextMenu(contextMenu)
                             .runningBorder(animated: message.id == editMessage?.id)
-                            .id(message)
+                            .id(message.id)
                         }
                     }
                 }
                 .onAppear {
-                    scrollViewProxy.scrollTo(messages.last, anchor: .bottom)
+                    scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                 }
                 .onChange(of: messages) { oldMessages, newMessages in
-                    scrollViewProxy.scrollTo(messages.last, anchor: .bottom)
+                    scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                 }
                 .onChange(of: messages.last?.content) {
-                    scrollViewProxy.scrollTo(messages.last, anchor: .bottom)
+                    scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                 }
 #if os(iOS) || os(visionOS)
                 .sheet(item: $messageSelected) { message in

@@ -70,6 +70,7 @@ extension View {
     }
 }
 
+// MARK: - Legacy Enchanted gradient (kept for compatibility)
 struct GradientForegroundStyle: ViewModifier {
     func body(content: Content) -> some View {
         content.foregroundStyle(
@@ -101,6 +102,78 @@ struct MovingGradientForegroundStyle: ViewModifier {
     }
 }
 
+// MARK: - Molten Style (distinctive warm metallic gradient)
+/// A molten metal-inspired gradient with warm amber, orange, and gold tones
+struct MoltenForegroundStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content.foregroundStyle(
+            LinearGradient(
+                colors: [
+                    Color(hex: "FF6B35"),  // Warm orange
+                    Color(hex: "F7C35F"),  // Golden amber
+                    Color(hex: "FFB347"),  // Light orange/gold
+                    Color(hex: "E85D04")   // Deep burnt orange
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+}
+
+/// Animated molten effect with a flowing heat shimmer
+struct MoltenAnimatedStyle: ViewModifier {
+    @State private var phase: CGFloat = 0
+    
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: "DC2F02"), location: 0.0),      // Deep red
+                        .init(color: Color(hex: "E85D04"), location: 0.25),     // Burnt orange
+                        .init(color: Color(hex: "F7C35F"), location: 0.5),      // Golden amber
+                        .init(color: Color(hex: "FFBA08"), location: 0.75),     // Bright gold
+                        .init(color: Color(hex: "FF6B35"), location: 1.0)       // Warm orange
+                    ],
+                    startPoint: UnitPoint(x: phase, y: 0),
+                    endPoint: UnitPoint(x: phase + 1, y: 1)
+                )
+            )
+            .onAppear {
+                withAnimation(.linear(duration: 4).repeatForever(autoreverses: true)) {
+                    phase = 0.5
+                }
+            }
+    }
+}
+
+/// Molten glow effect - adds a subtle warm glow behind text
+struct MoltenGlowStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        ZStack {
+            // Glow layer
+            content
+                .foregroundStyle(Color(hex: "FF6B35").opacity(0.6))
+                .blur(radius: 8)
+            
+            // Main gradient layer
+            content
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: "FFBA08"),  // Bright gold
+                            Color(hex: "F7C35F"),  // Golden amber
+                            Color(hex: "FF6B35")   // Warm orange
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+        }
+    }
+}
+
 
 extension View {
     func enchantify() -> some View {
@@ -109,6 +182,21 @@ extension View {
     
     func enchantifyMoving() -> some View {
         self.modifier(MovingGradientForegroundStyle())
+    }
+    
+    /// Applies the Molten gradient style (warm amber/orange/gold)
+    func moltenify() -> some View {
+        modifier(MoltenForegroundStyle())
+    }
+    
+    /// Applies the animated Molten gradient with flowing heat effect
+    func moltenifyAnimated() -> some View {
+        modifier(MoltenAnimatedStyle())
+    }
+    
+    /// Applies the Molten style with a warm glow effect
+    func moltenifyGlow() -> some View {
+        modifier(MoltenGlowStyle())
     }
 }
 

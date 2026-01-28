@@ -2,10 +2,12 @@
 
 **Local AI. On Your Terms.**
 
-Molten is a privacy-first macOS app that runs any local LLM—Ollama, Swama, or Apple Foundation Models—completely offline, completely yours.
+Molten is a privacy-first macOS, iOS, and iPadOS app that runs local LLMs—Ollama, Swama, or Apple Foundation Models—completely offline, completely yours.
 
 ![Swift](https://img.shields.io/badge/swift-5.9+-F54A2A?logo=swift&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-14.0+-000000?logo=apple&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-17.0+-000000?logo=apple&logoColor=white)
+![iPadOS](https://img.shields.io/badge/iPadOS-17.0+-000000?logo=apple&logoColor=white)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 
 ## 🌟 Key Differentiators
@@ -18,13 +20,13 @@ Molten is a privacy-first macOS app that runs any local LLM—Ollama, Swama, or 
 
 ## 📖 Overview
 
-Molten is a native macOS application built specifically for Apple Silicon Macs. It provides an elegant, ChatGPT-like interface for interacting with locally hosted language models through multiple backends:
+Molten is a native Apple-platform application for macOS, iOS, and iPadOS. It provides an elegant, ChatGPT-like interface for interacting with locally hosted language models through multiple backends:
 
 - **Ollama** - The popular local LLM runtime
 - **Swama** - MLX-based inference engine optimized for Apple Silicon
 - **Apple Foundation Models** - Native on-device models (macOS 26.0+)
 
-All processing happens locally on your Mac. No data leaves your device. Ever.
+All processing happens locally on your device. No data leaves your device. Ever.
 
 ## ✨ Features
 
@@ -36,7 +38,7 @@ All processing happens locally on your Mac. No data leaves your device. Ever.
 - **Performance Analytics**: Detailed metrics showing prompt eval rate, eval rate, and throughput
 
 ### User Experience
-- **Native macOS Design**: Built with SwiftUI, feels like a first-class macOS app
+- **Native Apple Design**: Built with SwiftUI, feels at home on macOS, iOS, and iPadOS
 - **Markdown Rendering**: Beautiful rendering of code blocks, tables, and formatted text
 - **Syntax Highlighting**: Powered by Splash for code blocks
 - **Dark/Light Mode**: System-aware color schemes
@@ -86,7 +88,7 @@ Molten follows a clean architecture pattern with clear separation of concerns:
 
 ### Prerequisites
 
-1. **macOS 14.0+** (Sonoma or later)
+1. **macOS 14.0+**, **iOS 17.0+**, **iPadOS 17.0+**
 2. **Apple Silicon Mac** (M1, M2, M3, or later) - Required for Apple Foundation Models
 3. **Xcode 15.0+** (for building from source)
 4. **At least one backend running**:
@@ -97,13 +99,13 @@ Molten follows a clean architecture pattern with clear separation of concerns:
 ### Installation
 
 #### Option 1: Download Pre-built App (Coming Soon)
-Download the latest release from the [Releases](https://github.com/yourusername/molten/releases) page.
+Download the latest release from the [Releases](https://github.com/OnDemandWorld/molten/releases) page.
 
 #### Option 2: Build from Source
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/molten.git
+   git clone https://github.com/OnDemandWorld/molten.git
    cd molten
    ```
 
@@ -161,7 +163,7 @@ Download the latest release from the [Releases](https://github.com/yourusername/
    - Open Settings (⌘,)
    - Go to "Swama" section
    - Enter server URI (default: `http://localhost:28100`)
-   - Optional: Add API Key
+  - Optional: Add Bearer Token
    - Models will auto-populate
 
 #### Apple Foundation Models
@@ -196,7 +198,7 @@ Access Settings via ⌘, or the menu bar:
 
 - **Provider Settings**
   - Configure Ollama server URI and Bearer Token
-  - Configure Swama server URI and API Key
+  - Configure Swama server URI and Bearer Token
   - Connection status indicators
 
 - **App Settings**
@@ -338,15 +340,20 @@ Molten is based on the excellent work of the [Enchanted](https://github.com/gluo
 - **Xcode Version**: Ensure Xcode 15.0+ is installed
 - **Swift Version**: Check Swift version compatibility
 
+### Assets Missing on iOS/iPadOS
+
+- **Check Asset Idiom**: Ensure imagesets include `universal` entries (not mac-only)
+- **Target Membership**: Confirm the asset catalog is included in the iOS target
+
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/molten/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/molten/discussions)
+- **Issues**: [GitHub Issues](https://github.com/OnDemandWorld/molten/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/OnDemandWorld/molten/discussions)
 - **Documentation**: See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation
 
 ## 🗺️ Roadmap
 
-- [ ] iOS/iPadOS support
+- [x] iOS/iPadOS support
 - [ ] Additional model providers
 - [ ] Plugin system for custom providers
 - [ ] Advanced conversation management

@@ -298,6 +298,11 @@ SwiftData handles schema migrations automatically. For manual migrations, use `M
 
 **Shared**: `ChatMessageView`, `ModelSelectorView`, `SettingsView`
 
+### Platform Notes
+
+- **Asset Catalogs**: Shared imagesets must include `universal` idioms for iOS/iPadOS. Mac-only assets will not render on iPhone/iPad.
+- **Streaming Indicator**: The assistant avatar switches from spinner to `logo-nobg` when `MessageSD.done` is set in `ConversationStore.handleComplete()`.
+
 ### Component Hierarchy
 
 ```

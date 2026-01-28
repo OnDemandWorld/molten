@@ -31,7 +31,7 @@ final class ConversationSD: Identifiable {
 
 // MARK: - Sample data
 extension ConversationSD {
-    static let sample = [
+    nonisolated(unsafe) static let sample = [
         ConversationSD(name: "New Chat", updatedAt: Date.now),
         ConversationSD(name: "Presidential", updatedAt: Calendar.current.date(byAdding: .day, value: -1, to: Date.now)!),
         ConversationSD(name: "What is QFT?", updatedAt: Calendar.current.date(byAdding: .day, value: -2, to: Date.now)!)

@@ -14,7 +14,7 @@ struct UnreachableAPIView: View {
     var body: some View {
         HStack {
             VStack {
-                Text("Swama is unreachable. Go to Settings and update your Swama API endpoint. ")
+                Text("No model providers available. Go to Settings and configure Ollama, Swama, or check Apple Foundation Models.")
                     .lineLimit(nil)
                     .minimumScaleFactor(0.5)
                     .fontWeight(.medium)

@@ -36,7 +36,7 @@ struct MoltenApp: App {
         WindowGroup {
             ApplicationEntry()
 #if os(macOS)
-                .onKeyboardShortcut(KeyboardShortcuts.Name.togglePanelMode, type: .keyDown) {
+                .onGlobalKeyboardShortcut(KeyboardShortcuts.Name.togglePanelMode, type: .keyDown) {
                     panelManager.togglePanel()
                 }
                 .onAppear {

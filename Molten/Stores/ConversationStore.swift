@@ -421,6 +421,10 @@ final class ConversationStore: @unchecked Sendable {
         lastMesasge.error = false
         lastMesasge.done = true
         
+        // Force SwiftUI to observe the change by reassigning the messages array
+        // This is necessary on iOS where property changes on array elements may not trigger view updates
+        self.messages = Array(self.messages)
+        
         Task(priority: .background) {
             try await self.swiftDataService.updateMessage(lastMesasge)
         }

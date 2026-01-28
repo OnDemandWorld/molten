@@ -20,6 +20,18 @@ import SwiftUI
 struct AnalyticsFooterView: View {
     let message: MessageSD
     
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+    
+    private var isCompact: Bool {
+        #if os(iOS)
+        return horizontalSizeClass == .compact
+        #else
+        return false
+        #endif
+    }
+    
     private var promptEvalRate: String? {
         guard let promptTokens = message.promptTokens,
               let promptEvalTime = message.promptEvalTime else {
@@ -30,7 +42,7 @@ struct AnalyticsFooterView: View {
             return nil
         }
         let rate = Double(promptTokens) / promptEvalTime
-        return String(format: "%.2f", rate)
+        return String(format: "%.1f", rate)
     }
     
     private var evalRate: String? {
@@ -40,7 +52,7 @@ struct AnalyticsFooterView: View {
             return nil
         }
         let rate = Double(completionTokens) / evalTime
-        return String(format: "%.2f", rate)
+        return String(format: "%.1f", rate)
     }
     
     private var totalTokens: String? {
@@ -57,7 +69,7 @@ struct AnalyticsFooterView: View {
         if time < 1.0 {
             return String(format: "%.0fms", time * 1000)
         } else {
-            return String(format: "%.2fs", time)
+            return String(format: "%.1fs", time)
         }
     }
     
@@ -68,79 +80,87 @@ struct AnalyticsFooterView: View {
             return nil
         }
         let rate = Double(totalTokens) / totalTime
-        return String(format: "%.2f", rate)
+        return String(format: "%.1f", rate)
+    }
+    
+    // MARK: - Compact Layout (iPhone)
+    
+    @ViewBuilder
+    private var compactLayout: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // First row: eval rates
+            HStack(spacing: 16) {
+                if let promptRate = promptEvalRate {
+                    analyticsItem(label: "prompt", value: "\(promptRate) t/s")
+                }
+                if let evalRate = evalRate {
+                    analyticsItem(label: "eval", value: "\(evalRate) t/s")
+                }
+                if let throughput = overallThroughput {
+                    analyticsItem(label: "overall", value: "\(throughput) t/s")
+                }
+            }
+            
+            // Second row: totals
+            HStack(spacing: 16) {
+                if let tokens = totalTokens {
+                    analyticsItem(label: "tokens", value: tokens)
+                }
+                if let time = totalTime {
+                    analyticsItem(label: "time", value: time)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Regular Layout (iPad/Mac)
+    
+    @ViewBuilder
+    private var regularLayout: some View {
+        HStack(spacing: 16) {
+            if let promptRate = promptEvalRate {
+                analyticsItem(label: "prompt eval", value: "\(promptRate) t/s")
+            }
+            if let evalRate = evalRate {
+                analyticsItem(label: "eval rate", value: "\(evalRate) t/s")
+            }
+            
+            Spacer()
+            
+            if let throughput = overallThroughput {
+                analyticsItem(label: "overall", value: "\(throughput) t/s")
+            }
+            if let tokens = totalTokens {
+                analyticsItem(label: "tokens", value: tokens)
+            }
+            if let time = totalTime {
+                analyticsItem(label: "time", value: time)
+            }
+        }
+    }
+    
+    // MARK: - Helper Views
+    
+    @ViewBuilder
+    private func analyticsItem(label: String, value: String) -> some View {
+        HStack(spacing: 3) {
+            Text(label + ":")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundStyle(.primary)
+        }
     }
     
     var body: some View {
         if message.role == "assistant" && message.done {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 12) {
-                    // Prompt eval rate - show first if available
-                    if let promptRate = promptEvalRate {
-                        HStack(spacing: 4) {
-                            Text("prompt eval rate:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(promptRate) tokens/s")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    
-                    // Eval rate - show second if available
-                    if let evalRate = evalRate {
-                        HStack(spacing: 4) {
-                            Text("eval rate:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(evalRate) tokens/s")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Overall throughput - show if available
-                    if let throughput = overallThroughput {
-                        HStack(spacing: 4) {
-                            Text("overall:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(throughput) tokens/s")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    
-                    // Total tokens - show if available
-                    if let tokens = totalTokens {
-                        HStack(spacing: 4) {
-                            Text("total tokens:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(tokens)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    
-                    // Total time - show if available
-                    if let time = totalTime {
-                        HStack(spacing: 4) {
-                            Text("total time:")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(time)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.primary)
-                        }
-                    }
+            Group {
+                if isCompact {
+                    compactLayout
+                } else {
+                    regularLayout
                 }
             }
             .padding(.top, 8)

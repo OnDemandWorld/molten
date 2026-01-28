@@ -21,6 +21,7 @@ final class AppStore {
     private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
     private var pingInterval: TimeInterval = 5
+    /// True when at least one provider (Swama, Ollama, or Apple Foundation) is reachable
     @MainActor var isReachable: Bool = true
     @MainActor var notifications: [NotificationMessage] = []
     @MainActor var menuBarIcon: String? = nil
@@ -63,9 +64,17 @@ final class AppStore {
         timer = nil
     }
 
+    /// Checks if any provider is reachable (Swama, Ollama, or Apple Foundation)
     private func reachable() async -> Bool {
-        let status = await SwamaService.shared.reachable()
-        return status
+        // Check providers sequentially to avoid Swift 6 concurrency issues
+        let swamaReachable = await SwamaService.shared.reachable()
+        if swamaReachable { return true }
+        
+        let ollamaReachable = await OllamaService.shared.reachable()
+        if ollamaReachable { return true }
+        
+        let appleReachable = await AppleFoundationService.shared.reachable()
+        return appleReachable
     }
     
     @MainActor func uiLog(message: String, status: NotificationMessage.Status) {

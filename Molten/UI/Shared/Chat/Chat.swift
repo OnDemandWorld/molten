@@ -9,7 +9,7 @@ import SwiftUI
 
 struct Chat: View, Sendable {
     @State private var languageModelStore: LanguageModelStore
-    @State private var conversationStore: ConversationStore
+    @Bindable private var conversationStore: ConversationStore
     @State private var appStore: AppStore
     @AppStorage("systemPrompt") private var systemPrompt: String = ""
     @AppStorage("appUserInitials") private var userInitials: String = ""
@@ -18,7 +18,7 @@ struct Chat: View, Sendable {
     
     init(languageModelStore: LanguageModelStore, conversationStore: ConversationStore, appStore: AppStore) {
         _languageModelStore = State(initialValue: languageModelStore)
-        _conversationStore = State(initialValue: conversationStore)
+        _conversationStore = Bindable(conversationStore)
         _appStore = State(initialValue: appStore)
     }
     

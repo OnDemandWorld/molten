@@ -25,19 +25,20 @@ struct ApplicationEntry: View {
             }
         }
         .task {
-            Task {
-                async let loadModels: () = languageModelStore.loadModels()
-                async let loadConversations: () = conversationStore.loadConversations()
-                
-                do {
-                    _ = try await loadModels
-                    _ = try await loadConversations
-                } catch {
-                    print("Unexpected error: \(error).")
-                }
-                
-                completionsStore.load()
+            // Load models and conversations on app start
+            do {
+                try await languageModelStore.loadModels()
+            } catch {
+                print("Failed to load models: \(error).")
             }
+            
+            do {
+                try await conversationStore.loadConversations()
+            } catch {
+                print("Failed to load conversations: \(error).")
+            }
+            
+            completionsStore.load()
         }
         .preferredColorScheme(colorScheme.toiOSFormat)
     }

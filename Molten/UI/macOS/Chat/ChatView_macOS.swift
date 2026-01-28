@@ -104,11 +104,32 @@ struct ChatView: View {
                     .buttonStyle(PlainButtonStyle())
                     .showIf(columnVisibility == .detailOnly)
                     
-                    Text("Molten")
+                    // Show styled Molten title when in a conversation
+                    if selectedConversation != nil {
+                        Text("Molten")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .moltenify()
+                    }
                 }
                 #else
                 ToolbarItem(placement: .navigation) {
-                    Text("Molten")
+                    // Show Molten button when in a conversation (not on empty start page)
+                    // Opens GitHub repo when clicked
+                    if selectedConversation != nil {
+                        Button {
+                            if let url = URL(string: "https://github.com/OnDemandWorld/molten") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            Text("Molten")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .moltenify()
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                    }
                 }
                 #endif
 

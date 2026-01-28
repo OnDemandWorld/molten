@@ -13,8 +13,8 @@ import Splash
 struct ChatMessageView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var speechSynthesizer = SpeechSynthesizer.shared
-    var message: MessageSD
-    var showLoader: Bool = false
+    @Bindable var message: MessageSD
+    var isStreaming: Bool = false  // True when this message is actively streaming
     var userInitials: String
     @Binding var editMessage: MessageSD?
     @State private var mouseHover = false
@@ -46,7 +46,9 @@ struct ChatMessageView: View {
                     if message.role == "user" {
                         Spacer()
                     } else {
-                        if showLoader {
+                        // Show spinner while streaming AND message is not done
+                        // Using inline check instead of computed property for proper SwiftUI observation on iOS
+                        if isStreaming && !message.done {
                             ActivityIndicatorView(isVisible: .constant(true), type: .rotatingDots(count: 5))
                                 .frame(width: 24, height: 24)
                                 .rotationEffect(.degrees(90))
@@ -192,6 +194,6 @@ struct ChatMessageView: View {
         
         ChatMessageView(message: MessageSD.sample[1], userInitials: "AM", editMessage: .constant(nil))
         
-        ChatMessageView(message: MessageSD(content: "```python \nprint(5+5)\n```", role: "ai"), showLoader: true, userInitials: "AM", editMessage: .constant(nil))
+        ChatMessageView(message: MessageSD(content: "```python \nprint(5+5)\n```", role: "ai"), isStreaming: true, userInitials: "AM", editMessage: .constant(nil))
     }
 }

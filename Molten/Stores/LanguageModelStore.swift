@@ -19,19 +19,19 @@ import Foundation
 import SwiftData
 
 @Observable
-final class LanguageModelStore {
-    nonisolated(unsafe) static let shared = LanguageModelStore(swiftDataService: SwiftDataService.shared)
+@MainActor
+final class LanguageModelStore: Sendable {
+    static let shared = LanguageModelStore(swiftDataService: SwiftDataService.shared)
     
     private var swiftDataService: SwiftDataService
-    @MainActor var models: [LanguageModelSD] = []
-    @MainActor var supportsImages = false
-    @MainActor var selectedModel: LanguageModelSD?
+    var models: [LanguageModelSD] = []
+    var supportsImages = false
+    var selectedModel: LanguageModelSD?
     
     init(swiftDataService: SwiftDataService) {
         self.swiftDataService = swiftDataService
     }
     
-    @MainActor
     func setModel(model: LanguageModelSD?) {
         if let model = model {
             // check if model still exists
@@ -43,7 +43,6 @@ final class LanguageModelStore {
         }
     }
     
-    @MainActor
     func setModel(modelName: String) {
         for model in models {
             if model.name == modelName {
@@ -103,23 +102,19 @@ final class LanguageModelStore {
         // Load stored models and filter to only available ones
         let storedModels = (try? await swiftDataService.fetchModels()) ?? []
         
-        DispatchQueue.main.async {
-            let availableModelNames = allModels.map { $0.name }
-            self.models = storedModels.filter { availableModelNames.contains($0.name) }
-            
-            // Update image support flag based on selected model
-            if let selected = self.selectedModel {
-                self.supportsImages = selected.supportsImages
-            } else {
-                self.supportsImages = false
-            }
+        let availableModelNames = allModels.map { $0.name }
+        self.models = storedModels.filter { availableModelNames.contains($0.name) }
+        
+        // Update image support flag based on selected model
+        if let selected = self.selectedModel {
+            self.supportsImages = selected.supportsImages
+        } else {
+            self.supportsImages = false
         }
     }
     
     func deleteAllModels() async throws {
-        DispatchQueue.main.async {
-            self.models = []
-        }
+        self.models = []
         try await swiftDataService.deleteModels()
     }
 }

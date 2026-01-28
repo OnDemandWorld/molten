@@ -13,6 +13,9 @@ extension Color {
     static let secondary =  Color(.systemGray)
     
     static let labelCustom = Color("label")
+    
+    // Note: Custom colors (grayCustom, gray2Custom, etc.) are auto-generated
+    // from Assets.xcassets by Xcode in GeneratedAssetSymbols.swift
 }
 
 // MARK: - hex
