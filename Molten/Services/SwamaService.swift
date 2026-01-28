@@ -26,6 +26,8 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     
     private var baseURL: URL
     private var apiKey: String?
+    private var isConfigured: Bool = false
+    private var isUsingDefaultLocalhost: Bool = true // Track if using default vs user-configured URL
     
     init() {
         baseURL = URL(string: "http://localhost:28100")!
@@ -33,21 +35,40 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func initEndpoint(url: String? = nil, apiKey: String? = nil) {
-        let defaultUrl = "http://localhost:28100"
         let localStorageUrl = UserDefaults.standard.string(forKey: "swamaUri")
         let storedApiKey = UserDefaults.standard.string(forKey: "swamaApiKey")
         
-        if var swamaUrl = [url, localStorageUrl, defaultUrl].compactMap({$0}).filter({$0.count > 0}).first {
-            if !swamaUrl.contains("http") {
-                swamaUrl = "http://" + swamaUrl
+        // Priority: explicit url param > stored URL > default localhost
+        let configuredUrl = url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? 
+                           localStorageUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // If user explicitly configured a URL, use it
+        if let swamaUrl = configuredUrl, !swamaUrl.isEmpty {
+            var finalUrl = swamaUrl
+            if !finalUrl.contains("http") {
+                finalUrl = "http://" + finalUrl
             }
             
-            if let url = URL(string: swamaUrl) {
+            if let url = URL(string: finalUrl) {
                 baseURL = url
                 self.apiKey = apiKey ?? storedApiKey
+                isConfigured = true
+                isUsingDefaultLocalhost = false // User explicitly configured URL
                 return
             }
         }
+        
+        // No explicit config - use default localhost (common case for local Swama)
+        baseURL = URL(string: "http://localhost:28100")!
+        self.apiKey = apiKey ?? storedApiKey
+        isConfigured = true // Still configured, just using default
+        isUsingDefaultLocalhost = true
+    }
+    
+    /// Returns true if using default localhost (vs user-configured URL)
+    /// Used to determine backoff strategy
+    var usingDefaultLocalhost: Bool {
+        isUsingDefaultLocalhost
     }
     
     func getModels() async throws -> [LanguageModel] {
@@ -87,10 +108,18 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func reachable() async -> Bool {
+        // Don't poll if not configured
+        guard isConfigured else { return false }
+        
         let url = baseURL.appendingPathComponent("/v1/models")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 2.0
+        
+        // Add API key if available
+        if let apiKey = apiKey, !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         
         do {
             let (_, response) = try await URLSession.shared.data(for: request)

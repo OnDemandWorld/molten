@@ -22,7 +22,13 @@ struct Settings: View {
     @AppStorage("defaultModel") private var defaultModel: String = ""
     @AppStorage("swamaApiKey") private var swamaApiKey: String = ""
     @AppStorage("appUserInitials") private var appUserInitials: String = ""
-    @AppStorage("pingInterval") private var pingInterval: String = "5"
+    @AppStorage("pingInterval") private var pingInterval: String = {
+        #if os(macOS)
+        return "15"
+        #else
+        return "30"
+        #endif
+    }()
     @AppStorage("voiceIdentifier") private var voiceIdentifier: String = ""
     
     @StateObject private var speechSynthesiser = SpeechSynthesizer.shared
@@ -62,8 +68,11 @@ struct Settings: View {
         Task {
             SwamaService.shared.initEndpoint(url: swamaUri, apiKey: swamaApiKey)
             OllamaService.shared.initEndpoint(url: ollamaUri, bearerToken: ollamaBearerToken)
+            // Force immediate check (bypasses cache)
             swamaStatus = await SwamaService.shared.reachable()
             ollamaStatus = await OllamaService.shared.reachable()
+            // Also update AppStore's reachability cache
+            AppStore.shared.forceReachabilityCheck()
             try? await languageModelStore.loadModels()
         }
     }

@@ -195,11 +195,21 @@ Access Settings via ⌘, or the menu bar:
   - Default Model: Choose your preferred model
   - System Prompt: Set default behavior for new conversations
   - Ping Interval: How often to check provider availability
+    - macOS default: 15 seconds
+    - iOS/iPadOS default: 30 seconds (optimized for battery life)
 
 - **Provider Settings**
   - Configure Ollama server URI and Bearer Token
+    - Default: `http://localhost:11434` (auto-detected if not configured)
+    - Leave empty to disable Ollama checking
   - Configure Swama server URI and Bearer Token
+    - Default: `http://localhost:28100` (auto-detected if not configured)
+    - Leave empty to disable Swama checking
   - Connection status indicators
+  - **Smart Polling**: The app uses intelligent backoff strategies:
+    - Default localhost: Aggressive backoff (30s → 5min) when unreachable
+    - User-configured URLs: Moderate backoff (10s → 60s) when unreachable
+    - Results cached for 10 seconds to minimize network requests
 
 - **App Settings**
   - Appearance: Light/Dark/System
@@ -323,8 +333,11 @@ Molten is based on the excellent work of the [Enchanted](https://github.com/gluo
 
 - **Check Provider Status**: Ensure the provider is running and reachable
 - **Verify Settings**: Check server URIs in Settings
+  - Leave URI fields empty to disable checking for that provider
+  - Default localhost URLs are auto-detected if not configured
 - **Check Logs**: Look for connection errors in Console.app
 - **Restart Providers**: Try restarting Ollama/Swama servers
+- **Polling Behavior**: The app uses smart backoff - if a provider is unreachable, it will check less frequently to reduce error spam
 
 ### Performance Issues
 

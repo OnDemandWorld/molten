@@ -209,6 +209,24 @@ private func getProvider(for model: LanguageModelSD) -> ModelProviderProtocol? {
 }
 ```
 
+### Provider Configuration
+
+**Default Behavior**:
+- Ollama defaults to `http://localhost:11434` if no URL configured
+- Swama defaults to `http://localhost:28100` if no URL configured
+- Services track whether using default vs user-configured URLs
+- This enables smart backoff strategies in reachability polling
+
+**Configuration Priority**:
+1. Explicit URL parameter (when called from Settings)
+2. Stored UserDefaults value
+3. Default localhost (if neither above is set)
+
+**Reachability Behavior**:
+- Services return `false` immediately if URL is explicitly empty (no polling)
+- Services make HTTP requests with 2s timeout if configured
+- AppStore coordinates polling with caching and backoff
+
 ### Message Format Conversion
 
 Each provider converts messages to/from the unified `ChatMessage` format:
@@ -368,19 +386,55 @@ private let throttler = Throttler(delay: 0.1)
 // Updates UI every 100ms instead of every chunk
 ```
 
-### 2. Lazy Loading
+### 2. Smart Reachability Polling
+
+The app uses intelligent polling strategies to minimize network requests and reduce error noise:
+
+**Caching Strategy**:
+- Reachability results cached for 10 seconds (TTL)
+- Prevents redundant HTTP requests within cache window
+- Cache invalidated on manual checks or state changes
+
+**Exponential Backoff**:
+- **Default Localhost** (when no URL configured):
+  - Base interval: 30 seconds
+  - Progression: 30s → 60s → 120s → 240s → 300s (max)
+  - Rationale: Localhost services often aren't running, so aggressive backoff reduces error spam
+  
+- **User-Configured URLs**:
+  - Base interval: 10 seconds  
+  - Progression: 10s → 20s → 40s → 60s (max)
+  - Rationale: User explicitly configured URL, so check more frequently
+
+**Platform-Specific Defaults**:
+- **macOS**: 15 seconds (desktop, less battery concern)
+- **iOS/iPadOS**: 30 seconds (mobile, optimized for battery life)
+- Users can customize in Settings
+- Backoff strategies apply on top of these defaults
+
+**Timeout Protection**:
+- All reachability checks have 2-second timeouts
+- Prevents long waits when services are unreachable
+- Prevents connection errors from blocking the UI
+
+**Configuration Detection**:
+- Services track whether using default localhost vs user-configured URLs
+- Different backoff strategies applied based on configuration
+- No polling if URL fields are explicitly empty
+
+### 3. Lazy Loading
 
 - Models loaded on-demand
 - Conversations loaded as needed
 - Images loaded lazily
 
-### 3. Efficient Data Structures
+### 4. Efficient Data Structures
 
 - Arrays for ordered collections
 - SwiftData for persistence
 - In-memory caching for frequently accessed data
 
-### 4. Memory Management
+### 5. Memory Management
 
 - Weak references in closures
 - Proper task cancellation

@@ -13,6 +13,8 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     static let shared = OllamaService()
     
     private var ollamaKit: OllamaKit
+    private var isConfigured: Bool = false
+    private var isUsingDefaultLocalhost: Bool = true // Track if using default vs user-configured URL
     
     init() {
         ollamaKit = OllamaKit(baseURL: URL(string: "http://localhost:11434")!)
@@ -20,19 +22,39 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func initEndpoint(url: String? = nil, bearerToken: String? = "okki") {
-        let defaultUrl = "http://localhost:11434"
         let localStorageUrl = UserDefaults.standard.string(forKey: "ollamaUri")
         let bearerToken = UserDefaults.standard.string(forKey: "ollamaBearerToken")
-        if var ollamaUrl = [localStorageUrl, defaultUrl].compactMap({$0}).filter({$0.count > 0}).first {
-            if !ollamaUrl.contains("http") {
-                ollamaUrl = "http://" + ollamaUrl
+        
+        // Priority: explicit url param > stored URL > default localhost
+        let configuredUrl = url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? 
+                               localStorageUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // If user explicitly configured a URL, use it
+        if let ollamaUrl = configuredUrl, !ollamaUrl.isEmpty {
+            var finalUrl = ollamaUrl
+            if !finalUrl.contains("http") {
+                finalUrl = "http://" + finalUrl
             }
             
-            if let url = URL(string: ollamaUrl) {
-                ollamaKit =  OllamaKit(baseURL: url, bearerToken: bearerToken)
+            if let url = URL(string: finalUrl) {
+                ollamaKit = OllamaKit(baseURL: url, bearerToken: bearerToken)
+                isConfigured = true
+                isUsingDefaultLocalhost = false // User explicitly configured URL
                 return
             }
         }
+        
+        // No explicit config - use default localhost (common case for local Ollama)
+        // Mark as "default" so we can use different backoff strategy
+        ollamaKit = OllamaKit(baseURL: URL(string: "http://localhost:11434")!)
+        isConfigured = true // Still configured, just using default
+        isUsingDefaultLocalhost = true
+    }
+    
+    /// Returns true if using default localhost (vs user-configured URL)
+    /// Used to determine backoff strategy
+    var usingDefaultLocalhost: Bool {
+        isUsingDefaultLocalhost
     }
     
     func getModels() async throws -> [LanguageModel] {
@@ -48,7 +70,31 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func reachable() async -> Bool {
-        return await ollamaKit.reachable()
+        // Don't poll if not configured
+        guard isConfigured else { return false }
+        
+        // Add timeout to prevent long waits when Ollama isn't running
+        return await withTimeout(seconds: 2.0) { [self] in
+            await self.ollamaKit.reachable()
+        } ?? false
+    }
+    
+    /// Helper to add timeout to async Bool operations
+    private func withTimeout(seconds: TimeInterval, operation: @escaping () async -> Bool) async -> Bool? {
+        await withTaskGroup(of: Bool?.self) { group in
+            group.addTask {
+                await operation()
+            }
+            
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                return nil
+            }
+            
+            let result = await group.next()
+            group.cancelAll()
+            return result ?? nil
+        }
     }
     
     func chatStream(
