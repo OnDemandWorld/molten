@@ -47,3 +47,6 @@ ehthumbs.db
 # Dependencies
 Pods/
 Carthage/Build/
+
+# AI Assistant Context (not needed for public repo)
+QWEN.md

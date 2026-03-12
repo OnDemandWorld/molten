@@ -18,6 +18,16 @@ struct MessageListView: View {
     @Binding var editMessage: MessageSD?
     @State private var messageSelected: MessageSD?
     @StateObject private var speechSynthesizer = SpeechSynthesizer.shared
+    @State private var scrollThrottleCounter: Int = 0
+
+    // Track for auto-scroll during streaming
+    private var isStreaming: Bool {
+        conversationState == .loading && !(messages.last?.done ?? true)
+    }
+
+    private var currentContentLength: Int {
+        messages.last?.content.count ?? 0
+    }
     
     func onEditMessageTap() -> (MessageSD) -> Void {
         return { message in
@@ -97,11 +107,30 @@ struct MessageListView: View {
                 .onAppear {
                     scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                 }
-                .onChange(of: messages) { oldMessages, newMessages in
-                    scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
+                // Scroll when new message is added
+                .onChange(of: messages.last?.id) { _, newId in
+                    if newId != nil {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            scrollViewProxy.scrollTo(newId, anchor: .bottom)
+                        }
+                    }
                 }
-                .onChange(of: messages.last?.content) {
-                    scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
+                // Scroll during streaming - use a counter to trigger on content changes
+                // This is more reliable than observing content length directly
+                .onChange(of: currentContentLength) { oldValue, newValue in
+                    guard isStreaming && newValue > oldValue else { return }
+                    // Scroll every content update during streaming (throttled by SwiftUI)
+                    withAnimation(.easeOut(duration: 0.1)) {
+                        scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
+                    }
+                }
+                // Scroll when message completes streaming (done flag changes)
+                .onChange(of: messages.last?.done) { _, done in
+                    if done == true {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
+                        }
+                    }
                 }
 #if os(iOS) || os(visionOS)
                 .sheet(item: $messageSelected) { message in

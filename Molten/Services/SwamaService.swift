@@ -188,44 +188,54 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                     var buffer = Data()
                     var lineCount = 0
                     var responseCount = 0
-                    
+                    let maxBufferSize = 1024 * 1024 // 1MB safety limit
+
                     for try await byte in bytes {
                         if Task.isCancelled {
                             continuation.finish()
                             return
                         }
-                        
+
+                        // Safety check: prevent buffer from growing unbounded
+                        if buffer.count > maxBufferSize {
+                            print("SwamaService: Buffer size exceeded limit, clearing buffer to prevent memory leak")
+                            buffer.removeAll()
+                        }
+
                         buffer.append(byte)
-                        
+
                         // Process complete lines (ending with \n or \r\n)
                         while let newlineIndex = buffer.firstIndex(of: 10) { // 10 is \n
                             let lineData = buffer.prefix(upTo: newlineIndex)
+                            // Remove the processed line from buffer BEFORE processing
+                            // This prevents memory leak from unprocessed data accumulating
                             buffer.removeSubrange(..<buffer.index(after: newlineIndex))
-                            
+
                             if let line = String(data: lineData, encoding: .utf8) {
                                 let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
                                 lineCount += 1
-                                
+
                                 // Skip empty lines
                                 if trimmedLine.isEmpty {
                                     continue
                                 }
-                                
+
                                 // Process SSE format: "data: {...}" or "data: [DONE]"
                                 if trimmedLine.hasPrefix("data: ") {
                                     let jsonString = String(trimmedLine.dropFirst(6))
-                                    
+
                                     if jsonString == "[DONE]" {
                                         continuation.finish()
                                         return
                                     }
-                                    
+
                                     if let jsonData = jsonString.data(using: .utf8) {
                                         do {
                                             let response = try JSONDecoder().decode(ChatCompletionResponse.self, from: jsonData)
                                             responseCount += 1
                                             continuation.yield(response)
                                         } catch {
+                                            // Decoding failed - log but continue, data already removed from buffer
                                             print("SwamaService: Failed to decode SSE response: \(error.localizedDescription)")
                                             continue
                                         }

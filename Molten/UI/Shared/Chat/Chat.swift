@@ -27,10 +27,10 @@ struct Chat: View, Sendable {
             showMenu.toggle()
         }
         Task {
-            await Haptics.shared.mediumTap()
+            Haptics.shared.mediumTap()
         }
     }
-    
+
     @MainActor
     func updateSelectedModel() {
         if languageModelStore.selectedModel == nil {
@@ -41,7 +41,7 @@ struct Chat: View, Sendable {
             }
         }
     }
-    
+
     @MainActor
     func sendMessage(prompt: String, model: LanguageModelSD, image: Image?, trimmingMessageId: String?) {
         conversationStore.sendPrompt(
@@ -52,50 +52,50 @@ struct Chat: View, Sendable {
             trimmingMessageId: trimmingMessageId
         )
     }
-    
+
     func onConversationTap(_ conversation: ConversationSD) {
         Task {
             try await conversationStore.selectConversation(conversation)
-            await languageModelStore.setModel(model: conversation.model)
+            languageModelStore.setModel(model: conversation.model)
             Haptics.shared.mediumTap()
         }
         withAnimation {
             showMenu.toggle()
         }
     }
-    
+
     @MainActor func onStopGenerateTap() {
         conversationStore.stopGenerate()
         Haptics.shared.mediumTap()
     }
-    
+
     func onConversationDelete(_ conversation: ConversationSD) {
         Task {
-            await Haptics.shared.mediumTap()
+            Haptics.shared.mediumTap()
             try? await conversationStore.delete(conversation)
         }
     }
-    
+
     func newConversation() {
         DispatchQueue.main.async {
             withAnimation(.easeOut(duration: 0.3)) {
                 self.conversationStore.selectedConversation = nil
             }
         }
-        
+
         Task {
-            await Haptics.shared.mediumTap()
+            Haptics.shared.mediumTap()
             try? await languageModelStore.loadModels()
         }
-        
+
 #if os(iOS)
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 #endif
     }
-    
+
     func copyChat(_ json: Bool) {
         Task {
-            let messages = await ConversationStore.shared.messages
+            let messages = ConversationStore.shared.messages
             
             if messages.count == 0 {
                 return

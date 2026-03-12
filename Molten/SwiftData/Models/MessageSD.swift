@@ -1,5 +1,5 @@
 //
-//  ConversationSD.swift
+//  MessageSD.swift
 //  Molten
 //
 //  Created by Augustinas Malinauskas on 10/12/2023.
@@ -11,52 +11,95 @@ import SwiftData
 @Model
 final class MessageSD: Identifiable {
     @Attribute(.unique) var id: UUID = UUID()
-    
+
+    // Cached think parsing results to avoid repeated string scans
+    // These are computed once and cached for performance
+    private var cachedThink: String?
+    private var cachedHasThink: Bool?
+    private var cachedThinkComplete: Bool?
+    private var cachedRealContent: String?
+    private var lastContentScan: String?
+
+    // Invalidate cache when content changes
+    private func ensureCacheValid(_ content: String) {
+        if lastContentScan != content {
+            lastContentScan = content
+            cachedThink = nil
+            cachedHasThink = nil
+            cachedThinkComplete = nil
+            cachedRealContent = nil
+        }
+    }
+
+    private func parseThink(from content: String) -> (hasThink: Bool, think: String?, thinkComplete: Bool, realContent: String?) {
+        guard content.contains("<think>") else {
+            return (false, nil, false, content)
+        }
+
+        let thinkStart = "<think>"
+        let thinkEnd = "</think>"
+
+        guard let startRange = content.range(of: thinkStart) else {
+            return (false, nil, false, content)
+        }
+
+        let hasThink = true
+        let thinkComplete = content.range(of: thinkEnd) != nil
+
+        if thinkComplete {
+            // Extract think content between <think> and </think>
+            guard let endRange = content.range(of: thinkEnd) else {
+                return (hasThink, nil, false, content)
+            }
+            let thinkContent = String(content[startRange.upperBound..<endRange.lowerBound])
+            let realContent = String(content[endRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return (hasThink, thinkContent, thinkComplete, realContent.isEmpty ? nil : realContent)
+        } else {
+            // Think tag present but not complete
+            let thinkContent = String(content[startRange.upperBound...])
+            return (hasThink, thinkContent, false, nil)
+        }
+    }
+
     var think: String? {
-        if content.contains("<think>") {
-            if content.contains("</think>") {
-                let tmps = content.components(separatedBy: "</think>")
-                if tmps.count > 1 {
-                    return tmps[0].replacingOccurrences(of: "<think>", with: "")
-                }
-            }
-            return content.replacingOccurrences(of: "<think>", with: "")
+        ensureCacheValid(content)
+        if cachedThink == nil {
+            cachedThink = parseThink(from: content).think
         }
-        return nil
+        return cachedThink
     }
+
     var hasThink: Bool {
-        if content.contains("<think>") {
-            return true
+        ensureCacheValid(content)
+        if cachedHasThink == nil {
+            cachedHasThink = parseThink(from: content).hasThink
         }
-        return false
+        return cachedHasThink ?? false
     }
+
     var thinkComplete: Bool {
-        if content.contains("<think>") {
-            if content.contains("</think>") {
-                return true
-            }
+        ensureCacheValid(content)
+        if cachedThinkComplete == nil {
+            cachedThinkComplete = parseThink(from: content).thinkComplete
         }
-        return false
+        return cachedThinkComplete ?? false
     }
-    var content: String
+
     var realContent: String? {
-        if content.contains("<think>") {
-            if content.contains("</think>") {
-                let tmps = content.components(separatedBy: "</think>")
-                if tmps.count > 1 {
-                    return tmps[1]
-                }
-            }
-            return nil
+        ensureCacheValid(content)
+        if cachedRealContent == nil {
+            cachedRealContent = parseThink(from: content).realContent
         }
-        return content
+        return cachedRealContent
     }
+
+    var content: String
     var role: String
     var done: Bool = false
     var error: Bool = false
     var createdAt: Date = Date.now
     @Attribute(.externalStorage) var image: Data?
-    
+
     // Analytics fields
     var promptTokens: Int?
     var completionTokens: Int?
@@ -64,10 +107,10 @@ final class MessageSD: Identifiable {
     var promptEvalTime: TimeInterval? // Time from request start to first token
     var evalTime: TimeInterval? // Time from first token to completion
     var totalTime: TimeInterval? // Total time from request start to completion
-    
+
     @Relationship var conversation: ConversationSD?
-        
-    
+
+
     init(content: String, role: String, done: Bool = false, error: Bool = false, image: Data? = nil) {
         self.content = content
         self.role = role
@@ -75,6 +118,13 @@ final class MessageSD: Identifiable {
         self.error = error
         self.conversation = conversation
         self.image = image
+        // Initialize cache for initial content
+        self.lastContentScan = content
+        let parsed = parseThink(from: content)
+        self.cachedHasThink = parsed.hasThink
+        self.cachedThink = parsed.think
+        self.cachedThinkComplete = parsed.thinkComplete
+        self.cachedRealContent = parsed.realContent
     }
 
     @Transient var model: String {

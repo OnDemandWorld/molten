@@ -64,17 +64,17 @@ struct ChatView: View {
     
     private func onMessageSubmit() {
         Task {
-            await Haptics.shared.mediumTap()
-            
+            Haptics.shared.mediumTap()
+
             guard let selectedModel = selectedModel else { return }
-            
-            await onSendMessageTap(
+
+            onSendMessageTap(
                 message,
                 selectedModel,
                 selectedImage,
                 editMessage?.id.uuidString
             )
-            
+
             withAnimation {
                 isFocusedInput = false
                 editMessage = nil

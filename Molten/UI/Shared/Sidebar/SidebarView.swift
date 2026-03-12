@@ -21,7 +21,7 @@ struct SidebarView: View {
     private func onSettingsTap() {
         Task {
             showSettings.toggle()
-            await Haptics.shared.mediumTap()
+            Haptics.shared.mediumTap()
         }
     }
     

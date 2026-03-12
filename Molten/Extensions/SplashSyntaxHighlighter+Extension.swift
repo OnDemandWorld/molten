@@ -70,9 +70,10 @@ extension TextOutputFormat {
     }
 
     func build() -> Text {
-      // Note: Text + operator is deprecated, but it's the only way to combine
-      // Text views with different formatting. This is a known limitation.
-      // Using reduce with + operator as workaround until SwiftUI provides alternative
+      // Note: Text + operator is deprecated in iOS 26+, but it's the only way to combine
+      // Text views with different formatting. This is a known limitation of Splash.
+      // Using reduce with + operator as workaround until SwiftUI provides alternative.
+      // swiftlint:disable:next deprecated
       self.accumulatedText.reduce(Text("")) { $0 + $1 }
     }
   }

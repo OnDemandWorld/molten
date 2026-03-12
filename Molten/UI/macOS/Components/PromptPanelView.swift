@@ -44,7 +44,9 @@ struct PromptPanelView: View {
     }
     
     private func updateSelectedImage(_ image: Image) {
-        selectedImage = image
+        DispatchQueue.main.async {
+            selectedImage = image
+        }
     }
     
     var dynamicFont: Font {

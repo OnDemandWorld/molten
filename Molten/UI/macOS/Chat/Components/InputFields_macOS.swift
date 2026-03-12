@@ -150,10 +150,12 @@ struct InputFieldsView: View {
             guard let provider = providers.first else { return false }
             _ = provider.loadDataRepresentation(for: .image) { data, error in
                 if error == nil, let data {
-                    selectedImage = Image(data: data)
+                    Task { @MainActor in
+                        selectedImage = Image(data: data)
+                    }
                 }
             }
-            
+
             return true
         })
         .contentShape(Rectangle())

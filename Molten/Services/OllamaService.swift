@@ -9,6 +9,12 @@ import Foundation
 @preconcurrency import Combine
 import OllamaKit
 
+// Helper class to hold Cancellable for Combine to AsyncStream conversion
+// Defined outside to avoid creating new type on each stream call
+private final class CancellableHolder: @unchecked Sendable {
+    var cancellable: AnyCancellable?
+}
+
 final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     static let shared = OllamaService()
     
@@ -104,111 +110,104 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
         maxTokens: Int?
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
-            Task {
-                // Convert ChatMessage format to Ollama format
-                // Use the actual OllamaKit types: OKChatRequestData and OKChatRequestData.Message
-                let ollamaMessages = messages.compactMap { chatMessage -> OKChatRequestData.Message? in
-                    guard let role = chatMessage.role else { return nil }
-                    
-                    // Extract content from ChatMessage
-                    let content: String
-                    if let chatContent = chatMessage.content {
-                        switch chatContent {
-                        case .string(let text):
-                            content = text
-                        case .array(let parts):
-                            // For multimodal, extract text parts only (Ollama may not support images in streaming)
-                            content = parts.compactMap { $0.text }.joined(separator: " ")
-                        }
-                    } else {
-                        content = ""
+            // Convert ChatMessage format to Ollama format
+            // Use the actual OllamaKit types: OKChatRequestData and OKChatRequestData.Message
+            let ollamaMessages = messages.compactMap { chatMessage -> OKChatRequestData.Message? in
+                guard let role = chatMessage.role else { return nil }
+
+                // Extract content from ChatMessage
+                let content: String
+                if let chatContent = chatMessage.content {
+                    switch chatContent {
+                    case .string(let text):
+                        content = text
+                    case .array(let parts):
+                        // For multimodal, extract text parts only (Ollama may not support images in streaming)
+                        content = parts.compactMap { $0.text }.joined(separator: " ")
                     }
-                    
-                    // Map role to Ollama role enum
-                    let messageRole: OKChatRequestData.Message.Role
-                    switch role.lowercased() {
-                    case "user":
-                        messageRole = .user
-                    case "assistant":
-                        messageRole = .assistant
-                    case "system":
-                        messageRole = .system
-                    default:
-                        messageRole = .user
-                    }
-                    
-                    return OKChatRequestData.Message(role: messageRole, content: content)
+                } else {
+                    content = ""
                 }
-                
-                // Create options if needed
-                var options: OKCompletionOptions? = nil
-                if temperature != nil || maxTokens != nil {
-                    options = OKCompletionOptions(
-                        temperature: temperature.map { Float($0) },
-                        numPredict: maxTokens
-                    )
+
+                // Map role to Ollama role enum
+                let messageRole: OKChatRequestData.Message.Role
+                switch role.lowercased() {
+                case "user":
+                    messageRole = .user
+                case "assistant":
+                    messageRole = .assistant
+                case "system":
+                    messageRole = .system
+                default:
+                    messageRole = .user
                 }
-                
-                // Create request
-                var request = OKChatRequestData(model: model, messages: ollamaMessages)
-                request.options = options
-                
-                // Convert Combine Publisher to AsyncThrowingStream
-                // OllamaKit returns AnyPublisher<OKChatResponse, Error>
-                let publisher = ollamaKit.chat(data: request)
-                
-                // Use a class to hold the cancellable to avoid Sendable issues
-                final class CancellableHolder: @unchecked Sendable {
-                    var cancellable: AnyCancellable?
-                }
-                
-                let holder = CancellableHolder()
-                
-                // Convert directly to ChatCompletionResponse inside the sink
-                // to avoid Sendable issues with OKChatResponse
-                holder.cancellable = publisher.sink(
-                    receiveCompletion: { completion in
-                        switch completion {
-                        case .finished:
-                            continuation.finish()
-                        case .failure(let error):
-                            continuation.finish(throwing: error)
-                        }
-                        holder.cancellable?.cancel()
-                    },
-                    receiveValue: { response in
-                        // Convert Ollama response to ChatCompletionResponse format
-                        let chatResponse = ChatCompletionResponse(
-                            id: response.model,
-                            object: "chat.completion.chunk",
-                            created: nil,
-                            model: response.model,
-                            choices: [
-                                Choice(
-                                    index: 0,
-                                    message: nil,
-                                    delta: ChatMessage(
-                                        role: response.message?.role.rawValue ?? "assistant",
-                                        content: response.message?.content ?? "",
-                                        image_url: nil
-                                    ),
-                                    finish_reason: (response.done == true) ? "stop" : nil
-                                )
-                            ],
-                            usage: nil
-                        )
-                        
-                        continuation.yield(chatResponse)
-                        
-                        if response.done == true {
-                            continuation.finish()
-                        }
-                    }
+
+                return OKChatRequestData.Message(role: messageRole, content: content)
+            }
+
+            // Create options if needed
+            var options: OKCompletionOptions? = nil
+            if temperature != nil || maxTokens != nil {
+                options = OKCompletionOptions(
+                    temperature: temperature.map { Float($0) },
+                    numPredict: maxTokens
                 )
-                
-                continuation.onTermination = { @Sendable _ in
+            }
+
+            // Create request
+            var request = OKChatRequestData(model: model, messages: ollamaMessages)
+            request.options = options
+
+            // Convert Combine Publisher to AsyncThrowingStream
+            // OllamaKit returns AnyPublisher<OKChatResponse, Error>
+            let publisher = ollamaKit.chat(data: request)
+
+            let holder = CancellableHolder()
+
+            // Convert directly to ChatCompletionResponse inside the sink
+            // to avoid Sendable issues with OKChatResponse
+            holder.cancellable = publisher.sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        continuation.finish()
+                    case .failure(let error):
+                        continuation.finish(throwing: error)
+                    }
                     holder.cancellable?.cancel()
+                },
+                receiveValue: { response in
+                    // Convert Ollama response to ChatCompletionResponse format
+                    let chatResponse = ChatCompletionResponse(
+                        id: response.model,
+                        object: "chat.completion.chunk",
+                        created: nil,
+                        model: response.model,
+                        choices: [
+                            Choice(
+                                index: 0,
+                                message: nil,
+                                delta: ChatMessage(
+                                    role: response.message?.role.rawValue ?? "assistant",
+                                    content: response.message?.content ?? "",
+                                    image_url: nil
+                                ),
+                                finish_reason: (response.done == true) ? "stop" : nil
+                            )
+                        ],
+                        usage: nil
+                    )
+
+                    continuation.yield(chatResponse)
+
+                    if response.done == true {
+                        continuation.finish()
+                    }
                 }
+            )
+
+            continuation.onTermination = { @Sendable _ in
+                holder.cancellable?.cancel()
             }
         }
     }
