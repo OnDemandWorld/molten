@@ -186,28 +186,7 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
                     holder.cancellable?.cancel()
                 },
                 receiveValue: { response in
-                    // Convert Ollama response to ChatCompletionResponse format
-                    let chatResponse = ChatCompletionResponse(
-                        id: response.model,
-                        object: "chat.completion.chunk",
-                        created: nil,
-                        model: response.model,
-                        choices: [
-                            Choice(
-                                index: 0,
-                                message: nil,
-                                delta: ChatMessage(
-                                    role: response.message?.role.rawValue ?? "assistant",
-                                    content: response.message?.content ?? "",
-                                    image_url: nil
-                                ),
-                                finish_reason: (response.done == true) ? "stop" : nil
-                            )
-                        ],
-                        usage: nil
-                    )
-
-                    continuation.yield(chatResponse)
+                    continuation.yield(Self.mapResponse(response))
 
                     if response.done == true {
                         continuation.finish()
@@ -219,5 +198,68 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
                 holder.cancellable?.cancel()
             }
         }
+    }
+
+    /// Maps an OllamaKit chat response to the shared ChatCompletionResponse,
+    /// carrying Ollama's authoritative eval statistics from the final chunk
+    /// over as Usage (AN-1: they were previously dropped).
+    static func mapResponse(_ response: OKChatResponse) -> ChatCompletionResponse {
+        ChatCompletionResponse(
+            id: response.model,
+            object: "chat.completion.chunk",
+            created: nil,
+            model: response.model,
+            choices: [
+                Choice(
+                    index: 0,
+                    message: nil,
+                    delta: ChatMessage(
+                        role: response.message?.role.rawValue ?? "assistant",
+                        content: response.message?.content ?? "",
+                        image_url: nil
+                    ),
+                    finish_reason: (response.done == true) ? "stop" : nil
+                )
+            ],
+            usage: usageFromOllama(
+                done: response.done,
+                promptEvalCount: response.promptEvalCount,
+                promptEvalDuration: response.promptEvalDuration,
+                evalCount: response.evalCount,
+                evalDuration: response.evalDuration,
+                totalDuration: response.totalDuration
+            )
+        )
+    }
+
+    /// Builds Usage from Ollama's final-chunk counters (nanoseconds → seconds).
+    /// Non-final chunks carry no statistics and map to nil. Internal for tests.
+    static func usageFromOllama(
+        done: Bool?,
+        promptEvalCount: Int?,
+        promptEvalDuration: Int?,
+        evalCount: Int?,
+        evalDuration: Int?,
+        totalDuration: Int?
+    ) -> Usage? {
+        guard done == true else { return nil }
+
+        func seconds(_ nanos: Int?) -> Double? {
+            nanos.map { Double($0) / 1_000_000_000 }
+        }
+        let total: Int? = {
+            guard let prompt = promptEvalCount, let completion = evalCount else { return nil }
+            return prompt + completion
+        }()
+
+        return Usage(
+            prompt_tokens: promptEvalCount,
+            completion_tokens: evalCount,
+            total_tokens: total,
+            prompt_eval_duration: seconds(promptEvalDuration),
+            eval_duration: seconds(evalDuration),
+            total_duration: seconds(totalDuration),
+            response_tokens_per_second: nil
+        )
     }
 }

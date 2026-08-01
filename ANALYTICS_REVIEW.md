@@ -48,4 +48,19 @@ The plumbing is sound: timing partition is internally consistent (`promptEvalTim
 
 ## Implementation status
 
-_(appended during implementation — see commits on `audit/ios-review` following this document)_
+Implemented on `audit/ios-review` in two commits following this document:
+
+1. **`fix(F-19): send the user prompt once per turn`** — history extracted to `ConversationStore.messageHistory(from:)`; duplicate append removed; empty assistant placeholders skipped. (Prerequisite, AN-5.)
+2. **`feat(analytics): server-reported stats + computation refactor`** —
+   - `Usage` extended with `prompt_eval_duration` / `eval_duration` / `total_duration` (seconds) and Swama's `response_token/s` (AN-2).
+   - `OllamaService.mapResponse` / `usageFromOllama` carry Ollama's final-chunk counters (ns→s) into `usage` (AN-1).
+   - `ConversationStore.computeAnalytics` (pure): server counts/durations preferred; client timestamps fill gaps (Swama total-only case keeps the client prompt/eval split bounded by the server total); chars÷4 fallback otherwise.
+   - `promptCharacterCount(for:)` fixes the estimate scope: includes the same-timestamp current user turn, skips empty placeholders (AN-4). Image bytes remain uncounted (model-specific tokenization) — image prompts still undercount, now by design note.
+   - First-token stamps on first **non-empty content** chunk (AN-3).
+   - `stopGenerate` records partial analytics for stopped generations (AN-7).
+   - Footer suppresses rates for the Apple Foundation provider and marks its tokens `(est.)` (AN-6); rates hidden when unknown.
+   - AN-8's arbitrary `total/3` split removed.
+
+Verified: 28/28 tests (12 new: computation preference/fallback/partial-durations, prompt-count scope, Ollama ns→s mapping, Swama usage decoding, first-content-chunk stamping, history uniqueness) on macOS and iOS Simulator; Debug+Release builds both platforms; warning fingerprints identical to pre-change baseline (line shifts only).
+
+**Still provider-true only where servers report:** Ollama and Swama stats are now server-authoritative; Apple Foundation metrics remain estimates by nature (no usage, simulated streaming) — the footer reflects that. Live on-device confirmation recommended: an Ollama chat should now show the server's real token counts and durations in the footer (compare with `ollama` server logs), and Swama's `total_duration` should drive the total time.
