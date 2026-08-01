@@ -110,9 +110,16 @@ extension SwiftDataService {
         try modelContext.saveChanges()
     }
     
-    func deleteConversations(_ date: Date) throws {
-        let predicate = #Predicate<ConversationSD>{ $0.createdAt >=  date && $0.createdAt <= date}
+    /// Deletes conversations whose `updatedAt` falls within the calendar day
+    /// containing `date` (half-open interval: startOfDay ..< startOfNextDay).
+    /// Matches the sidebar grouping in ConversationHistoryList, which groups by
+    /// `Calendar.current.startOfDay(for: updatedAt)`.
+    func deleteConversations(_ date: Date, calendar: Calendar = .current) throws {
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let startOfNextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
+        let predicate = #Predicate<ConversationSD> { $0.updatedAt >= startOfDay && $0.updatedAt < startOfNextDay }
         try modelContext.delete(model: ConversationSD.self, where: predicate)
+        try modelContext.saveChanges()
     }
 }
 

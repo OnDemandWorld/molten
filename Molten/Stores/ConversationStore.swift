@@ -82,14 +82,22 @@ final class ConversationStore: @unchecked Sendable {
         }
     }
     
-    func deleteDailyConversations(_ date: Date) {
-        Task {
-            DispatchQueue.main.async { [self] in
-                selectedConversation = nil
-                messages = []
-            }
-            try? await swiftDataService.deleteConversations()
-            try? await loadConversations()
+    @MainActor
+    func deleteDailyConversations(_ date: Date) async {
+        // The sidebar groups conversations by Calendar.current.startOfDay(of: updatedAt),
+        // so the open conversation is part of the tapped day group exactly when its
+        // updatedAt falls on that calendar day.
+        let deletesSelectedConversation = selectedConversation.map {
+            Calendar.current.isDate($0.updatedAt, inSameDayAs: date)
+        } ?? false
+
+        try? await swiftDataService.deleteConversations(date)
+        try? await loadConversations()
+
+        // Only clear the open conversation if it was actually deleted.
+        if deletesSelectedConversation {
+            selectedConversation = nil
+            messages = []
         }
     }
     

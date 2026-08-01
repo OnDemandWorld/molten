@@ -141,7 +141,7 @@ struct Chat: View, Sendable {
                 selectedModel: languageModelStore.selectedModel,
                 onSelectModel: languageModelStore.setModel,
                 onConversationDelete: onConversationDelete,
-                onDeleteDailyConversations: conversationStore.deleteDailyConversations,
+                onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } },
                 userInitials: userInitials,
                 copyChat: copyChat
             )
@@ -152,7 +152,7 @@ struct Chat: View, Sendable {
                     conversations: conversationStore.conversations,
                     onConversationTap: onConversationTap,
                     onConversationDelete: onConversationDelete,
-                    onDeleteDailyConversations: conversationStore.deleteDailyConversations
+                    onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } }
                 )
             }) {
                 ChatView(
