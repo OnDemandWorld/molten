@@ -51,7 +51,7 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
         maxTokens: Int?
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 #if canImport(FoundationModels)
                 do {
                     let session = LanguageModelSession()
@@ -152,6 +152,15 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
                 #else
                 continuation.finish(throwing: NSError(domain: "AppleFoundationService", code: -1, userInfo: [NSLocalizedDescriptionKey: "FoundationModels framework not available"]))
                 #endif
+            }
+
+            // Cancel the producer task when the consumer stops consuming —
+            // e.g. the user tapped Stop. Mirrors the lifecycle handling in
+            // OllamaService.chatStream. The in-loop Task.isCancelled check
+            // stops chunk emission; structured cancellation propagates into
+            // the awaited session.respond(to:).
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
             }
         }
     }

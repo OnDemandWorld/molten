@@ -140,7 +140,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
         maxTokens: Int? = nil
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 let url = baseURL.appendingPathComponent("/v1/chat/completions")
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
@@ -252,6 +252,13 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                     print("SwamaService: Stream error: \(error.localizedDescription)")
                     continuation.finish(throwing: error)
                 }
+            }
+
+            // Cancel the producer task (and its URLSession request) when the
+            // consumer stops consuming — e.g. the user tapped Stop. Mirrors the
+            // lifecycle handling in OllamaService.chatStream.
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
             }
         }
     }
