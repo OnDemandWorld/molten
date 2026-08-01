@@ -75,9 +75,11 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     }
 
     // MARK: - Request timeouts (F-42)
-    // URLRequest.timeoutInterval bounds the wait for data. Streaming reads
-    // keep making progress while tokens arrive, so streamStartTimeout only
-    // gates the initial response, not the generation itself.
+    // URLRequest.timeoutInterval bounds the wait for data; its practical
+    // effect on long-running or stalled streams depends on the loading
+    // system and remains to be verified on device. No
+    // timeoutIntervalForResource override is set, so legitimate long
+    // generations are not capped by a total lifetime limit.
     static let modelsTimeout: TimeInterval = 15
     static let streamStartTimeout: TimeInterval = 120
     static let completionTimeout: TimeInterval = 300
