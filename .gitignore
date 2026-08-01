@@ -53,5 +53,12 @@ ehthumbs.db
 Pods/
 Carthage/Build/
 
-# AI Assistant Context (not needed for public repo)
+# Internal audit / process / AI-assistant documents (not for the public repo)
 QWEN.md
+CLAUDE.md
+IOS_TECHNICAL_AUDIT.md
+IOS_REMEDIATION_*.md
+CONCURRENCY_WARNING_AUDIT.md
+ANALYTICS_REVIEW.md
+REFACTOR_OPENAI_API_PLAN.md
+IMPLEMENTATION_SUMMARY.md
