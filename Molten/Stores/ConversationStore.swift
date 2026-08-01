@@ -110,6 +110,29 @@ final class ConversationStore: @unchecked Sendable {
     }
     
     
+    /// Builds the OpenAI-compatible message history from persisted messages.
+    /// Empty assistant placeholders (stopped or crashed generations) are
+    /// skipped so they aren't sent as blank turns. Internal for unit tests.
+    static func messageHistory(from messages: [MessageSD]) -> [ChatMessage] {
+        messages
+            .filter { !($0.role == "assistant" && $0.content.isEmpty) }
+            .map { message in
+                // Handle image if present
+                var imageURL: ImageURL? = nil
+                if let imageData = message.image {
+                    let base64Image = imageData.base64EncodedString()
+                    let dataURL = "data:image/jpeg;base64,\(base64Image)"
+                    imageURL = ImageURL(url: dataURL)
+                }
+
+                return ChatMessage(
+                    role: message.role,
+                    content: message.content,
+                    image_url: imageURL
+                )
+            }
+    }
+
     func create(_ conversation: ConversationSD) async throws {
         try await swiftDataService.createConversation(conversation)
     }
@@ -214,40 +237,14 @@ final class ConversationStore: @unchecked Sendable {
         let userMessage = MessageSD(content: userPrompt, role: "user", image: image?.render()?.compressImageData())
         userMessage.conversation = conversation
 
-        /// prepare message history for Swama (OpenAI-compatible)
-        var messageHistory: [ChatMessage] = conversation.messages
-            .sorted{$0.createdAt < $1.createdAt}
-            .map { message in
-                // Handle image if present
-                var imageURL: ImageURL? = nil
-                if let imageData = message.image {
-                    let base64Image = imageData.base64EncodedString()
-                    let dataURL = "data:image/jpeg;base64,\(base64Image)"
-                    imageURL = ImageURL(url: dataURL)
-                }
-
-                return ChatMessage(
-                    role: message.role,
-                    content: message.content,
-                    image_url: imageURL
-                )
-            }
-
-        // Add the new user message to history
-        var imageURL: ImageURL? = nil
-        if let image = image?.render() {
-            let base64Image = image.convertImageToBase64String()
-            let dataURL = "data:image/jpeg;base64,\(base64Image)"
-            imageURL = ImageURL(url: dataURL)
-        }
-
-        let newUserMessage = ChatMessage(
-            role: "user",
-            content: userPrompt,
-            image_url: imageURL
+        /// prepare message history for the provider (OpenAI-compatible).
+        /// The freshly attached user message is already part of
+        /// conversation.messages, so building history from the relationship
+        /// yields exactly one copy of it (F-19: it used to be appended a
+        /// second time, sending the prompt twice per turn).
+        let messageHistory = Self.messageHistory(
+            from: conversation.messages.sorted { $0.createdAt < $1.createdAt }
         )
-
-        messageHistory.append(newUserMessage)
 
         let assistantMessage = MessageSD(content: "", role: "assistant")
         assistantMessage.conversation = conversation
