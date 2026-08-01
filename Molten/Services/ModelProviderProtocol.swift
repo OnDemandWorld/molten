@@ -202,16 +202,16 @@ protocol ModelProviderProtocol: Sendable {
 extension ModelProvider {
     var displayPrefix: String {
         switch self {
-        case .swama: return "S:"
-        case .ollama: return "O:"
+        case .swama: return "2:"
+        case .ollama: return "1:"
         case .appleFoundation: return "A:"
         }
     }
-    
+
     var displayName: String {
         switch self {
-        case .swama: return "Swama"
-        case .ollama: return "Ollama"
+        case .swama: return "OpenAI API"
+        case .ollama: return "Ollama API"
         case .appleFoundation: return "Apple Foundation"
         }
     }

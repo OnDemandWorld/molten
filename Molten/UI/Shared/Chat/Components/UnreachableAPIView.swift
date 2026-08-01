@@ -14,7 +14,7 @@ struct UnreachableAPIView: View {
     var body: some View {
         HStack {
             VStack {
-                Text("No model providers available. Go to Settings and configure Ollama, Swama, or check Apple Foundation Models.")
+                Text("No model providers available. Go to Settings and configure Ollama API, OpenAI API, or check Apple Foundation Models.")
                     .lineLimit(nil)
                     .minimumScaleFactor(0.5)
                     .fontWeight(.medium)
