@@ -96,6 +96,7 @@
 		FFD5FAD52B8130CE0055AB51 /* OllamaKit in Frameworks */ = {isa = PBXBuildFile; productRef = FFD5FAD42B8130CE0055AB51 /* OllamaKit */; };
 		FFE21C782B82353A00A69B9C /* SleepTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE21C772B82353A00A69B9C /* SleepTest.swift */; };
 		FFE2C8232B9A657A00BD82F3 /* Accessibility.plist in Resources */ = {isa = PBXBuildFile; fileRef = FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */; };
+		AD0F10000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		FFEB9CA82BA04304004B1F3D /* NotificationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */; };
 		FFEC32912B24779A003E5C04 /* MoltenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEC32902B24779A003E5C04 /* MoltenApp.swift */; };
 		FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FFEC32962B24779B003E5C04 /* Assets.xcassets */; };
@@ -193,6 +194,7 @@
 		FFD57E312BF291B2003FEFF1 /* CodeBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBlockView.swift; sourceTree = "<group>"; };
 		FFE21C772B82353A00A69B9C /* SleepTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTest.swift; sourceTree = "<group>"; };
 		FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Accessibility.plist; sourceTree = "<group>"; };
+		AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationMessage.swift; sourceTree = "<group>"; };
 		FFEC328D2B24779A003E5C04 /* Molten.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Molten.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFEC32902B24779A003E5C04 /* MoltenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoltenApp.swift; sourceTree = "<group>"; };
@@ -465,6 +467,7 @@
 				FF9C92072BF0B464004C8275 /* MoltenDebug.entitlements */,
 				FFEC32982B24779B003E5C04 /* Molten.entitlements */,
 				FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */,
+				AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */,
 				FFBBF4822B348345008D611C /* Info.plist */,
 				FFEC32962B24779B003E5C04 /* Assets.xcassets */,
 				FFEC32A12B24783B003E5C04 /* Application */,
@@ -658,6 +661,7 @@
 			files = (
 				FFEC329B2B24779B003E5C04 /* Preview Assets.xcassets in Resources */,
 				FFE2C8232B9A657A00BD82F3 /* Accessibility.plist in Resources */,
+				AD0F10000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -915,6 +919,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Molten;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Audio is recorded to transcribe text. Recording is discarded after transcription.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Molten connects to your local AI server, such as Ollama or Swama, on your network.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "You can speak with Molten with your voice.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -980,6 +985,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Molten;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Audio is recorded to transcribe text. Recording is discarded after transcription.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Molten connects to your local AI server, such as Ollama or Swama, on your network.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "You can speak with Molten with your voice.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
