@@ -73,17 +73,34 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     var usingDefaultLocalhost: Bool {
         isUsingDefaultLocalhost
     }
-    
-    func getModels() async throws -> [LanguageModel] {
-        let url = baseURL.appendingPathComponent("/v1/models")
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+
+    // MARK: - Request timeouts (F-42)
+    // URLRequest.timeoutInterval bounds the wait for data. Streaming reads
+    // keep making progress while tokens arrive, so streamStartTimeout only
+    // gates the initial response, not the generation itself.
+    static let modelsTimeout: TimeInterval = 15
+    static let streamStartTimeout: TimeInterval = 120
+    static let completionTimeout: TimeInterval = 300
+
+    /// Builds an authenticated request against the configured base URL.
+    /// Internal so unit tests can verify method/timeout/header wiring.
+    func makeRequest(path: String, method: String = "GET", timeout: TimeInterval, accept: String? = nil) -> URLRequest {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = method
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        if let apiKey = apiKey {
+        if let accept {
+            request.setValue(accept, forHTTPHeaderField: "Accept")
+        }
+        if let apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
-        
+        return request
+    }
+
+    func getModels() async throws -> [LanguageModel] {
+        let request = makeRequest(path: "/v1/models", timeout: Self.modelsTimeout)
+
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
@@ -144,16 +161,13 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
             let task = Task {
-                let url = baseURL.appendingPathComponent("/v1/chat/completions")
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                
-                if let apiKey = apiKey {
-                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-                }
-                
+                var request = makeRequest(
+                    path: "/v1/chat/completions",
+                    method: "POST",
+                    timeout: Self.streamStartTimeout,
+                    accept: "text/event-stream"
+                )
+
                 let requestBody = ChatCompletionRequest(
                     model: model,
                     messages: messages,
@@ -264,15 +278,12 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
         temperature: Double? = nil,
         maxTokens: Int? = nil
     ) async throws -> ChatCompletionResponse {
-        let url = baseURL.appendingPathComponent("/v1/chat/completions")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        if let apiKey = apiKey {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-        
+        var request = makeRequest(
+            path: "/v1/chat/completions",
+            method: "POST",
+            timeout: Self.completionTimeout
+        )
+
         let requestBody = ChatCompletionRequest(
             model: model,
             messages: messages,
