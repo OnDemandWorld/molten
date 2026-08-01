@@ -99,6 +99,7 @@
 		AD0F10000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */; };
 		AD0F200000000000000000A4 /* DayDeletionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F200000000000000000A3 /* DayDeletionTests.swift */; };
 		AD0F300000000000000000C2 /* ConversationStoreErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */; };
+		AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C3 /* ApplePromptTests.swift */; };
 		FFEB9CA82BA04304004B1F3D /* NotificationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */; };
 		FFEC32912B24779A003E5C04 /* MoltenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEC32902B24779A003E5C04 /* MoltenApp.swift */; };
 		FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FFEC32962B24779B003E5C04 /* Assets.xcassets */; };
@@ -209,6 +210,7 @@
 		AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AD0F200000000000000000A3 /* DayDeletionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDeletionTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStoreErrorTests.swift; sourceTree = "<group>"; };
+		AD0F300000000000000000C3 /* ApplePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePromptTests.swift; sourceTree = "<group>"; };
 		AD0F200000000000000000A6 /* MoltenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoltenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationMessage.swift; sourceTree = "<group>"; };
 		FFEC328D2B24779A003E5C04 /* Molten.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Molten.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -608,6 +610,7 @@
 			children = (
 				AD0F200000000000000000A3 /* DayDeletionTests.swift */,
 				AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */,
+				AD0F300000000000000000C3 /* ApplePromptTests.swift */,
 			);
 			path = MoltenTests;
 			sourceTree = "<group>";
@@ -833,6 +836,7 @@
 			files = (
 				AD0F200000000000000000A4 /* DayDeletionTests.swift in Sources */,
 				AD0F300000000000000000C2 /* ConversationStoreErrorTests.swift in Sources */,
+				AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
