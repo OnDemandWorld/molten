@@ -122,4 +122,68 @@ final class DayDeletionTests: XCTestCase {
                      "Selection inside the deleted day must be cleared")
         XCTAssertTrue(store.messages.isEmpty)
     }
+
+    // MARK: - DST transition days
+
+    // Calendar arithmetic (date(byAdding: .day, value: 1)) must track
+    // wall-clock days, so 23-hour and 25-hour transition days are deleted
+    // as single calendar days.
+
+    func testDeleteConversationsOnSpringForwardDay() async throws {
+        let service = SwiftDataService(inMemory: true)
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+
+        // 2026-03-08: US spring forward — a 23-hour wall-clock day.
+        let dstDay = calendar.date(from: DateComponents(year: 2026, month: 3, day: 8))!
+        let dayBefore = calendar.date(byAdding: .day, value: -1, to: dstDay)!
+        let nextMidnight = calendar.date(byAdding: .day, value: 1, to: dstDay)!
+
+        // Sanity: the transition day really is 23 hours long.
+        XCTAssertEqual(nextMidnight.timeIntervalSince(dstDay), 23 * 3600)
+
+        func at(_ date: Date, hour: Int, minute: Int) -> Date {
+            calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date)!
+        }
+
+        try await service.createConversation(ConversationSD(name: "before-day", updatedAt: at(dayBefore, hour: 23, minute: 30)))
+        try await service.createConversation(ConversationSD(name: "dst-midnight", updatedAt: dstDay))
+        try await service.createConversation(ConversationSD(name: "dst-noon", updatedAt: at(dstDay, hour: 12, minute: 0)))
+        try await service.createConversation(ConversationSD(name: "dst-late-night", updatedAt: at(dstDay, hour: 23, minute: 30)))
+        try await service.createConversation(ConversationSD(name: "next-day", updatedAt: nextMidnight))
+
+        try await service.deleteConversations(dstDay, calendar: calendar)
+
+        let survivors = try await service.fetchConversations().map(\.name).sorted()
+        XCTAssertEqual(survivors, ["before-day", "next-day"],
+                       "All of the 23-hour transition day must be deleted, and only that day")
+    }
+
+    func testDeleteConversationsOnFallBackDay() async throws {
+        let service = SwiftDataService(inMemory: true)
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+
+        // 2026-11-01: US fall back — a 25-hour wall-clock day.
+        let dstDay = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+        let nextMidnight = calendar.date(byAdding: .day, value: 1, to: dstDay)!
+
+        // Sanity: the transition day really is 25 hours long.
+        XCTAssertEqual(nextMidnight.timeIntervalSince(dstDay), 25 * 3600)
+
+        // 24.5h after midnight is still 23:30 wall-clock on Nov 1 — inside the day.
+        let lateInLongDay = dstDay.addingTimeInterval(24.5 * 3600)
+        XCTAssertLessThan(lateInLongDay, nextMidnight)
+
+        try await service.createConversation(ConversationSD(name: "long-day-late", updatedAt: lateInLongDay))
+        try await service.createConversation(ConversationSD(name: "next-day", updatedAt: nextMidnight))
+
+        try await service.deleteConversations(dstDay, calendar: calendar)
+
+        let survivors = try await service.fetchConversations().map(\.name)
+        XCTAssertEqual(survivors, ["next-day"],
+                       "A conversation at 23:30 on the 25-hour day belongs to that day and must be deleted")
+    }
 }

@@ -91,13 +91,21 @@ final class ConversationStore: @unchecked Sendable {
             Calendar.current.isDate($0.updatedAt, inSameDayAs: date)
         } ?? false
 
-        try? await swiftDataService.deleteConversations(date)
-        try? await loadConversations()
+        do {
+            try await swiftDataService.deleteConversations(date)
+            try? await loadConversations()
 
-        // Only clear the open conversation if it was actually deleted.
-        if deletesSelectedConversation {
-            selectedConversation = nil
-            messages = []
+            // Only clear the open conversation if it was actually deleted.
+            if deletesSelectedConversation {
+                selectedConversation = nil
+                messages = []
+            }
+        } catch {
+            // Deletion failed: keep the selection and surface the error so the
+            // UI doesn't silently pretend the day was removed.
+            withAnimation {
+                conversationState = .error(message: "Failed to delete conversations: \(error.localizedDescription)")
+            }
         }
     }
     
