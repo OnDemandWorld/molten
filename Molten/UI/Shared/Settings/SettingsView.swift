@@ -104,9 +104,9 @@ struct SettingsView: View {
 #endif
                 }
                 
-                // Ollama Section
-                Section(header: Text("Ollama").font(.headline)) {
-                    TextField("Ollama server URI", text: $ollamaUri, onCommit: checkServer)
+                // 1. Ollama API Section
+                Section(header: Text("1. Ollama API").font(.headline)) {
+                    TextField("1. Ollama API URL", text: $ollamaUri, onCommit: checkServer)
                         .textContentType(.URL)
                         .disableAutocorrection(true)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -132,9 +132,9 @@ struct SettingsView: View {
 #endif
                 }
                 
-                // Swama Section
-                Section(header: Text("Swama").font(.headline)) {
-                    TextField("Swama server URI", text: $swamaUri, onCommit: checkServer)
+                // 2. OpenAI API Section (OpenAI-compatible; backed by Swama)
+                Section(header: Text("2. OpenAI API").font(.headline)) {
+                    TextField("2. OpenAI API URL", text: $swamaUri, onCommit: checkServer)
                         .textContentType(.URL)
                         .disableAutocorrection(true)
                         .textFieldStyle(RoundedBorderTextFieldStyle())

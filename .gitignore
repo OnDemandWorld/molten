@@ -4,13 +4,19 @@ build/
 *.mode1v3
 *.mode2v3
 *.perspectivev3
-*.xcworkspace/
-xcuserdata/
 *.xcodeproj/xcuserdata/
+xcuserdata/
 DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# Keep the shared SPM lockfile tracked for reproducible builds (F-18)
+*.xcworkspace/
+!Molten.xcodeproj/project.xcworkspace/
+!Molten.xcodeproj/project.xcworkspace/xcshareddata/
+!Molten.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!Molten.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 *.hmap
 *.o
 *.a
@@ -22,7 +28,6 @@ xcparse-output/
 .build/
 *.swiftpm/
 .swiftpm/
-Package.resolved
 
 # macOS
 .DS_Store
@@ -48,5 +53,12 @@ ehthumbs.db
 Pods/
 Carthage/Build/
 
-# AI Assistant Context (not needed for public repo)
+# Internal audit / process / AI-assistant documents (not for the public repo)
 QWEN.md
+CLAUDE.md
+IOS_TECHNICAL_AUDIT.md
+IOS_REMEDIATION_*.md
+CONCURRENCY_WARNING_AUDIT.md
+ANALYTICS_REVIEW.md
+REFACTOR_OPENAI_API_PLAN.md
+IMPLEMENTATION_SUMMARY.md

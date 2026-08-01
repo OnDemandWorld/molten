@@ -7,6 +7,9 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "startup")
 
 struct ApplicationEntry: View {
     @AppStorage("colorScheme") private var colorScheme: AppColorScheme = .system
@@ -29,13 +32,13 @@ struct ApplicationEntry: View {
             do {
                 try await languageModelStore.loadModels()
             } catch {
-                print("Failed to load models: \(error).")
+                logger.error("Failed to load models: \(error.localizedDescription, privacy: .private)")
             }
-            
+
             do {
                 try await conversationStore.loadConversations()
             } catch {
-                print("Failed to load conversations: \(error).")
+                logger.error("Failed to load conversations: \(error.localizedDescription, privacy: .private)")
             }
             
             completionsStore.load()

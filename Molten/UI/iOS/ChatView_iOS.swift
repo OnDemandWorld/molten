@@ -130,8 +130,6 @@ struct ChatView: View {
                 Task {
                     if let loaded = try? await pickerSelectorActive?.loadTransferable(type: Image.self) {
                         selectedImage = loaded
-                    } else {
-                        print("Failed")
                     }
                 }
             }

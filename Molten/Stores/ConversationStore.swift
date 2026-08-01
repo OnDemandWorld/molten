@@ -40,8 +40,11 @@ final class ConversationStore: @unchecked Sendable {
 
     // Analytics tracking
     private var requestStartTime: Date?
-    private var firstTokenTime: Date?
+    /// When the first non-empty content chunk arrived. Internal for unit tests (AN-3).
+    var firstTokenTime: Date?
     private var hasReceivedFirstToken: Bool = false
+    /// Latest server-reported usage; providers send it with the final chunk.
+    private var lastUsage: Usage?
 
     @MainActor var conversationState: ConversationState = .completed
     @MainActor var conversations: [ConversationSD] = []
@@ -59,6 +62,7 @@ final class ConversationStore: @unchecked Sendable {
         requestStartTime = nil
         firstTokenTime = nil
         hasReceivedFirstToken = false
+        lastUsage = nil
         generationTask?.cancel()
         generationTask = nil
     }
@@ -82,18 +86,57 @@ final class ConversationStore: @unchecked Sendable {
         }
     }
     
-    func deleteDailyConversations(_ date: Date) {
-        Task {
-            DispatchQueue.main.async { [self] in
+    @MainActor
+    func deleteDailyConversations(_ date: Date) async {
+        // The sidebar groups conversations by Calendar.current.startOfDay(of: updatedAt),
+        // so the open conversation is part of the tapped day group exactly when its
+        // updatedAt falls on that calendar day.
+        let deletesSelectedConversation = selectedConversation.map {
+            Calendar.current.isDate($0.updatedAt, inSameDayAs: date)
+        } ?? false
+
+        do {
+            try await swiftDataService.deleteConversations(date)
+            try? await loadConversations()
+
+            // Only clear the open conversation if it was actually deleted.
+            if deletesSelectedConversation {
                 selectedConversation = nil
                 messages = []
             }
-            try? await swiftDataService.deleteConversations()
-            try? await loadConversations()
+        } catch {
+            // Deletion failed: keep the selection and surface the error so the
+            // UI doesn't silently pretend the day was removed.
+            withAnimation {
+                conversationState = .error(message: "Failed to delete conversations: \(error.localizedDescription)")
+            }
         }
     }
     
     
+    /// Builds the OpenAI-compatible message history from persisted messages.
+    /// Empty assistant placeholders (stopped or crashed generations) are
+    /// skipped so they aren't sent as blank turns. Internal for unit tests.
+    static func messageHistory(from messages: [MessageSD]) -> [ChatMessage] {
+        messages
+            .filter { !($0.role == "assistant" && $0.content.isEmpty) }
+            .map { message in
+                // Handle image if present
+                var imageURL: ImageURL? = nil
+                if let imageData = message.image {
+                    let base64Image = imageData.base64EncodedString()
+                    let dataURL = "data:image/jpeg;base64,\(base64Image)"
+                    imageURL = ImageURL(url: dataURL)
+                }
+
+                return ChatMessage(
+                    role: message.role,
+                    content: message.content,
+                    image_url: imageURL
+                )
+            }
+    }
+
     func create(_ conversation: ConversationSD) async throws {
         try await swiftDataService.createConversation(conversation)
     }
@@ -132,6 +175,25 @@ final class ConversationStore: @unchecked Sendable {
             let bufferedContent = currentMessageBuffer.joined()
             lastMessage.content += bufferedContent
             currentMessageBuffer = []
+        }
+
+        // Record partial analytics for the stopped generation (AN-7) so the
+        // footer shows what was produced instead of rendering empty.
+        if let lastMessage = messages.last, lastMessage.role == "assistant", !lastMessage.done {
+            if let start = requestStartTime {
+                lastMessage.totalTime = Date().timeIntervalSince(start)
+            }
+            if let usage = lastUsage {
+                if let prompt = usage.prompt_tokens { lastMessage.promptTokens = prompt }
+                if let completion = usage.completion_tokens { lastMessage.completionTokens = completion }
+                if let total = usage.total_tokens { lastMessage.totalTokens = total }
+            }
+            if lastMessage.completionTokens == nil, let content = lastMessage.realContent, !content.isEmpty {
+                lastMessage.completionTokens = max(1, content.count / 4)
+            }
+            Task(priority: .background) {
+                try? await swiftDataService.updateMessage(lastMessage)
+            }
         }
 
         // Finalize the message and reset state
@@ -198,40 +260,14 @@ final class ConversationStore: @unchecked Sendable {
         let userMessage = MessageSD(content: userPrompt, role: "user", image: image?.render()?.compressImageData())
         userMessage.conversation = conversation
 
-        /// prepare message history for Swama (OpenAI-compatible)
-        var messageHistory: [ChatMessage] = conversation.messages
-            .sorted{$0.createdAt < $1.createdAt}
-            .map { message in
-                // Handle image if present
-                var imageURL: ImageURL? = nil
-                if let imageData = message.image {
-                    let base64Image = imageData.base64EncodedString()
-                    let dataURL = "data:image/jpeg;base64,\(base64Image)"
-                    imageURL = ImageURL(url: dataURL)
-                }
-
-                return ChatMessage(
-                    role: message.role,
-                    content: message.content,
-                    image_url: imageURL
-                )
-            }
-
-        // Add the new user message to history
-        var imageURL: ImageURL? = nil
-        if let image = image?.render() {
-            let base64Image = image.convertImageToBase64String()
-            let dataURL = "data:image/jpeg;base64,\(base64Image)"
-            imageURL = ImageURL(url: dataURL)
-        }
-
-        let newUserMessage = ChatMessage(
-            role: "user",
-            content: userPrompt,
-            image_url: imageURL
+        /// prepare message history for the provider (OpenAI-compatible).
+        /// The freshly attached user message is already part of
+        /// conversation.messages, so building history from the relationship
+        /// yields exactly one copy of it (F-19: it used to be appended a
+        /// second time, sending the prompt twice per turn).
+        let messageHistory = Self.messageHistory(
+            from: conversation.messages.sorted { $0.createdAt < $1.createdAt }
         )
-
-        messageHistory.append(newUserMessage)
 
         let assistantMessage = MessageSD(content: "", role: "assistant")
         assistantMessage.conversation = conversation
@@ -239,10 +275,21 @@ final class ConversationStore: @unchecked Sendable {
         conversationState = .loading
 
         Task {
-            try await swiftDataService.updateConversation(conversation)
-            try await swiftDataService.createMessage(userMessage)
-            try await swiftDataService.createMessage(assistantMessage)
-            try await reloadConversation(conversation)
+            do {
+                try await swiftDataService.updateConversation(conversation)
+                try await swiftDataService.createMessage(userMessage)
+                try await swiftDataService.createMessage(assistantMessage)
+                try await reloadConversation(conversation)
+            } catch {
+                // Setup failed before streaming started. Surface the error so the
+                // UI leaves the loading state and the user can retry (F-20).
+                // handleError is not used here: it flags messages.last, which may
+                // not exist yet or may belong to a previous conversation.
+                withAnimation {
+                    conversationState = .error(message: "Failed to prepare conversation: \(error.localizedDescription)")
+                }
+                return
+            }
             try? await loadConversations()
 
             // Get the appropriate provider based on model
@@ -306,9 +353,98 @@ final class ConversationStore: @unchecked Sendable {
         }
     }
 
+    // MARK: - Analytics (see ANALYTICS_REVIEW.md)
+
+    /// Per-message analytics computed when a stream completes.
+    struct Analytics {
+        var totalTime: TimeInterval?
+        var promptEvalTime: TimeInterval?
+        var evalTime: TimeInterval?
+        var promptTokens: Int?
+        var completionTokens: Int?
+        var totalTokens: Int?
+    }
+
+    /// Computes one message's analytics, preferring server-reported counts
+    /// and durations (usage) over client measurement and character-based
+    /// estimates. Pure; internal for unit tests.
+    static func computeAnalytics(
+        usage: Usage?,
+        promptCharacterCount: Int,
+        completionCharacterCount: Int,
+        requestStart: Date,
+        firstTokenTime: Date?,
+        completionTime: Date
+    ) -> Analytics {
+        var analytics = Analytics()
+
+        // Tokens: server counts win; otherwise estimate ~4 chars per token
+        // (a crude tokenizer proxy — the UI presents these as estimates).
+        let promptTokens = usage?.prompt_tokens ?? max(1, promptCharacterCount / 4)
+        let completionTokens = usage?.completion_tokens ?? max(1, completionCharacterCount / 4)
+        analytics.promptTokens = promptTokens
+        analytics.completionTokens = completionTokens
+        analytics.totalTokens = usage?.total_tokens ?? (promptTokens + completionTokens)
+
+        // Timing: server-reported durations win where present; client
+        // timestamps fill the gaps (e.g. Swama reports only a total).
+        let hasServerDurations = (usage?.prompt_eval_duration != nil)
+            || (usage?.eval_duration != nil)
+            || (usage?.total_duration != nil)
+        if let usage, hasServerDurations {
+            let total = usage.total_duration ?? completionTime.timeIntervalSince(requestStart)
+            if let promptEval = usage.prompt_eval_duration {
+                analytics.promptEvalTime = promptEval
+                analytics.evalTime = usage.eval_duration ?? max(0, total - promptEval)
+            } else if let evalDuration = usage.eval_duration {
+                analytics.evalTime = evalDuration
+                analytics.promptEvalTime = max(0, total - evalDuration)
+            } else if let firstToken = firstTokenTime {
+                // Total only: keep the client prompt/eval split, bounded by
+                // the server total.
+                let promptEval = firstToken.timeIntervalSince(requestStart)
+                analytics.promptEvalTime = promptEval
+                analytics.evalTime = max(0, total - promptEval)
+            } else {
+                analytics.promptEvalTime = 0
+                analytics.evalTime = total
+            }
+            analytics.totalTime = total
+        } else {
+            let totalTime = completionTime.timeIntervalSince(requestStart)
+            analytics.totalTime = totalTime
+            if let firstToken = firstTokenTime {
+                analytics.promptEvalTime = firstToken.timeIntervalSince(requestStart)
+                analytics.evalTime = completionTime.timeIntervalSince(firstToken)
+            } else {
+                analytics.promptEvalTime = 0
+                analytics.evalTime = totalTime
+            }
+        }
+        return analytics
+    }
+
+    /// Characters sent as the prompt for `message`: every earlier turn in the
+    /// conversation plus the current user turn (which may share its createdAt
+    /// with the assistant placeholder — matched with <= and identity, not
+    /// strict <). Image bytes are not counted: vision tokenization is
+    /// model-specific, so image prompts undercount (AN-4). Internal for tests.
+    static func promptCharacterCount(for message: MessageSD) -> Int {
+        guard let conversation = message.conversation else { return 0 }
+        return conversation.messages
+            .filter { candidate in
+                candidate.id != message.id
+                    && candidate.createdAt <= message.createdAt
+                    && !(candidate.role == "assistant" && candidate.content.isEmpty)
+            }
+            .reduce(0) { total, candidate in
+                total + (candidate.realContent?.count ?? candidate.content.count)
+            }
+    }
+
     /// Handle successful stream completion - calculate analytics and finalize
     @MainActor
-    private func handleComplete(requestStart: Date) {
+    func handleComplete(requestStart: Date) {
         guard let lastMessage = messages.last else {
             finalizeMessage()
             return
@@ -321,46 +457,20 @@ final class ConversationStore: @unchecked Sendable {
             currentMessageBuffer = []
         }
 
-        // Calculate analytics
-        let completionTime = Date()
-        let totalTime = completionTime.timeIntervalSince(requestStart)
-        lastMessage.totalTime = totalTime
-
-        if let firstToken = firstTokenTime {
-            let promptEvalTime = firstToken.timeIntervalSince(requestStart)
-            lastMessage.promptEvalTime = promptEvalTime
-            let evalTime = completionTime.timeIntervalSince(firstToken)
-            lastMessage.evalTime = evalTime
-        } else {
-            lastMessage.evalTime = totalTime
-            lastMessage.promptEvalTime = 0
-        }
-
-        // Estimate token counts
-        if lastMessage.completionTokens == nil, let content = lastMessage.realContent {
-            lastMessage.completionTokens = max(1, content.count / 4)
-        }
-
-        if lastMessage.promptTokens == nil {
-            let conversation = lastMessage.conversation
-            let allMessages = conversation?.messages.sorted(by: { $0.createdAt < $1.createdAt }) ?? []
-            let previousMessages = allMessages.filter { $0.createdAt < lastMessage.createdAt }
-            let totalPromptChars = previousMessages.reduce(0) { total, msg in
-                total + (msg.realContent?.count ?? msg.content.count)
-            }
-            lastMessage.promptTokens = max(1, totalPromptChars / 4)
-        }
-
-        if let prompt = lastMessage.promptTokens, let completion = lastMessage.completionTokens {
-            lastMessage.totalTokens = prompt + completion
-        } else if let total = lastMessage.totalTokens {
-            if lastMessage.promptTokens == nil {
-                lastMessage.promptTokens = max(1, total / 3)
-            }
-            if lastMessage.completionTokens == nil {
-                lastMessage.completionTokens = max(1, total - (lastMessage.promptTokens ?? 0))
-            }
-        }
+        let analytics = Self.computeAnalytics(
+            usage: lastUsage,
+            promptCharacterCount: Self.promptCharacterCount(for: lastMessage),
+            completionCharacterCount: lastMessage.realContent?.count ?? 0,
+            requestStart: requestStart,
+            firstTokenTime: firstTokenTime,
+            completionTime: Date()
+        )
+        lastMessage.totalTime = analytics.totalTime
+        lastMessage.promptEvalTime = analytics.promptEvalTime
+        lastMessage.evalTime = analytics.evalTime
+        lastMessage.promptTokens = analytics.promptTokens
+        lastMessage.completionTokens = analytics.completionTokens
+        lastMessage.totalTokens = analytics.totalTokens
 
         lastMessage.error = false
         lastMessage.done = true
@@ -379,32 +489,14 @@ final class ConversationStore: @unchecked Sendable {
     }
 
     @MainActor
-    private func handleReceive(_ response: ChatCompletionResponse, requestStart: Date) {
+    func handleReceive(_ response: ChatCompletionResponse, requestStart: Date) {
         if messages.isEmpty {
             return
         }
 
-        // Track first token time for analytics
-        if !hasReceivedFirstToken {
-            firstTokenTime = Date()
-            hasReceivedFirstToken = true
-        }
-
-        // Update token counts from usage if available
+        // Keep the latest server-reported usage (final chunk carries it).
         if let usage = response.usage {
-            let lastIndex = messages.count - 1
-            if lastIndex >= 0 && lastIndex < messages.count {
-                let message = messages[lastIndex]
-                if let promptTokens = usage.prompt_tokens {
-                    message.promptTokens = promptTokens
-                }
-                if let completionTokens = usage.completion_tokens {
-                    message.completionTokens = completionTokens
-                }
-                if let totalTokens = usage.total_tokens {
-                    message.totalTokens = totalTokens
-                }
-            }
+            lastUsage = usage
         }
 
         // Handle streaming response - content can be in delta or message
@@ -434,6 +526,14 @@ final class ConversationStore: @unchecked Sendable {
         }()
 
         if let responseContent = responseContent, !responseContent.isEmpty {
+            // Stamp "first token" on the first chunk that actually carries
+            // content (AN-3: some providers lead with a role-only chunk,
+            // which would overstate prompt eval time).
+            if !hasReceivedFirstToken {
+                firstTokenTime = Date()
+                hasReceivedFirstToken = true
+            }
+
             // Append to buffer array - O(1) instead of O(n) string concatenation
             currentMessageBuffer.append(responseContent)
 

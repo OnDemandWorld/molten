@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "network")
 
 // MARK: - OpenAI Compatible API Models
 struct OpenAICompatibleModelsResponse: Codable {
@@ -70,17 +73,36 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     var usingDefaultLocalhost: Bool {
         isUsingDefaultLocalhost
     }
-    
-    func getModels() async throws -> [LanguageModel] {
-        let url = baseURL.appendingPathComponent("/v1/models")
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+
+    // MARK: - Request timeouts (F-42)
+    // URLRequest.timeoutInterval bounds the wait for data; its practical
+    // effect on long-running or stalled streams depends on the loading
+    // system and remains to be verified on device. No
+    // timeoutIntervalForResource override is set, so legitimate long
+    // generations are not capped by a total lifetime limit.
+    static let modelsTimeout: TimeInterval = 15
+    static let streamStartTimeout: TimeInterval = 120
+    static let completionTimeout: TimeInterval = 300
+
+    /// Builds an authenticated request against the configured base URL.
+    /// Internal so unit tests can verify method/timeout/header wiring.
+    func makeRequest(path: String, method: String = "GET", timeout: TimeInterval, accept: String? = nil) -> URLRequest {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = method
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        if let apiKey = apiKey {
+        if let accept {
+            request.setValue(accept, forHTTPHeaderField: "Accept")
+        }
+        if let apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
-        
+        return request
+    }
+
+    func getModels() async throws -> [LanguageModel] {
+        let request = makeRequest(path: "/v1/models", timeout: Self.modelsTimeout)
+
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse,
@@ -140,17 +162,14 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
         maxTokens: Int? = nil
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
-            Task {
-                let url = baseURL.appendingPathComponent("/v1/chat/completions")
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                
-                if let apiKey = apiKey {
-                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-                }
-                
+            let task = Task {
+                var request = makeRequest(
+                    path: "/v1/chat/completions",
+                    method: "POST",
+                    timeout: Self.streamStartTimeout,
+                    accept: "text/event-stream"
+                )
+
                 let requestBody = ChatCompletionRequest(
                     model: model,
                     messages: messages,
@@ -161,30 +180,21 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                 
                 do {
                     request.httpBody = try JSONEncoder().encode(requestBody)
-                    
-                    // Debug: Log request details
-                    print("SwamaService: Sending request to \(url)")
-                    if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-                        print("SwamaService: Request body: \(bodyString)")
-                    }
-                    
+
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    
+
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        print("SwamaService: Invalid HTTP response")
+                        logger.error("SwamaService: invalid HTTP response")
                         continuation.finish(throwing: NSError(domain: "SwamaService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTP response"]))
                         return
                     }
-                    
-                    print("SwamaService: HTTP Status: \(httpResponse.statusCode)")
-                    
+
                     guard (200...299).contains(httpResponse.statusCode) else {
-                        print("SwamaService: HTTP error status: \(httpResponse.statusCode)")
+                        logger.error("SwamaService: HTTP error status: \(httpResponse.statusCode)")
                         continuation.finish(throwing: NSError(domain: "SwamaService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to start chat stream: HTTP \(httpResponse.statusCode)"]))
                         return
                     }
-                    
-                    print("SwamaService: Stream started, reading bytes...")
+
                     var buffer = Data()
                     var lineCount = 0
                     var responseCount = 0
@@ -198,7 +208,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
 
                         // Safety check: prevent buffer from growing unbounded
                         if buffer.count > maxBufferSize {
-                            print("SwamaService: Buffer size exceeded limit, clearing buffer to prevent memory leak")
+                            logger.warning("SwamaService: SSE buffer exceeded 1MB limit; clearing")
                             buffer.removeAll()
                         }
 
@@ -236,7 +246,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                                             continuation.yield(response)
                                         } catch {
                                             // Decoding failed - log but continue, data already removed from buffer
-                                            print("SwamaService: Failed to decode SSE response: \(error.localizedDescription)")
+                                            logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
                                             continue
                                         }
                                     }
@@ -249,9 +259,16 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                     }
                     continuation.finish()
                 } catch {
-                    print("SwamaService: Stream error: \(error.localizedDescription)")
+                    logger.error("SwamaService: stream error: \(error.localizedDescription, privacy: .private)")
                     continuation.finish(throwing: error)
                 }
+            }
+
+            // Cancel the producer task (and its URLSession request) when the
+            // consumer stops consuming — e.g. the user tapped Stop. Mirrors the
+            // lifecycle handling in OllamaService.chatStream.
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
             }
         }
     }
@@ -263,15 +280,12 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
         temperature: Double? = nil,
         maxTokens: Int? = nil
     ) async throws -> ChatCompletionResponse {
-        let url = baseURL.appendingPathComponent("/v1/chat/completions")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        if let apiKey = apiKey {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-        
+        var request = makeRequest(
+            path: "/v1/chat/completions",
+            method: "POST",
+            timeout: Self.completionTimeout
+        )
+
         let requestBody = ChatCompletionRequest(
             model: model,
             messages: messages,

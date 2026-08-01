@@ -159,6 +159,21 @@ struct Usage: Codable {
     let prompt_tokens: Int?
     let completion_tokens: Int?
     let total_tokens: Int?
+    /// Server-reported durations in seconds (provider extensions).
+    /// Ollama's nanosecond counters are converted by OllamaService;
+    /// Swama supplies `total_duration` in its usage object.
+    let prompt_eval_duration: Double?
+    let eval_duration: Double?
+    let total_duration: Double?
+    /// Swama's `response_token/s`. Captured for completeness; the footer
+    /// derives rates from counts and durations.
+    let response_tokens_per_second: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case prompt_tokens, completion_tokens, total_tokens
+        case prompt_eval_duration, eval_duration, total_duration
+        case response_tokens_per_second = "response_token/s"
+    }
 }
 
 // MARK: - Model Provider Protocol
@@ -202,16 +217,16 @@ protocol ModelProviderProtocol: Sendable {
 extension ModelProvider {
     var displayPrefix: String {
         switch self {
-        case .swama: return "S:"
-        case .ollama: return "O:"
+        case .swama: return "2:"
+        case .ollama: return "1:"
         case .appleFoundation: return "A:"
         }
     }
-    
+
     var displayName: String {
         switch self {
-        case .swama: return "Swama"
-        case .ollama: return "Ollama"
+        case .swama: return "OpenAI API"
+        case .ollama: return "Ollama API"
         case .appleFoundation: return "Apple Foundation"
         }
     }

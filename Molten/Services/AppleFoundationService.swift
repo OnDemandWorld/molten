@@ -51,45 +51,20 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
         maxTokens: Int?
     ) -> AsyncThrowingStream<ChatCompletionResponse, Error> {
         return AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 #if canImport(FoundationModels)
                 do {
                     let session = LanguageModelSession()
-                        
-                        // Convert messages to a single prompt
-                        // FoundationModels uses a simple prompt interface
-                        let prompt = messages.compactMap { message -> String? in
-                            guard let role = message.role, let content = message.content else { return nil }
-                            
-                            let contentText: String
-                            switch content {
-                            case .string(let text):
-                                contentText = text
-                            case .array(let parts):
-                                contentText = parts.compactMap { $0.text }.joined(separator: " ")
-                            }
-                            
-                            // Format as conversation
-                            switch role.lowercased() {
-                            case "user":
-                                return "User: \(contentText)"
-                            case "assistant":
-                                return "Assistant: \(contentText)"
-                            case "system":
-                                return "System: \(contentText)"
-                            default:
-                                return contentText
-                            }
-                        }.joined(separator: "\n\n")
-                        
-                        // Get the last user message for the actual prompt
-                        let lastUserMessage = messages.last { $0.role?.lowercased() == "user" }
-                        let actualPrompt = lastUserMessage?.content?.stringValue ?? prompt
-                        
+
+                        // Send the FULL conversation history so multi-turn context
+                        // and system prompts are preserved (F-26: previously only
+                        // the last user message was sent, making chat stateless).
+                        let prompt = Self.constructPrompt(from: messages)
+
                         // Stream response from FoundationModels
                         // Note: FoundationModels may not support streaming directly
                         // We'll simulate streaming by chunking the response
-                        let result = try await session.respond(to: actualPrompt)
+                        let result = try await session.respond(to: prompt)
                         
                         // Split response into chunks to simulate streaming
                         // LanguageModelSession.Response<String> - extract the string value
@@ -153,7 +128,44 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
                 continuation.finish(throwing: NSError(domain: "AppleFoundationService", code: -1, userInfo: [NSLocalizedDescriptionKey: "FoundationModels framework not available"]))
                 #endif
             }
+
+            // Cancel the producer task when the consumer stops consuming —
+            // e.g. the user tapped Stop. Mirrors the lifecycle handling in
+            // OllamaService.chatStream. The in-loop Task.isCancelled check
+            // stops chunk emission; structured cancellation propagates into
+            // the awaited session.respond(to:).
+            continuation.onTermination = { @Sendable _ in
+                task.cancel()
+            }
         }
+    }
+
+    /// Builds a single prompt string from the full message history, labeling
+    /// each turn by role. Internal so unit tests can cover prompt assembly.
+    static func constructPrompt(from messages: [ChatMessage]) -> String {
+        messages.compactMap { message -> String? in
+            guard let role = message.role, let content = message.content else { return nil }
+
+            let contentText: String
+            switch content {
+            case .string(let text):
+                contentText = text
+            case .array(let parts):
+                contentText = parts.compactMap { $0.text }.joined(separator: " ")
+            }
+
+            // Format as conversation
+            switch role.lowercased() {
+            case "user":
+                return "User: \(contentText)"
+            case "assistant":
+                return "Assistant: \(contentText)"
+            case "system":
+                return "System: \(contentText)"
+            default:
+                return contentText
+            }
+        }.joined(separator: "\n\n")
     }
 }
 

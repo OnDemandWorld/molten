@@ -51,20 +51,8 @@ actor SpeechRecognizer: ObservableObject {
         
         Task {
             do {
-                
-            
-                let authStatus = SFSpeechRecognizer.authorizationStatus()
-                
-                switch authStatus {
-                case .authorized:
-                   print("authorised")
-                case .denied, .restricted, .notDetermined:
-                    print("denicd")
-                @unknown default:
-                    print("wtf")
-                    break
-                }
-                
+
+
                 guard await SFSpeechRecognizer.hasAuthorizationToRecognize() else {
                     throw RecognizerError.notAuthorizedToRecognize
                 }
@@ -122,7 +110,6 @@ actor SpeechRecognizer: ObservableObject {
                 self?.recognitionHandler(audioEngine: audioEngine, result: result, error: error)
             })
         } catch {
-            print("error here")
             self.reset()
             self.transcribe(error)
         }

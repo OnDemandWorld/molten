@@ -31,6 +31,13 @@ struct AnalyticsFooterView: View {
         return false
         #endif
     }
+
+    /// The Apple Foundation provider reports no usage and its streaming is
+    /// simulated, so rates would measure the app, not the model (AN-6):
+    /// show only time and estimated token counts for it.
+    private var isAppleFoundation: Bool {
+        message.conversation?.model?.modelProvider == .appleFoundation
+    }
     
     private var promptEvalRate: String? {
         guard let promptTokens = message.promptTokens,
@@ -88,23 +95,25 @@ struct AnalyticsFooterView: View {
     @ViewBuilder
     private var compactLayout: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // First row: eval rates
-            HStack(spacing: 16) {
-                if let promptRate = promptEvalRate {
-                    analyticsItem(label: "prompt", value: "\(promptRate) t/s")
-                }
-                if let evalRate = evalRate {
-                    analyticsItem(label: "eval", value: "\(evalRate) t/s")
-                }
-                if let throughput = overallThroughput {
-                    analyticsItem(label: "overall", value: "\(throughput) t/s")
+            // First row: eval rates (hidden for Apple Foundation — simulated)
+            if !isAppleFoundation {
+                HStack(spacing: 16) {
+                    if let promptRate = promptEvalRate {
+                        analyticsItem(label: "prompt", value: "\(promptRate) t/s")
+                    }
+                    if let evalRate = evalRate {
+                        analyticsItem(label: "eval", value: "\(evalRate) t/s")
+                    }
+                    if let throughput = overallThroughput {
+                        analyticsItem(label: "overall", value: "\(throughput) t/s")
+                    }
                 }
             }
-            
+
             // Second row: totals
             HStack(spacing: 16) {
                 if let tokens = totalTokens {
-                    analyticsItem(label: "tokens", value: tokens)
+                    analyticsItem(label: "tokens", value: isAppleFoundation ? "\(tokens) (est.)" : tokens)
                 }
                 if let time = totalTime {
                     analyticsItem(label: "time", value: time)
@@ -118,20 +127,22 @@ struct AnalyticsFooterView: View {
     @ViewBuilder
     private var regularLayout: some View {
         HStack(spacing: 16) {
-            if let promptRate = promptEvalRate {
-                analyticsItem(label: "prompt eval", value: "\(promptRate) t/s")
+            if !isAppleFoundation {
+                if let promptRate = promptEvalRate {
+                    analyticsItem(label: "prompt eval", value: "\(promptRate) t/s")
+                }
+                if let evalRate = evalRate {
+                    analyticsItem(label: "eval rate", value: "\(evalRate) t/s")
+                }
             }
-            if let evalRate = evalRate {
-                analyticsItem(label: "eval rate", value: "\(evalRate) t/s")
-            }
-            
+
             Spacer()
-            
-            if let throughput = overallThroughput {
+
+            if !isAppleFoundation, let throughput = overallThroughput {
                 analyticsItem(label: "overall", value: "\(throughput) t/s")
             }
             if let tokens = totalTokens {
-                analyticsItem(label: "tokens", value: tokens)
+                analyticsItem(label: "tokens", value: isAppleFoundation ? "\(tokens) (est.)" : tokens)
             }
             if let time = totalTime {
                 analyticsItem(label: "time", value: time)

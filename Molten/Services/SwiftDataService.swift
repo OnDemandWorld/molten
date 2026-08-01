@@ -14,8 +14,11 @@ final actor SwiftDataService: ModelActor {
     private let modelContext: ModelContext
     
     static let shared = SwiftDataService()
-    
-    init() {
+
+    /// - Parameter inMemory: when true, the container is backed by an in-memory
+    ///   store. Used by tests to avoid touching the user's on-disk data.
+    ///   Production behavior (`SwiftDataService.shared`) is unchanged.
+    init(inMemory: Bool = false) {
         let sharedModelContainer: ModelContainer = {
             let schema = Schema([
                 LanguageModelSD.self,
@@ -23,15 +26,15 @@ final actor SwiftDataService: ModelActor {
                 MessageSD.self,
                 CompletionInstructionSD.self
             ])
-            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            
+            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+
             do {
                 return try ModelContainer(for: schema, configurations: [modelConfiguration])
             } catch {
                 fatalError("Could not create ModelContainer: \(error)")
             }
         }()
-        
+
         self.modelContext = ModelContext(sharedModelContainer)
         self.modelContext.autosaveEnabled = false
         modelContainer = sharedModelContainer
@@ -110,9 +113,16 @@ extension SwiftDataService {
         try modelContext.saveChanges()
     }
     
-    func deleteConversations(_ date: Date) throws {
-        let predicate = #Predicate<ConversationSD>{ $0.createdAt >=  date && $0.createdAt <= date}
+    /// Deletes conversations whose `updatedAt` falls within the calendar day
+    /// containing `date` (half-open interval: startOfDay ..< startOfNextDay).
+    /// Matches the sidebar grouping in ConversationHistoryList, which groups by
+    /// `Calendar.current.startOfDay(for: updatedAt)`.
+    func deleteConversations(_ date: Date, calendar: Calendar = .current) throws {
+        let startOfDay = calendar.startOfDay(for: date)
+        guard let startOfNextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
+        let predicate = #Predicate<ConversationSD> { $0.updatedAt >= startOfDay && $0.updatedAt < startOfNextDay }
         try modelContext.delete(model: ConversationSD.self, where: predicate)
+        try modelContext.saveChanges()
     }
 }
 

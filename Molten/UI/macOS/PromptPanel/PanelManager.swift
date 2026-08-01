@@ -187,9 +187,7 @@ class PanelManager: NSObject, NSApplicationDelegate {
                                width: newSize.width,
                                height: newSize.height),
                         display: true)
-                }, completionHandler: {
-                    print("Animation completed")
-                })
+                }, completionHandler: {})
             }
         }
     }

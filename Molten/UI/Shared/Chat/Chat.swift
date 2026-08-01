@@ -13,7 +13,10 @@ struct Chat: View, Sendable {
     @State private var appStore: AppStore
     @AppStorage("systemPrompt") private var systemPrompt: String = ""
     @AppStorage("appUserInitials") private var userInitials: String = ""
-    @AppStorage("defaultSwamaModel") private var defaultSwamaModel: String = ""
+    // O-02: read the same "defaultModel" key Settings writes, so the chosen
+    // default model is restored across launches (previously this read a
+    // "defaultSwamaModel" key that nothing ever wrote).
+    @AppStorage("defaultModel") private var defaultModel: String = ""
     @State var showMenu = false
     
     init(languageModelStore: LanguageModelStore, conversationStore: ConversationStore, appStore: AppStore) {
@@ -34,8 +37,8 @@ struct Chat: View, Sendable {
     @MainActor
     func updateSelectedModel() {
         if languageModelStore.selectedModel == nil {
-            if defaultSwamaModel != "" {
-                languageModelStore.setModel(modelName: defaultSwamaModel)
+            if defaultModel != "" {
+                languageModelStore.setModel(modelName: defaultModel)
             } else {
                 languageModelStore.setModel(model: languageModelStore.models.first)
             }
@@ -141,7 +144,7 @@ struct Chat: View, Sendable {
                 selectedModel: languageModelStore.selectedModel,
                 onSelectModel: languageModelStore.setModel,
                 onConversationDelete: onConversationDelete,
-                onDeleteDailyConversations: conversationStore.deleteDailyConversations,
+                onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } },
                 userInitials: userInitials,
                 copyChat: copyChat
             )
@@ -152,7 +155,7 @@ struct Chat: View, Sendable {
                     conversations: conversationStore.conversations,
                     onConversationTap: onConversationTap,
                     onConversationDelete: onConversationDelete,
-                    onDeleteDailyConversations: conversationStore.deleteDailyConversations
+                    onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } }
                 )
             }) {
                 ChatView(

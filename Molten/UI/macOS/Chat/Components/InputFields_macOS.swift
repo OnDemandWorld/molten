@@ -7,6 +7,9 @@
 
 #if os(macOS) || os(visionOS)
 import SwiftUI
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "ui")
 
 struct InputFieldsView: View {
     @Binding var message: String
@@ -112,7 +115,7 @@ struct InputFieldsView: View {
                                 }
                                 url.stopAccessingSecurityScopedResource()
                             case .failure(let error):
-                                print(error)
+                                logger.error("Image import failed: \(error.localizedDescription, privacy: .private)")
                             }
                         })
                     
