@@ -247,10 +247,21 @@ final class ConversationStore: @unchecked Sendable {
         conversationState = .loading
 
         Task {
-            try await swiftDataService.updateConversation(conversation)
-            try await swiftDataService.createMessage(userMessage)
-            try await swiftDataService.createMessage(assistantMessage)
-            try await reloadConversation(conversation)
+            do {
+                try await swiftDataService.updateConversation(conversation)
+                try await swiftDataService.createMessage(userMessage)
+                try await swiftDataService.createMessage(assistantMessage)
+                try await reloadConversation(conversation)
+            } catch {
+                // Setup failed before streaming started. Surface the error so the
+                // UI leaves the loading state and the user can retry (F-20).
+                // handleError is not used here: it flags messages.last, which may
+                // not exist yet or may belong to a previous conversation.
+                withAnimation {
+                    conversationState = .error(message: "Failed to prepare conversation: \(error.localizedDescription)")
+                }
+                return
+            }
             try? await loadConversations()
 
             // Get the appropriate provider based on model
