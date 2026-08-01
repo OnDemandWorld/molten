@@ -32,10 +32,9 @@ final class Accessibility {
     
     func getSelectedText() -> String? {
         if let text = getSelectedTextAX(), text.count > 1  {
-            print("getSelectedTextAX", text)
             return text
         }
-        
+
         return getSelectedTextViaCopy()
     }
     

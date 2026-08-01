@@ -6,6 +6,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "network")
 
 // MARK: - OpenAI Compatible API Models
 struct OpenAICompatibleModelsResponse: Codable {
@@ -161,30 +164,21 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                 
                 do {
                     request.httpBody = try JSONEncoder().encode(requestBody)
-                    
-                    // Debug: Log request details
-                    print("SwamaService: Sending request to \(url)")
-                    if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-                        print("SwamaService: Request body: \(bodyString)")
-                    }
-                    
+
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    
+
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        print("SwamaService: Invalid HTTP response")
+                        logger.error("SwamaService: invalid HTTP response")
                         continuation.finish(throwing: NSError(domain: "SwamaService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid HTTP response"]))
                         return
                     }
-                    
-                    print("SwamaService: HTTP Status: \(httpResponse.statusCode)")
-                    
+
                     guard (200...299).contains(httpResponse.statusCode) else {
-                        print("SwamaService: HTTP error status: \(httpResponse.statusCode)")
+                        logger.error("SwamaService: HTTP error status: \(httpResponse.statusCode)")
                         continuation.finish(throwing: NSError(domain: "SwamaService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to start chat stream: HTTP \(httpResponse.statusCode)"]))
                         return
                     }
-                    
-                    print("SwamaService: Stream started, reading bytes...")
+
                     var buffer = Data()
                     var lineCount = 0
                     var responseCount = 0
@@ -198,7 +192,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
 
                         // Safety check: prevent buffer from growing unbounded
                         if buffer.count > maxBufferSize {
-                            print("SwamaService: Buffer size exceeded limit, clearing buffer to prevent memory leak")
+                            logger.warning("SwamaService: SSE buffer exceeded 1MB limit; clearing")
                             buffer.removeAll()
                         }
 
@@ -236,7 +230,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                                             continuation.yield(response)
                                         } catch {
                                             // Decoding failed - log but continue, data already removed from buffer
-                                            print("SwamaService: Failed to decode SSE response: \(error.localizedDescription)")
+                                            logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
                                             continue
                                         }
                                     }
@@ -249,7 +243,7 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                     }
                     continuation.finish()
                 } catch {
-                    print("SwamaService: Stream error: \(error.localizedDescription)")
+                    logger.error("SwamaService: stream error: \(error.localizedDescription, privacy: .private)")
                     continuation.finish(throwing: error)
                 }
             }

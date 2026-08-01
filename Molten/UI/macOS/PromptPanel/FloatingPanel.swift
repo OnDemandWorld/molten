@@ -41,12 +41,10 @@ class FloatingPanel: NSPanel {
     
     // `canBecomeKey` and `canBecomeMain` are required so that text inputs inside the panel can receive focus
     override var canBecomeKey: Bool {
-        print("canBecomeKey")
         return true
     }
-    
+
     override var canBecomeMain: Bool {
-        print("canBecomeMain")
         return true
     }
 }

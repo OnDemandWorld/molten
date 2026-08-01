@@ -8,6 +8,9 @@
 import Foundation
 import AVFoundation
 import SwiftUI
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "speech")
 
 
 final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
@@ -23,7 +26,7 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didReceiveError error: Error, for utterance: AVSpeechUtterance, at characterIndex: UInt) {
-        print("Speech synthesis error: \(error)")
+        logger.error("Speech synthesis error: \(error.localizedDescription, privacy: .private)")
     }
 }
 
@@ -63,7 +66,7 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
             try audioSession.setCategory(.playback, mode: .default, options: .duckOthers)
             try audioSession.setActive(false)
         } catch let error {
-            print("❓", error.localizedDescription)
+            logger.error("Audio session error: \(error.localizedDescription, privacy: .private)")
         }
 #endif
         

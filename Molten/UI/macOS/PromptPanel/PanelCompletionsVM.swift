@@ -7,6 +7,9 @@
 
 import SwiftUI
 import Combine
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "panel")
 
 @Observable
 final class CompletionsPanelVM {
@@ -45,8 +48,7 @@ final class CompletionsPanelVM {
         ]
         currentMessageBuffer = ""
         messageResponse = ""
-        
-        print("request", messages)
+
         Task {
             if await SwamaService.shared.reachable() {
                 generationTask = Task { [weak self] in
@@ -122,12 +124,11 @@ final class CompletionsPanelVM {
     
     @MainActor
     private func handleError(_ errorMessage: String) {
-        print("error \(errorMessage)")
+        logger.error("CompletionsPanel: \(errorMessage, privacy: .private)")
     }
-    
+
     @MainActor
     private func handleComplete() {
-        print("model response ", self.messageResponse)
     }
     
     @MainActor

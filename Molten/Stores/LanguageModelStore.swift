@@ -17,6 +17,9 @@
 
 import Foundation
 import SwiftData
+import OSLog
+
+private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "models")
 
 @Observable
 @MainActor
@@ -65,7 +68,7 @@ final class LanguageModelStore: Sendable {
                 allModels.append(contentsOf: swamaModels)
             } catch {
                 // Log error but continue with other providers
-                print("Failed to load Swama models: \(error.localizedDescription)")
+                logger.error("Failed to load Swama models: \(error.localizedDescription, privacy: .private)")
             }
         }
         
@@ -75,7 +78,7 @@ final class LanguageModelStore: Sendable {
                 let ollamaModels = try await OllamaService.shared.getModels()
                 allModels.append(contentsOf: ollamaModels)
             } catch {
-                print("Failed to load Ollama models: \(error.localizedDescription)")
+                logger.error("Failed to load Ollama models: \(error.localizedDescription, privacy: .private)")
             }
         }
         
@@ -85,7 +88,7 @@ final class LanguageModelStore: Sendable {
                 let appleModels = try await AppleFoundationService.shared.getModels()
                 allModels.append(contentsOf: appleModels)
             } catch {
-                print("Failed to load Apple Foundation models: \(error.localizedDescription)")
+                logger.error("Failed to load Apple Foundation models: \(error.localizedDescription, privacy: .private)")
             }
         }
         
