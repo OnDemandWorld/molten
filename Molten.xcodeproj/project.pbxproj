@@ -97,6 +97,7 @@
 		FFE21C782B82353A00A69B9C /* SleepTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE21C772B82353A00A69B9C /* SleepTest.swift */; };
 		FFE2C8232B9A657A00BD82F3 /* Accessibility.plist in Resources */ = {isa = PBXBuildFile; fileRef = FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */; };
 		AD0F10000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */; };
+		AD0F200000000000000000A4 /* DayDeletionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F200000000000000000A3 /* DayDeletionTests.swift */; };
 		FFEB9CA82BA04304004B1F3D /* NotificationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */; };
 		FFEC32912B24779A003E5C04 /* MoltenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEC32902B24779A003E5C04 /* MoltenApp.swift */; };
 		FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FFEC32962B24779B003E5C04 /* Assets.xcassets */; };
@@ -109,6 +110,16 @@
 		FFFD00C22B92607800392AE6 /* CompletionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFD00C12B92607800392AE6 /* CompletionsStore.swift */; };
 		FFFD00C92B94CB5E00392AE6 /* AsyncAlgorithms in Frameworks */ = {isa = PBXBuildFile; productRef = FFFD00C82B94CB5E00392AE6 /* AsyncAlgorithms */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AD0F200000000000000000A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FFEC32852B24779A003E5C04 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FFEC328C2B24779A003E5C04;
+			remoteInfo = Molten;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		3396E0752BD877D500213816 /* Menus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Menus.swift; sourceTree = "<group>"; };
@@ -195,6 +206,8 @@
 		FFE21C772B82353A00A69B9C /* SleepTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTest.swift; sourceTree = "<group>"; };
 		FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Accessibility.plist; sourceTree = "<group>"; };
 		AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AD0F200000000000000000A3 /* DayDeletionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDeletionTests.swift; sourceTree = "<group>"; };
+		AD0F200000000000000000A6 /* MoltenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoltenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationMessage.swift; sourceTree = "<group>"; };
 		FFEC328D2B24779A003E5C04 /* Molten.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Molten.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFEC32902B24779A003E5C04 /* MoltenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoltenApp.swift; sourceTree = "<group>"; };
@@ -223,6 +236,13 @@
 				FF1002662B2653EE0011A4DC /* ActivityIndicatorView in Frameworks */,
 				FFFD00C92B94CB5E00392AE6 /* AsyncAlgorithms in Frameworks */,
 				FF4A605D2BC3587800D7BD4F /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD0F200000000000000000A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -449,6 +469,7 @@
 			isa = PBXGroup;
 			children = (
 				FFEC328F2B24779A003E5C04 /* Molten */,
+				AD0F200000000000000000A5 /* MoltenTests */,
 				FFEC328E2B24779A003E5C04 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -457,6 +478,7 @@
 			isa = PBXGroup;
 			children = (
 				FFEC328D2B24779A003E5C04 /* Molten.app */,
+				AD0F200000000000000000A6 /* MoltenTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -579,6 +601,14 @@
 			path = Chat;
 			sourceTree = "<group>";
 		};
+		AD0F200000000000000000A5 /* MoltenTests */ = {
+			isa = PBXGroup;
+			children = (
+				AD0F200000000000000000A3 /* DayDeletionTests.swift */,
+			);
+			path = MoltenTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -610,6 +640,24 @@
 			productReference = FFEC328D2B24779A003E5C04 /* Molten.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AD0F200000000000000000B0 /* MoltenTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD0F200000000000000000B3 /* Build configuration list for PBXNativeTarget "MoltenTests" */;
+			buildPhases = (
+				AD0F200000000000000000A7 /* Sources */,
+				AD0F200000000000000000A8 /* Frameworks */,
+				AD0F200000000000000000A9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AD0F200000000000000000A2 /* PBXTargetDependency */,
+			);
+			name = MoltenTests;
+			productName = MoltenTests;
+			productReference = AD0F200000000000000000A6 /* MoltenTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -622,6 +670,10 @@
 				TargetAttributes = {
 					FFEC328C2B24779A003E5C04 = {
 						CreatedOnToolsVersion = 15.0.1;
+					};
+					AD0F200000000000000000B0 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = FFEC328C2B24779A003E5C04;
 					};
 				};
 			};
@@ -650,6 +702,7 @@
 			projectRoot = "";
 			targets = (
 				FFEC328C2B24779A003E5C04 /* Molten */,
+				AD0F200000000000000000B0 /* MoltenTests */,
 			);
 		};
 /* End PBXProject section */
@@ -663,6 +716,13 @@
 				FFE2C8232B9A657A00BD82F3 /* Accessibility.plist in Resources */,
 				AD0F10000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 				FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD0F200000000000000000A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -764,7 +824,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AD0F200000000000000000A7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD0F200000000000000000A4 /* DayDeletionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AD0F200000000000000000A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FFEC328C2B24779A003E5C04 /* Molten */;
+			targetProxy = AD0F200000000000000000A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		FFEC329C2B24779B003E5C04 /* Debug */ = {
@@ -1019,6 +1095,48 @@
 			};
 			name = Release;
 		};
+		AD0F200000000000000000B1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = DVGF44TKAX;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Molten.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Molten";
+			};
+			name = Debug;
+		};
+		AD0F200000000000000000B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = DVGF44TKAX;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Molten.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Molten";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1036,6 +1154,15 @@
 			buildConfigurations = (
 				FFEC329F2B24779B003E5C04 /* Debug */,
 				FFEC32A02B24779B003E5C04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AD0F200000000000000000B3 /* Build configuration list for PBXNativeTarget "MoltenTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD0F200000000000000000B1 /* Debug */,
+				AD0F200000000000000000B2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
