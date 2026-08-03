@@ -1,5 +1,5 @@
 //
-//  EmptyConversaitonView.swift
+//  EmptyConversationView.swift
 //  Molten
 //
 //  Created by Augustinas Malinauskas on 10/02/2024.
@@ -7,29 +7,22 @@
 
 import SwiftUI
 
-struct EmptyConversaitonView: View, KeyboardReadable {
-    @Environment(\.openURL) private var openURL
+struct EmptyConversationView: View, KeyboardReadable {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State var showPromptsAnimation = false
     @State var prompts: [SamplePrompts] = []
     var sendPrompt: (String) -> ()
-    @State private var isHovering = false
 #if os(iOS)
     @State var isKeyboardVisible = false
 #endif
-    
+
 #if os(macOS)
     var columns = Array.init(repeating: GridItem(.flexible(), spacing: 15), count: 4)
 #else
     var columns = [GridItem(.flexible()), GridItem(.flexible())]
 #endif
     @State var visibleItems = Set<Int>()
-    
-    func onFreysaTap() {
-        if let url = URL(string: "https://freysa.ai") {
-            openURL(url)
-        }
-    }
-    
+
     var body: some View {
         VStack {
             Spacer()
@@ -41,19 +34,6 @@ struct EmptyConversaitonView: View, KeyboardReadable {
                         .tracking(2)
                         .multilineTextAlignment(.center)
                         .moltenifyGlow()
-                    
-//                    Button(action: onFreysaTap) {
-//                        Text("by FREYSA")
-//                            .font(.system(size: isHovering ? 19 : 17, weight: .light))
-//                            .scaleEffect(isHovering ? 1.05 : 1.0)
-//                            .opacity(isHovering ? 0.8 : 1.0)
-//                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovering)
-//
-//                    }
-//                    .buttonStyle(.plain)
-//                    .onHover { hovering in
-//                                isHovering = hovering
-//                            }
                 }
                 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 15) {
@@ -80,7 +60,8 @@ struct EmptyConversaitonView: View, KeyboardReadable {
                             
                         }
                         .opacity(visibleItems.contains(index) ? 1 : 0)
-                        .animation(.easeIn(duration: 0.3).delay(0.2 * Double(index)), value: visibleItems)
+                        // Reduce Motion (F-32): no staggered entrance.
+                        .animation(.easeIn(duration: reduceMotion ? 0 : 0.3).delay(reduceMotion ? 0 : 0.2 * Double(index)), value: visibleItems)
                         .transition(.slide)
                         .showIf(showPromptsAnimation)
                         .buttonStyle(.plain)
@@ -124,5 +105,5 @@ struct EmptyConversaitonView: View, KeyboardReadable {
 }
 
 #Preview(traits: .fixedLayout(width: 1000, height: 1000)) {
-    EmptyConversaitonView(sendPrompt: {_ in})
+    EmptyConversationView(sendPrompt: {_ in})
 }
