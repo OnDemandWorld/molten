@@ -29,11 +29,13 @@ struct UnreachableAPIView: View {
             
             Button(action: {showSettings.toggle()}) {
                 Text("Settings")
-                    .foregroundStyle(Color.white)
+                    // Semantic inversion: label-colored pill with
+                    // background-colored text in both light and dark mode.
+                    .foregroundStyle(.background)
                     .fontWeight(.semibold)
             }
             .padding(8)
-            .background(Color.black)
+            .background(.foreground)
             .clipShape(RoundedRectangle(cornerRadius: 15))
             .buttonStyle(GrowingButton())
         }
