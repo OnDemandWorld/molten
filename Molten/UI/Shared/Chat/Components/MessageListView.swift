@@ -132,6 +132,7 @@ struct MessageListView: View {
                         }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
 #if os(iOS) || os(visionOS)
                 .sheet(item: $messageSelected) { message in
                     SelectTextSheet(message: message)
