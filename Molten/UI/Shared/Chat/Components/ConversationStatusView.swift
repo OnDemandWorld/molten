@@ -10,18 +10,32 @@ import ActivityIndicatorView
 
 struct ConversationStatusView: View {
     var state: ConversationState
+    /// Called when the user dismisses the error banner (F-35).
+    var onDismiss: () -> Void = {}
+
     var body: some View {
         switch state {
         case .loading: EmptyView()
         case .completed: EmptyView()
-        case .error(let message): HStack {
-            Text(message)
-                .foregroundColor(.red)
-                .font(.system(size: 16))
-            Spacer()
+        case .error(let message):
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityHidden(true)
+                Text(message)
+                    .foregroundColor(.red)
+                    .font(.system(size: 16))
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss error")
+            }
         }
-        }
-        
     }
 }
 

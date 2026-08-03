@@ -566,6 +566,16 @@ final class ConversationStore: @unchecked Sendable {
         }
     }
 
+    /// Dismisses the error banner, if one is showing (F-35).
+    @MainActor
+    func dismissError() {
+        if case .error = conversationState {
+            withAnimation {
+                conversationState = .completed
+            }
+        }
+    }
+
     /// Get the appropriate model provider service for a given model
     private func getProvider(for model: LanguageModelSD) -> ModelProviderProtocol? {
         guard let provider = model.modelProvider else { return nil }
