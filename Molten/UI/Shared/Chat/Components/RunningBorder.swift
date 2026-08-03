@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct RunningBorder: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var rotation = 0.0
     var animated: Bool
-    
+
     func body(content: Content) -> some View {
         if animated {
             content
@@ -22,6 +23,9 @@ struct RunningBorder: ViewModifier {
                         )
                 )
                 .onAppear {
+                    // Reduce Motion (F-32): keep the highlight border but skip
+                    // the infinite rotation.
+                    guard !reduceMotion else { return }
                     withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
                         rotation = 360
                     }

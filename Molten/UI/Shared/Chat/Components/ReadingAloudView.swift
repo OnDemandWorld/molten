@@ -10,12 +10,16 @@ import SwiftUI
 struct ReadingAloudView: View {
     var onStopTap: () -> ()
     @State private var animationsRunning = false
-    
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack {
-            
+
             Image(systemName: "speaker.wave.3")
-                .symbolEffect(.variableColor.iterative,  options: .repeat(100), value: animationsRunning)
+                // Reduce Motion (F-32): skip the repeating symbol animation.
+                .if(!reduceMotion) { view in
+                    view.symbolEffect(.variableColor.iterative, options: .repeat(100), value: animationsRunning)
+                }
                 .scaledToFit()
                 .frame(width: 18)
             
