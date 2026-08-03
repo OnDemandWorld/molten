@@ -99,10 +99,10 @@ struct AnalyticsFooterView: View {
             if !isAppleFoundation {
                 HStack(spacing: 16) {
                     if let promptRate = promptEvalRate {
-                        analyticsItem(label: "prompt", value: "\(promptRate) t/s")
+                        analyticsItem(label: "input", value: "\(promptRate) t/s")
                     }
                     if let evalRate = evalRate {
-                        analyticsItem(label: "eval", value: "\(evalRate) t/s")
+                        analyticsItem(label: "output", value: "\(evalRate) t/s")
                     }
                     if let throughput = overallThroughput {
                         analyticsItem(label: "overall", value: "\(throughput) t/s")
@@ -129,10 +129,10 @@ struct AnalyticsFooterView: View {
         HStack(spacing: 16) {
             if !isAppleFoundation {
                 if let promptRate = promptEvalRate {
-                    analyticsItem(label: "prompt eval", value: "\(promptRate) t/s")
+                    analyticsItem(label: "input speed", value: "\(promptRate) t/s")
                 }
                 if let evalRate = evalRate {
-                    analyticsItem(label: "eval rate", value: "\(evalRate) t/s")
+                    analyticsItem(label: "output speed", value: "\(evalRate) t/s")
                 }
             }
 
