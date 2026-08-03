@@ -66,7 +66,7 @@ struct ChatMessageView: View {
                     if message.hasThink {
                         HStack(spacing: 10.0, content: {
                             Rectangle()
-                                .fill(Color.black)
+                                .fill(.secondary)
                                 .frame(width: 10)
                             if showThink {
                                 if let think = message.think {
@@ -131,7 +131,8 @@ struct ChatMessageView: View {
                 }
                 .buttonStyle(GrowingButton())
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                
+                .accessibilityLabel("Copy message")
+
                 /// Play button
                 Button(action: {
                     Task {
@@ -149,7 +150,8 @@ struct ChatMessageView: View {
                 .buttonStyle(GrowingButton())
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .showIf(!isSpeaking)
-                
+                .accessibilityLabel("Read aloud")
+
                 /// Stop button
                 Button(action: {
                     Task {
@@ -164,7 +166,8 @@ struct ChatMessageView: View {
                 .buttonStyle(GrowingButton())
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .showIf(isSpeaking)
-                
+                .accessibilityLabel("Stop reading aloud")
+
                 /// Edit button
                 Button(action: {editMessage = message}) {
                     Image(systemName: "pencil")
@@ -173,6 +176,7 @@ struct ChatMessageView: View {
                 .buttonStyle(GrowingButton())
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .showIf(message.role == "user")
+                .accessibilityLabel("Edit message")
             }
             .opacity(mouseHover ? 1 : 0.0001)
             

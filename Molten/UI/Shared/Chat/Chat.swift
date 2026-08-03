@@ -146,7 +146,8 @@ struct Chat: View, Sendable {
                 onConversationDelete: onConversationDelete,
                 onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } },
                 userInitials: userInitials,
-                copyChat: copyChat
+                copyChat: copyChat,
+                onDismissError: { conversationStore.dismissError() }
             )
 #else
             SideBarStack(sidebarWidth: 300,showSidebar: $showMenu, sidebar: {
@@ -171,7 +172,8 @@ struct Chat: View, Sendable {
                     onStopGenerateTap: onStopGenerateTap,
                     reachable: appStore.isReachable,
                     modelSupportsImages: languageModelStore.supportsImages,
-                    userInitials: userInitials
+                    userInitials: userInitials,
+                    onDismissError: { conversationStore.dismissError() }
                 )
             }
 #endif

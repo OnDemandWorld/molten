@@ -27,6 +27,7 @@ struct SelectedImageView: View {
                     .padding(.vertical, 4)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .accessibilityLabel("Remove attached image")
         }
     }
 }

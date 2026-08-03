@@ -38,27 +38,32 @@ struct RecordingView: View {
     
     var body: some View {
         Button(action: toggleRecord) {
-            if isRecording {
-                ZStack {
-                    Color(.systemBlue)
-                    
-                    Image(systemName: "square.fill")
+            Group {
+                if isRecording {
+                    ZStack {
+                        Color(.systemBlue)
+
+                        Image(systemName: "square.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundColor(.white)
+                            .frame(width: 8)
+                    }
+                    .clipShape(Circle())
+                    .frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: "waveform")
                         .resizable()
                         .scaledToFit()
-                        .foregroundColor(.white)
-                        .frame(width: 8)
+                        .frame(height: 20)
+                        .foregroundStyle(Color(.systemGray))
                 }
-                .clipShape(Circle())
-                .frame(width: 20, height: 20)
-            } else {
-                Image(systemName: "waveform")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 20)
-                    .foregroundStyle(Color(.systemGray))
             }
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(isRecording ? "Stop recording" : "Start voice input")
         .onChange(of: isRecording) { oldValue, newValue in
             if newValue == false {
                 speechRecognizer.stopTranscribing()

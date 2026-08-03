@@ -19,7 +19,7 @@ struct RemovableImage: View {
                     .resizable()
                     .scaledToFit()
                     .frame(height: height)
-                
+
                 Image(systemName: "x.circle.fill")
                     .resizable()
                     .scaledToFit()
@@ -28,6 +28,7 @@ struct RemovableImage: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Remove attached image")
     }
 }
 

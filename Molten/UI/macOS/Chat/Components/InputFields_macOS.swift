@@ -101,8 +101,8 @@ struct InputFieldsView: View {
                             self.message = transcription
                         }
                     }
-                    
-                    SimpleFloatingButton(systemImage: "photo.fill", onClick: { fileSelectingActive.toggle() })
+
+                    SimpleFloatingButton(systemImage: "photo.fill", onClick: { fileSelectingActive.toggle() }, accessibilityTitle: "Add image")
                         .showIf(selectedModel?.supportsImages ?? false)
                         .fileImporter(isPresented: $fileSelectingActive,
                                       allowedContentTypes: [.png, .jpeg, .tiff],
@@ -123,9 +123,9 @@ struct InputFieldsView: View {
                     Group {
                         switch conversationState {
                         case .loading:
-                            SimpleFloatingButton(systemImage: "square.fill", onClick: onStopGenerateTap)
+                            SimpleFloatingButton(systemImage: "square.fill", onClick: onStopGenerateTap, accessibilityTitle: "Stop generating")
                         default:
-                            SimpleFloatingButton(systemImage: "paperplane.fill", onClick: { Task { sendMessage() } })
+                            SimpleFloatingButton(systemImage: "paperplane.fill", onClick: { Task { sendMessage() } }, accessibilityTitle: "Send message")
                                 .showIf(!message.isEmpty)
                         }
                     }

@@ -28,7 +28,8 @@ struct ChatView: View {
     var onDeleteDailyConversations: (_ date: Date) -> ()
     var userInitials: String
     var copyChat: (_ json: Bool) -> ()
-    
+    var onDismissError: () -> Void = {}
+
     @State private var message = ""
     @State private var editMessage: MessageSD?
     @State var isRecording = false
@@ -69,17 +70,20 @@ struct ChatView: View {
                         editMessage: $editMessage
                     )
                 } else {
-                    EmptyConversaitonView(sendPrompt: {selectedMessage in
+                    EmptyConversationView(sendPrompt: {selectedMessage in
                         if let selectedModel = selectedModel {
                             onSendMessageTap(selectedMessage, selectedModel, nil, nil)
                         }
                     })
                 }
                 
+                ConversationStatusView(state: conversationState, onDismiss: onDismissError)
+                    .padding(.horizontal)
+
                 if !reachable {
                     UnreachableAPIView()
                 }
-                
+
                 InputFieldsView(
                     message: $message,
                     conversationState: conversationState,

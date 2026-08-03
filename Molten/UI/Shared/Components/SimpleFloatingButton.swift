@@ -10,7 +10,9 @@ import SwiftUI
 struct SimpleFloatingButton: View {
     var systemImage: String
     var onClick: () -> ()
-    
+    /// VoiceOver label; falls back to the symbol name if unset.
+    var accessibilityTitle: String? = nil
+
     var body: some View {
         Button(action: onClick) {
             Image(systemName: systemImage)
@@ -19,9 +21,13 @@ struct SimpleFloatingButton: View {
                 .scaledToFit()
                 .foregroundColor(Color.label)
                 .frame(height: 18)
+                // Comfortable hit target without enlarging the glyph (F-31).
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(GrowingButton())
         .contentShape(Rectangle())
+        .accessibilityLabel(Text(accessibilityTitle ?? systemImage))
     }
 }
 

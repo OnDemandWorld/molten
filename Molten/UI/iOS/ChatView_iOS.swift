@@ -21,7 +21,8 @@ struct ChatView: View {
     var reachable: Bool
     var onSelectModel: @MainActor (_ model: LanguageModelSD?) -> ()
     var userInitials: String
-    
+    var onDismissError: () -> Void = {}
+
     private var selectedModel: LanguageModelSD?
     @State private var message = ""
     @State private var isRecording = false
@@ -46,7 +47,8 @@ struct ChatView: View {
         onStopGenerateTap: @MainActor @escaping () -> Void,
         reachable: Bool,
         modelSupportsImages: Bool = false,
-        userInitials: String
+        userInitials: String,
+        onDismissError: @escaping () -> Void = {}
     ) {
         self.conversation = conversation
         self.messages = messages
@@ -60,6 +62,7 @@ struct ChatView: View {
         self.onSelectModel = onSelectModel
         self.selectedModel = selectedModel
         self.userInitials = userInitials
+        self.onDismissError = onDismissError
     }
     
     private func onMessageSubmit() {
@@ -93,19 +96,22 @@ struct ChatView: View {
                     .scaledToFit()
                     .frame(width: 22)
                     .foregroundColor(Color(.label))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
-            
+            .accessibilityLabel("Open sidebar")
+
             Spacer()
-            
+
             ModelSelectorView(
                 modelsList: modelsList,
                 selectedModel: selectedModel,
                 onSelectModel: onSelectModel
             )
             .showIf(!modelsList.isEmpty)
-            
+
             Spacer()
-            
+
             Button(action: onNewConversationTap) {
                 Image(systemName: "square.and.pencil")
                     .renderingMode(.template)
@@ -113,7 +119,10 @@ struct ChatView: View {
                     .scaledToFit()
                     .frame(width: 22)
                     .foregroundColor(Color(.label))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("New conversation")
         }
     }
     
@@ -125,7 +134,10 @@ struct ChatView: View {
                     .scaledToFit()
                     .foregroundStyle(.foreground)
                     .frame(height: 19)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Add image")
             .onChange(of: pickerSelectorActive) {
                 Task {
                     if let loaded = try? await pickerSelectorActive?.loadTransferable(type: Image.self) {
@@ -148,11 +160,6 @@ struct ChatView: View {
                     self.message = transcription
                 }
             }
-            .onChange(of: isFocusedInput, { oldValue, newValue in
-                withAnimation {
-                    isFocusedInput = newValue
-                }
-            })
             .padding(.horizontal)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
@@ -164,11 +171,9 @@ struct ChatView: View {
             
             switch conversationState {
             case .loading:
-                SimpleFloatingButton(systemImage: "square.fill", onClick: onStopGenerateTap)
-                    .frame(width: 12)
+                SimpleFloatingButton(systemImage: "square.fill", onClick: onStopGenerateTap, accessibilityTitle: "Stop generating")
             default:
-                SimpleFloatingButton(systemImage: "paperplane.fill", onClick: onMessageSubmit)
-                    .frame(width: 18)
+                SimpleFloatingButton(systemImage: "paperplane.fill", onClick: onMessageSubmit, accessibilityTitle: "Send message")
             }
         }
         .contentShape(Rectangle())
@@ -191,14 +196,14 @@ struct ChatView: View {
                     editMessage: $editMessage
                 )
             } else {
-                EmptyConversaitonView(sendPrompt: {selectedMessage in
+                EmptyConversationView(sendPrompt: {selectedMessage in
                     if let selectedModel = selectedModel {
                         onSendMessageTap(selectedMessage, selectedModel, nil, nil)
                     }
                 })
             }
             
-            ConversationStatusView(state: conversationState)
+            ConversationStatusView(state: conversationState, onDismiss: onDismissError)
                 .padding()
             
             if !reachable {

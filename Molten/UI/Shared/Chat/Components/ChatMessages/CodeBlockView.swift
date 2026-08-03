@@ -28,8 +28,11 @@ struct CodeBlockView: View {
                 }) {
                     Image(systemName: "doc.on.doc")
                         .padding(7)
+                        .frame(minWidth: 44, minHeight: 32)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(GrowingButton())
+                .accessibilityLabel("Copy code")
             }
             .padding(.horizontal)
             .padding(.vertical, 4)

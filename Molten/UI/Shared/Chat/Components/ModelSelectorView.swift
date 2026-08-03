@@ -49,6 +49,7 @@ struct ModelSelectorView: View {
                     .foregroundColor(Color(.label))
                     .showIf(showChevron)
             }
+            .accessibilityLabel("Select model")
         }
     }
 }
