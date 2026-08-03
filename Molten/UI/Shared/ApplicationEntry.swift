@@ -20,12 +20,7 @@ struct ApplicationEntry: View {
     
     var body: some View {
         VStack {
-            switch appStore.appState {
-            case .chat:
-                Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
-            case .voice:
-                Voice(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
-            }
+            Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
         }
         .task {
             // Load models and conversations on app start

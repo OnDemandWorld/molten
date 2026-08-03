@@ -27,11 +27,10 @@ extension KeyboardShortcuts.Name {
 
 @main
 struct MoltenApp: App {
-    @State private var appStore = AppStore.shared
 #if os(macOS)
     @NSApplicationDelegateAdaptor(PanelManager.self) var panelManager
 #endif
-    
+
     var body: some Scene {
         WindowGroup {
             ApplicationEntry()
@@ -53,21 +52,6 @@ struct MoltenApp: App {
         Window("Keyboard Shortcuts", id: "keyboard-shortcuts") {
             KeyboardShortcutsDemo()
         }
-#endif
-        
-#if os(macOS)
-#if false
-        MenuBarExtra {
-            MenuBarControl()
-        } label: {
-            if let iconName = appStore.menuBarIcon {
-                Image(systemName: iconName)
-            } else {
-                MenuBarControlView.icon
-            }
-        }
-        .menuBarExtraStyle(.window)
-#endif
 #endif
     }
 }

@@ -9,11 +9,6 @@ import Foundation
 import Combine
 import SwiftUI
 
-enum AppState {
-    case chat
-    case voice
-}
-
 @Observable
 final class AppStore {
     nonisolated(unsafe) static let shared = AppStore()
@@ -33,9 +28,7 @@ final class AppStore {
     /// True when at least one provider (Swama, Ollama, or Apple Foundation) is reachable
     @MainActor var isReachable: Bool = true
     @MainActor var notifications: [NotificationMessage] = []
-    @MainActor var menuBarIcon: String? = nil
-    var appState: AppState = .chat
-    
+
     // Caching and backoff for reachability checks
     private var lastReachabilityCheck: Date = .distantPast
     private var cachedReachabilityResult: Bool = true
