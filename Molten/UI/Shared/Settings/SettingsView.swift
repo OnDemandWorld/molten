@@ -117,14 +117,17 @@ struct SettingsView: View {
 #endif
                     
                     if let status = ollamaStatus {
-                        HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: status ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(status ? .green : .red)
+                                .accessibilityHidden(true)
                             Text(status ? "Connected" : "Not Connected")
                                 .foregroundStyle(status ? .green : .red)
                             Spacer()
                         }
                     }
                     
-                    TextField("Bearer Token (optional)", text: $ollamaBearerToken)
+                    SecureField("Bearer Token (optional)", text: $ollamaBearerToken)
                         .disableAutocorrection(true)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
 #if os(iOS)
@@ -145,14 +148,17 @@ struct SettingsView: View {
 #endif
                     
                     if let status = swamaStatus {
-                        HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: status ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(status ? .green : .red)
+                                .accessibilityHidden(true)
                             Text(status ? "Connected" : "Not Connected")
                                 .foregroundStyle(status ? .green : .red)
                             Spacer()
                         }
                     }
                     
-                    TextField("Bearer Token (optional)", text: $swamaApiKey)
+                    SecureField("Bearer Token (optional)", text: $swamaApiKey)
                         .disableAutocorrection(true)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
 #if os(iOS)
