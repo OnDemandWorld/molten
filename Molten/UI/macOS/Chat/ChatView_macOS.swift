@@ -79,6 +79,7 @@ struct ChatView: View {
                 
                 ConversationStatusView(state: conversationState, onDismiss: onDismissError)
                     .padding(.horizontal)
+                    .frame(maxWidth: 800)
 
                 if !reachable {
                     UnreachableAPIView()

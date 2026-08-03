@@ -27,7 +27,7 @@ struct ChatMessageView: View {
     }
     
     var image: Image? {
-        message.image != nil ? Image(data: message.image!) : nil
+        message.image.flatMap { Image(data: $0) }
     }
     
     private var codeHighlightColorScheme: Splash.Theme {

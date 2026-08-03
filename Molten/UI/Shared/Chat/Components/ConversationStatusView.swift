@@ -19,13 +19,18 @@ struct ConversationStatusView: View {
         case .completed: EmptyView()
         case .error(let message):
             HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .accessibilityHidden(true)
-                Text(message)
-                    .foregroundColor(.red)
-                    .font(.system(size: 16))
-                Spacer()
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                        .accessibilityHidden(true)
+                    Text(message)
+                        .foregroundColor(.red)
+                        .font(.system(size: 16))
+                    Spacer()
+                }
+                // VoiceOver reads the message as one element.
+                .accessibilityElement(children: .combine)
+
                 Button(action: onDismiss) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
