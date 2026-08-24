@@ -80,7 +80,9 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
                             // Last resort: convert to string representation
                             text = String(describing: result)
                         }
-                    let chunkSize = 10 // Characters per chunk
+                    // 40 chars/chunk keeps the streaming feel while cutting
+                    // per-chunk overhead (was 10, i.e. 4x more yields/tasks).
+                    let chunkSize = 40 // Characters per chunk
                     var currentIndex = text.startIndex
                     
                     while currentIndex < text.endIndex {
@@ -138,6 +140,25 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
                 task.cancel()
             }
         }
+    }
+
+    /// One-shot completion for in-app features (e.g. start-page prompt
+    /// suggestions) — no streaming simulation. Returns nil when the
+    /// on-device model is unavailable or generation fails, so callers can
+    /// fall back gracefully. Everything runs locally via FoundationModels.
+    func respond(prompt: String, instructions: String? = nil) async -> String? {
+        #if canImport(FoundationModels)
+        guard SystemLanguageModel.default.isAvailable else { return nil }
+        do {
+            let session = LanguageModelSession(instructions: instructions)
+            let response = try await session.respond(to: prompt)
+            return response.content
+        } catch {
+            return nil
+        }
+        #else
+        return nil
+        #endif
     }
 
     /// Builds a single prompt string from the full message history, labeling

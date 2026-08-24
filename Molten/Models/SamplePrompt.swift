@@ -33,53 +33,28 @@ struct SamplePrompts: Identifiable, Hashable {
 // MARK: - Sample Data
 extension SamplePrompts {
     static let samples: [SamplePrompts] = [
-        // Original prompts
-        .init(prompt: "Give me phrases to learn in a new language", type: .action),
-        .init(prompt: "Act like Mowgli from The Jungle Book and answer questions", type: .action),
-        .init(prompt: "How to center div in HTML?", type: .question),
-        .init(prompt: "What's unique about Go programming language?", type: .question),
-        .init(prompt: "Give 10 gift ideas for best friend", type: .action),
-        .init(prompt: "Write a text message asking a friend to be my plus-one at a wedding", type: .action),
-        .init(prompt: "Explain supercomputers like I'm five years old", type: .action),
-        .init(prompt: "How to do personal taxes in USA?", type: .question),
-        .init(prompt: "What are the largest cities in USA in population? Give a table", type: .question),
-        .init(prompt: "Give me ideas about New Years resolutions", type: .action),
-        .init(prompt: "What is bubble sort? Write example in python", type: .question),
-        
-        // NEW: Technical & Apple Silicon focused
-        .init(prompt: "Why is Apple Silicon better for running LLMs locally vs cloud APIs?", type: .question),
-        .init(prompt: "Explain unified memory architecture and why it matters for AI inference", type: .action),
-        .init(prompt: "What's the difference between M1 Max, M3 Max, and M4 for running language models?", type: .question),
-        .init(prompt: "How does quantization allow larger models to run on personal devices?", type: .question),
-        
-        // NEW: Code & Development
-        .init(prompt: "Build me a Swift function that handles API responses with Codable", type: .action),
-        .init(prompt: "What are common performance bottlenecks in iOS app development?", type: .question),
-        .init(prompt: "Create a regex pattern to validate email addresses", type: .action),
-        .init(prompt: "Explain SwiftUI property wrappers: @State, @Binding, @ObservedObject", type: .action),
-        
-        // NEW: Privacy & Security (relevant to local AI)
-        .init(prompt: "Why should sensitive data stay on-device instead of sent to cloud APIs?", type: .question),
-        .init(prompt: "What security considerations exist when running AI models locally?", type: .question),
-        
-        // NEW: Creative & Role-play
-        .init(prompt: "Act as a cyberpunk hacker from 2087 and describe your workstation setup", type: .action),
-        .init(prompt: "Roleplay as Steve Jobs pitching the original iPhone in 2007", type: .action),
-        .init(prompt: "Act as a personal finance advisor and critique my spending habits (give example)", type: .action),
-        
-        // NEW: Advanced reasoning (showcases chain-of-thought)
-        .init(prompt: "Explain step-by-step how you would debug a memory leak in a C++ program", type: .action),
-        .init(prompt: "If a train leaves NYC at 2pm going 100mph and another leaves Boston at 3pm going 80mph, when do they meet? Show your work", type: .question),
-        .init(prompt: "Design a database schema for a Twitter-like application. Explain your choices", type: .action),
-        
-        // NEW: Synthesis & Summarization
-        .init(prompt: "Summarize the key differences between REST and GraphQL APIs in a table", type: .question),
-        .init(prompt: "What are the pros and cons of microservices vs monolithic architecture?", type: .question),
-        
-        // NEW: Unique/memorable demos
-        .init(prompt: "Write a haiku about debugging JavaScript", type: .action),
-        .init(prompt: "Create a mock job posting for a 'Full-Stack Wizard' at a fantasy startup", type: .action),
-        .init(prompt: "Explain cryptocurrency to a 10-year-old using only analogies", type: .action),
+        // Kept short on purpose: the front page shows 4 of these in small
+        // grid cards, so each prompt should read at a glance (~<50 chars).
+        .init(prompt: "Why is the night sky dark?", type: .question),
+        .init(prompt: "Explain quantum entanglement to a 5-year-old", type: .action),
+        .init(prompt: "Write a haiku about debugging code", type: .action),
+        .init(prompt: "What's special about the number 1729?", type: .question),
+        .init(prompt: "How do I center a div?", type: .question),
+        .init(prompt: "Give 10 dinner ideas with only 5 ingredients", type: .action),
+        .init(prompt: "Why should I switch doors on Monty Hall?", type: .question),
+        .init(prompt: "Draft a polite way to decline a meeting", type: .action),
+        .init(prompt: "What makes Apple Silicon good at running AI?", type: .question),
+        .init(prompt: "Write a bedtime story about a brave little toaster", type: .action),
+        .init(prompt: "REST vs GraphQL — compare in a table", type: .question),
+        .init(prompt: "How does quantization shrink AI models?", type: .question),
+        .init(prompt: "Help me name my new cat", type: .action),
+        .init(prompt: "Explain recursion using only kitchen analogies", type: .action),
+        .init(prompt: "What would a city on Mars need to survive?", type: .question),
+        .init(prompt: "Write a limerick about my WiFi dropping", type: .action),
+        .init(prompt: "What is a monad? Answer in one paragraph", type: .question),
+        .init(prompt: "Plan a 3-day weekend trip to Tokyo", type: .action),
+        .init(prompt: "Why do we dream? The leading theories", type: .question),
+        .init(prompt: "Rewrite my next message like Shakespeare", type: .action),
     ]
     
     static var shuffled: [SamplePrompts] {

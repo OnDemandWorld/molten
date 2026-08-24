@@ -86,52 +86,6 @@ final class Accessibility {
         }
         
         return newContent
-//        let pasteboard = NSPasteboard.general
-//        let originalContents = pasteboard.pasteboardItems?.compactMap { $0.string(forType: .string) } ?? []
-//        print("step 1", pasteboard.string(forType: .string))
-//        pasteboard.clearContents()
-//        pasteboard.setString("", forType: .string)
-//        print("step 2", pasteboard.string(forType: .string))
-//        usleep(1000000)
-//        sleep(1)
-//        var attempts = 0
-//        var newContent: String?
-        
-
-//        while attempts < retryAttempts && newContent == nil {
-            
-//            simulateCopyKeyPress()
-//            usleep(100000)
-            
-
-//            print("step 3", pasteboard.string(forType: .string))
-//            newContent = pasteboard.string(forType: .string)
-//            print("pasteboard content", newContent)
-//            print("step 3.5", pasteboard.string(forType: .string))
-//            if let newContent = newContent, !newContent.isEmpty {
-//                break
-//            } else {
-//                newContent = nil
-//            }
-//            attempts += 1
-//        }
-        
-//        if newContent == nil {
-//            pasteboard.clearContents()
-//            for item in originalContents {
-//                pasteboard.setString(item, forType: .string)
-//            }
-//        }
-        
-//        defer {
-//            pasteboard.clearContents()
-//        }
-//        
-//        print("step 4", pasteboard.string(forType: .string))
-//        print("returning via copy method", newContent)
-        
-//        return newContent
-        return nil
     }
     
     func simulateCopyKeyPress() {

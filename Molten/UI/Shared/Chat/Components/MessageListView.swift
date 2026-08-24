@@ -18,7 +18,6 @@ struct MessageListView: View {
     @Binding var editMessage: MessageSD?
     @State private var messageSelected: MessageSD?
     @StateObject private var speechSynthesizer = SpeechSynthesizer.shared
-    @State private var scrollThrottleCounter: Int = 0
 
     // Track for auto-scroll during streaming
     private var isStreaming: Bool {

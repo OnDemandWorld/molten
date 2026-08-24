@@ -63,8 +63,15 @@ final class AppStore {
     private func startCheckingReachability(interval: TimeInterval = 5) {
         // Use a longer interval if we've had consecutive failures (exponential backoff)
         let effectiveInterval = calculateEffectiveInterval(baseInterval: interval)
-        
-        timer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
+
+        // Timer must be scheduled on a thread with a running RunLoop. The
+        // backoff restart paths call this from Tasks on the cooperative thread
+        // pool, where a scheduled timer would never fire and reachability
+        // polling silently stopped. Always (re)create it on the main RunLoop.
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.timer?.invalidate()
+            self.timer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
             Task { [weak self] in
                 guard let self = self else { return }
                 
@@ -85,11 +92,10 @@ final class AppStore {
                 self.cachedReachabilityResult = status
                 
                 if status {
-                    // Reset backoff on success
-                    self.consecutiveFailures = 0
                     // Restart timer with normal interval if we were in backoff
-                    if self.consecutiveFailures == 0 && effectiveInterval > interval {
-                        self.stopCheckingReachability()
+                    let wasInBackoff = self.consecutiveFailures > 0
+                    self.consecutiveFailures = 0
+                    if wasInBackoff {
                         self.startCheckingReachability(interval: interval)
                     }
                 } else {
@@ -97,9 +103,9 @@ final class AppStore {
                     self.consecutiveFailures += 1
                     // Restart timer with longer interval if we've had multiple failures
                     if self.consecutiveFailures > 3 && effectiveInterval < self.maxBackoffInterval {
-                        self.stopCheckingReachability()
                         self.startCheckingReachability(interval: interval)
                     }
+                }
                 }
             }
         }
@@ -144,8 +150,11 @@ final class AppStore {
     }
 
     private func stopCheckingReachability() {
-        timer?.invalidate()
-        timer = nil
+        // Invalidate on the thread the timer was scheduled on (main).
+        DispatchQueue.main.async { [weak self] in
+            self?.timer?.invalidate()
+            self?.timer = nil
+        }
     }
     
     /// Force an immediate reachability check (bypasses cache)

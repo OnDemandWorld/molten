@@ -12,23 +12,51 @@ import SwiftData
 final class MessageSD: Identifiable {
     @Attribute(.unique) var id: UUID = UUID()
 
-    // Cached think parsing results to avoid repeated string scans
-    // These are computed once and cached for performance
-    private var cachedThink: String?
-    private var cachedHasThink: Bool?
-    private var cachedThinkComplete: Bool?
-    private var cachedRealContent: String?
-    private var lastContentScan: String?
+    // Cached think parsing results to avoid repeated string scans.
+    // @Transient: these are derived state — persisting them (especially
+    // lastContentScan, a full duplicate of `content`) bloated the store.
+    @Transient private var cachedThink: String?
+    @Transient private var cachedHasThink: Bool?
+    @Transient private var cachedThinkComplete: Bool?
+    @Transient private var cachedRealContent: String?
+    @Transient private var lastContentScan: String?
 
-    // Invalidate cache when content changes
+    /// Decoded attachment image, cached so streaming re-renders don't
+    /// re-decode the (constant) image data on every body evaluation.
+    @Transient private var cachedDisplayImage: PlatformImage?
+
+    /// Base64 data URL for the attachment, cached so message history isn't
+    /// re-encoded for every image on every prompt turn.
+    @Transient private var cachedImageDataURL: String?
+
+    // Invalidate cache when content changes; parse ONCE and fill all caches
+    // (previously each getter re-ran parseThink, up to 4 full O(n) scans per
+    // content change during streaming).
     private func ensureCacheValid(_ content: String) {
         if lastContentScan != content {
             lastContentScan = content
-            cachedThink = nil
-            cachedHasThink = nil
-            cachedThinkComplete = nil
-            cachedRealContent = nil
+            let parsed = parseThink(from: content)
+            cachedThink = parsed.think
+            cachedHasThink = parsed.hasThink
+            cachedThinkComplete = parsed.thinkComplete
+            cachedRealContent = parsed.realContent
         }
+    }
+
+    /// Decoded attachment image (cached).
+    var displayImage: PlatformImage? {
+        if cachedDisplayImage == nil, let data = image {
+            cachedDisplayImage = PlatformImage(data: data)
+        }
+        return cachedDisplayImage
+    }
+
+    /// `data:` URL for the attached image (cached, built once).
+    var imageDataURL: String? {
+        if cachedImageDataURL == nil, let data = image {
+            cachedImageDataURL = "data:image/jpeg;base64,\(data.base64EncodedString())"
+        }
+        return cachedImageDataURL
     }
 
     private func parseThink(from content: String) -> (hasThink: Bool, think: String?, thinkComplete: Bool, realContent: String?) {
@@ -63,33 +91,21 @@ final class MessageSD: Identifiable {
 
     var think: String? {
         ensureCacheValid(content)
-        if cachedThink == nil {
-            cachedThink = parseThink(from: content).think
-        }
         return cachedThink
     }
 
     var hasThink: Bool {
         ensureCacheValid(content)
-        if cachedHasThink == nil {
-            cachedHasThink = parseThink(from: content).hasThink
-        }
         return cachedHasThink ?? false
     }
 
     var thinkComplete: Bool {
         ensureCacheValid(content)
-        if cachedThinkComplete == nil {
-            cachedThinkComplete = parseThink(from: content).thinkComplete
-        }
         return cachedThinkComplete ?? false
     }
 
     var realContent: String? {
         ensureCacheValid(content)
-        if cachedRealContent == nil {
-            cachedRealContent = parseThink(from: content).realContent
-        }
         return cachedRealContent
     }
 
@@ -116,7 +132,6 @@ final class MessageSD: Identifiable {
         self.role = role
         self.done = done
         self.error = error
-        self.conversation = conversation
         self.image = image
         // Initialize cache for initial content
         self.lastContentScan = content

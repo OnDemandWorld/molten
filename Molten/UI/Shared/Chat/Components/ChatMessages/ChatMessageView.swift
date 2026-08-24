@@ -22,12 +22,14 @@ struct ChatMessageView: View {
     @State private var showThink = false
     
     var roleName: String  {
-        let userInitialsNotEmpty = userInitials != "" ? userInitials : "AM"
+        let userInitialsNotEmpty = userInitials != "" ? userInitials : "U"
         return message.role == "user" ? userInitialsNotEmpty.uppercased() : "AI"
     }
     
+    /// Cached decoded attachment: `Image(data:)` used to re-decode the image
+    /// on every body evaluation (every streamed flush for streaming messages).
     var image: Image? {
-        message.image.flatMap { Image(data: $0) }
+        message.displayImage.map { Image(platformImage: $0) }
     }
     
     private var codeHighlightColorScheme: Splash.Theme {

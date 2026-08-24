@@ -64,7 +64,7 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
         let audioSession = AVAudioSession()
         do {
             try audioSession.setCategory(.playback, mode: .default, options: .duckOthers)
-            try audioSession.setActive(false)
+            try audioSession.setActive(true)
         } catch let error {
             logger.error("Audio session error: \(error.localizedDescription, privacy: .private)")
         }
@@ -72,14 +72,18 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
         
         lastCancelation = onFinished
         delegate.onSpeechFinished = {
-            withAnimation {
-                self.isSpeaking = false
+            Task { @MainActor in
+                withAnimation {
+                    self.isSpeaking = false
+                }
+                onFinished()
             }
-            onFinished()
         }
         delegate.onSpeechStart = {
-            withAnimation {
-                self.isSpeaking = true
+            Task { @MainActor in
+                withAnimation {
+                    self.isSpeaking = true
+                }
             }
         }
         

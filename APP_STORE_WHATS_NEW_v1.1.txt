@@ -1,0 +1,24 @@
+What's New in Molten 1.1
+
+Accessibility & Polish
+• VoiceOver labels and improved hit targets throughout
+• Drag-to-dismiss keyboard on the message list (iOS)
+• Respects Reduce Motion accessibility setting
+• Dismissible error banner for connection issues
+• Clearer analytics labels ("input speed" vs "prompt eval rate")
+
+Settings & Connection
+• SecureField masking for bearer tokens and API keys
+• Clear connection status icons in Settings
+• TTS voices load once when Settings opens (no more polling)
+
+Stability
+• Fixed a data-loss bug where removing a model could delete conversations
+• Fixed database growing with duplicate model entries on every refresh
+• Fixed voice input not updating the UI during transcription
+• Fixed text-to-speech silently failing on iOS
+• Fixed hotkeys triggering system actions alongside custom shortcuts
+• Privacy hardening and analytics accuracy improvements
+• Numerous concurrency fixes for reliability
+
+Privacy: Molten collects no data. Ever.

@@ -13,7 +13,7 @@ struct LanguageModel {
     var imageSupport: Bool
 }
 
-enum ModelProvider: Codable {
+enum ModelProvider: String, Codable {
     case ollama
     case swama
     case appleFoundation

@@ -22,3 +22,14 @@ extension Image {
     }
 }
 #endif
+
+extension Image {
+    /// Creates an Image from the platform's native image type.
+    init(platformImage: PlatformImage) {
+#if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
+        self.init(uiImage: platformImage)
+#elseif os(macOS)
+        self.init(nsImage: platformImage)
+#endif
+    }
+}

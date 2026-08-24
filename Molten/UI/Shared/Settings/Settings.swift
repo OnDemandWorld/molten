@@ -37,18 +37,9 @@ struct Settings: View {
     private func save() {
 #if os(iOS)
 #endif
-        // remove trailing slash
-        if swamaUri.last == "/" {
-            swamaUri = String(swamaUri.dropLast())
-        }
-        
         // Remove trailing slashes
-        if swamaUri.last == "/" {
-            swamaUri = String(swamaUri.dropLast())
-        }
-        if ollamaUri.last == "/" {
-            ollamaUri = String(ollamaUri.dropLast())
-        }
+        while swamaUri.hasSuffix("/") { swamaUri.removeLast() }
+        while ollamaUri.hasSuffix("/") { ollamaUri.removeLast() }
         
         SwamaService.shared.initEndpoint(url: swamaUri, apiKey: swamaApiKey)
         OllamaService.shared.initEndpoint(url: ollamaUri, bearerToken: ollamaBearerToken)

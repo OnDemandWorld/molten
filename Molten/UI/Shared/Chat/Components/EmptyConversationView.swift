@@ -22,6 +22,20 @@ struct EmptyConversationView: View, KeyboardReadable {
     var columns = [GridItem(.flexible()), GridItem(.flexible())]
 #endif
     @State var visibleItems = Set<Int>()
+    /// On-device personalized starters (empty until generation succeeds).
+    @State private var suggestions = PromptSuggestionsStore.shared
+    /// Whether the cards currently shown already include generated prompts —
+    /// used to avoid swapping cards under the user's pointer.
+    @State private var currentMixHasGenerated = false
+
+    /// Builds the card mix: generated prompts (when available) plus static
+    /// samples, so the grid is never empty.
+    private func reloadPrompts() {
+        let mix = suggestions.mixPrompts()
+        prompts = mix
+        let generatedTexts = Set(suggestions.generated.map(\.prompt))
+        currentMixHasGenerated = mix.contains { generatedTexts.contains($0.prompt) }
+    }
 
     var body: some View {
         VStack {
@@ -86,8 +100,20 @@ struct EmptyConversationView: View, KeyboardReadable {
         .onAppear {
             DispatchQueue.main.async {
                 withAnimation {
-                    prompts = SamplePrompts.samples.shuffled()
+                    reloadPrompts()
                     showPromptsAnimation = true
+                }
+            }
+            // Personalized starters generate in the background; the page is
+            // already showing the static pool by now, so it never blocks.
+            suggestions.refreshIfNeeded()
+        }
+        .onChange(of: suggestions.generated) { _, _ in
+            // Swap in personalized cards only while a purely static mix is
+            // showing; once generated prompts are visible, keep cards stable.
+            if !currentMixHasGenerated {
+                withAnimation {
+                    reloadPrompts()
                 }
             }
         }

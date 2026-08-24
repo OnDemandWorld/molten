@@ -53,10 +53,11 @@ extension SwiftDataService {
     }
     
     func saveModels(models: [LanguageModelSD]) throws {
+        // Delete existing models to prevent unbounded growth
+        try modelContext.delete(model: LanguageModelSD.self)
         for model in models {
             modelContext.insert(model)
         }
-        
         try modelContext.saveChanges()
     }
     
@@ -140,8 +141,8 @@ extension SwiftDataService {
         try modelContext.saveChanges()
     }
     
-    func createMessage(_ mesasge: MessageSD) throws {
-        self.modelContext.insert(mesasge)
+    func createMessage(_ message: MessageSD) throws {
+        self.modelContext.insert(message)
         try modelContext.saveChanges()
     }
 }

@@ -195,66 +195,45 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                         return
                     }
 
-                    var buffer = Data()
-                    var lineCount = 0
-                    var responseCount = 0
-                    let maxBufferSize = 1024 * 1024 // 1MB safety limit
-
-                    for try await byte in bytes {
+                    // SSE is line-based, so use URLSession's buffered line
+                    // splitting instead of iterating byte-by-byte. The old
+                    // approach appended one byte at a time and re-scanned the
+                    // whole buffer with firstIndex(of:) on every byte — O(n²)
+                    // per line plus per-byte async overhead on long responses.
+                    // Line streaming also removes the need for a manual buffer
+                    // and its 1MB safety cap: data is consumed as it arrives.
+                    for try await line in bytes.lines {
                         if Task.isCancelled {
                             continuation.finish()
                             return
                         }
 
-                        // Safety check: prevent buffer from growing unbounded
-                        if buffer.count > maxBufferSize {
-                            logger.warning("SwamaService: SSE buffer exceeded 1MB limit; clearing")
-                            buffer.removeAll()
+                        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+                        // Skip empty lines (SSE event separators) and metadata
+                        if trimmedLine.isEmpty
+                            || trimmedLine.hasPrefix("event:")
+                            || trimmedLine.hasPrefix("id:")
+                            || trimmedLine.hasPrefix(":") {
+                            continue
                         }
 
-                        buffer.append(byte)
+                        // Process SSE format: "data: {...}" or "data: [DONE]"
+                        guard trimmedLine.hasPrefix("data: ") else { continue }
+                        let jsonString = String(trimmedLine.dropFirst(6))
 
-                        // Process complete lines (ending with \n or \r\n)
-                        while let newlineIndex = buffer.firstIndex(of: 10) { // 10 is \n
-                            let lineData = buffer.prefix(upTo: newlineIndex)
-                            // Remove the processed line from buffer BEFORE processing
-                            // This prevents memory leak from unprocessed data accumulating
-                            buffer.removeSubrange(..<buffer.index(after: newlineIndex))
+                        if jsonString == "[DONE]" {
+                            continuation.finish()
+                            return
+                        }
 
-                            if let line = String(data: lineData, encoding: .utf8) {
-                                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                                lineCount += 1
-
-                                // Skip empty lines
-                                if trimmedLine.isEmpty {
-                                    continue
-                                }
-
-                                // Process SSE format: "data: {...}" or "data: [DONE]"
-                                if trimmedLine.hasPrefix("data: ") {
-                                    let jsonString = String(trimmedLine.dropFirst(6))
-
-                                    if jsonString == "[DONE]" {
-                                        continuation.finish()
-                                        return
-                                    }
-
-                                    if let jsonData = jsonString.data(using: .utf8) {
-                                        do {
-                                            let response = try JSONDecoder().decode(ChatCompletionResponse.self, from: jsonData)
-                                            responseCount += 1
-                                            continuation.yield(response)
-                                        } catch {
-                                            // Decoding failed - log but continue, data already removed from buffer
-                                            logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
-                                            continue
-                                        }
-                                    }
-                                } else if trimmedLine.hasPrefix("event:") || trimmedLine.hasPrefix("id:") {
-                                    // Skip SSE metadata lines
-                                    continue
-                                }
-                            }
+                        guard let jsonData = jsonString.data(using: .utf8) else { continue }
+                        do {
+                            let response = try JSONDecoder().decode(ChatCompletionResponse.self, from: jsonData)
+                            continuation.yield(response)
+                        } catch {
+                            logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
+                            continue
                         }
                     }
                     continuation.finish()

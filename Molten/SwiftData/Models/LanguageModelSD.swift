@@ -15,7 +15,7 @@ final class LanguageModelSD: Identifiable {
     var imageSupport: Bool = false
     @Attribute var modelProvider: ModelProvider? = ModelProvider.swama
     
-    @Relationship(deleteRule: .cascade, inverse: \ConversationSD.model)
+    @Relationship(deleteRule: .nullify, inverse: \ConversationSD.model)
     var conversations: [ConversationSD]? = []
     
     

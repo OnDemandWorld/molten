@@ -81,7 +81,15 @@ struct AnalyticsFooterView: View {
     }
     
     private var overallThroughput: String? {
-        guard let totalTokens = message.totalTokens ?? (message.promptTokens != nil && message.completionTokens != nil ? (message.promptTokens! + message.completionTokens!) : nil),
+        let totalTokens: Int?
+        if let total = message.totalTokens {
+            totalTokens = total
+        } else if let prompt = message.promptTokens, let completion = message.completionTokens {
+            totalTokens = prompt + completion
+        } else {
+            totalTokens = nil
+        }
+        guard let totalTokens,
               let totalTime = message.totalTime,
               totalTime > 0 else {
             return nil

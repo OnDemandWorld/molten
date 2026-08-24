@@ -9,7 +9,7 @@
 import Foundation
 import Speech
 
-actor SpeechRecognizer: ObservableObject {
+@MainActor final class SpeechRecognizer: ObservableObject {
     enum RecognizerError: Error {
         case nilRecognizer
         case notAuthorizedToRecognize
@@ -26,7 +26,7 @@ actor SpeechRecognizer: ObservableObject {
         }
     }
     
-    @MainActor var transcript: String = ""
+    @Published var transcript: String = ""
     
     private var audioEngine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -71,20 +71,20 @@ actor SpeechRecognizer: ObservableObject {
         onUpdate = handler
     }
     
-    @MainActor func startTranscribing(onUpdate: @escaping @Sendable (_ message: String) -> ()) {
+    func startTranscribing(onUpdate: @escaping @Sendable (_ message: String) -> ()) {
         Task {
             await self.setUpdateHandler(onUpdate)
             await transcribe()
         }
     }
     
-    @MainActor func resetTranscript() {
+    func resetTranscript() {
         Task {
             await reset()
         }
     }
     
-    @MainActor func stopTranscribing() {
+    func stopTranscribing() {
         Task {
             await reset()
         }

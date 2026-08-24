@@ -98,6 +98,8 @@
 		AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C3 /* ApplePromptTests.swift */; };
 		AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C5 /* SwamaRequestTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
+		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
+		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
 		FFEB9CA82BA04304004B1F3D /* NotificationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */; };
 		FFEC32912B24779A003E5C04 /* MoltenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEC32902B24779A003E5C04 /* MoltenApp.swift */; };
 		FFEC32972B24779B003E5C04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FFEC32962B24779B003E5C04 /* Assets.xcassets */; };
@@ -207,6 +209,8 @@
 		AD0F300000000000000000C3 /* ApplePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePromptTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C5 /* SwamaRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwamaRequestTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
+		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
+		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
 		AD0F200000000000000000A6 /* MoltenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoltenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFEB9CA72BA04304004B1F3D /* NotificationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationMessage.swift; sourceTree = "<group>"; };
 		FFEC328D2B24779A003E5C04 /* Molten.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Molten.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -283,6 +287,7 @@
 				FFFD00C12B92607800392AE6 /* CompletionsStore.swift */,
 				FF1002432B25BB730011A4DC /* ConversationStore.swift */,
 				FF1002452B25BCE70011A4DC /* LanguageModelStore.swift */,
+				AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -597,6 +602,7 @@
 				AD0F300000000000000000C3 /* ApplePromptTests.swift */,
 				AD0F300000000000000000C5 /* SwamaRequestTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
+				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
 			path = MoltenTests;
 			sourceTree = "<group>";
@@ -809,6 +815,7 @@
 				FF10025E2B2648460011A4DC /* ConversationState.swift in Sources */,
 				FFEC9BE72B813A8D00AFBA63 /* RemovableImage.swift in Sources */,
 				FFFD00C22B92607800392AE6 /* CompletionsStore.swift in Sources */,
+				AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -821,6 +828,7 @@
 				AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */,
 				AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
+				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

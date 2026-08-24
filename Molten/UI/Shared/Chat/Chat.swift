@@ -59,7 +59,9 @@ struct Chat: View, Sendable {
     func onConversationTap(_ conversation: ConversationSD) {
         Task {
             try await conversationStore.selectConversation(conversation)
-            languageModelStore.setModel(model: conversation.model)
+            if let model = conversation.model {
+                languageModelStore.setModel(model: model)
+            }
             Haptics.shared.mediumTap()
         }
         withAnimation {
@@ -98,7 +100,7 @@ struct Chat: View, Sendable {
 
     func copyChat(_ json: Bool) {
         Task {
-            let messages = ConversationStore.shared.messages
+            let messages = conversationStore.messages
             
             if messages.count == 0 {
                 return

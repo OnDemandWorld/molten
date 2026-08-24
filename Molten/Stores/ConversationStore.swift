@@ -32,11 +32,12 @@ final class ConversationStore: @unchecked Sendable {
     /// Throttling UI updates seem to fix the issue.
     /// Using array buffer instead of string concatenation for O(n) instead of O(n²) performance
     private var currentMessageBuffer: [String] = []
-#if os(macOS)
     private let throttler = Throttler(delay: 0.15)
-#else
-    private let throttler = Throttler(delay: 0.15)
-#endif
+
+    /// The assistant message currently receiving streamed content. Chunks are
+    /// appended to this instance rather than `messages.last` so switching
+    /// conversations mid-stream cannot write content into the wrong message.
+    private var streamingMessage: MessageSD?
 
     // Analytics tracking
     private var requestStartTime: Date?
@@ -63,6 +64,7 @@ final class ConversationStore: @unchecked Sendable {
         firstTokenTime = nil
         hasReceivedFirstToken = false
         lastUsage = nil
+        streamingMessage = nil
         generationTask?.cancel()
         generationTask = nil
     }
@@ -121,13 +123,9 @@ final class ConversationStore: @unchecked Sendable {
         messages
             .filter { !($0.role == "assistant" && $0.content.isEmpty) }
             .map { message in
-                // Handle image if present
-                var imageURL: ImageURL? = nil
-                if let imageData = message.image {
-                    let base64Image = imageData.base64EncodedString()
-                    let dataURL = "data:image/jpeg;base64,\(base64Image)"
-                    imageURL = ImageURL(url: dataURL)
-                }
+                // Cached base64 data URL: re-encoding every historical image
+                // on each turn was O(total image bytes) per prompt.
+                let imageURL = message.imageDataURL.map { ImageURL(url: $0) }
 
                 return ChatMessage(
                     role: message.role,
@@ -170,29 +168,30 @@ final class ConversationStore: @unchecked Sendable {
         // Cancel the generation task
         generationTask?.cancel()
 
+        let target = streamingMessage ?? messages.last
+
         // Flush any remaining buffer content immediately to prevent memory leak
-        if !currentMessageBuffer.isEmpty, let lastMessage = messages.last {
-            let bufferedContent = currentMessageBuffer.joined()
-            lastMessage.content += bufferedContent
+        if !currentMessageBuffer.isEmpty, let target {
+            target.content += currentMessageBuffer.joined()
             currentMessageBuffer = []
         }
 
         // Record partial analytics for the stopped generation (AN-7) so the
         // footer shows what was produced instead of rendering empty.
-        if let lastMessage = messages.last, lastMessage.role == "assistant", !lastMessage.done {
+        if let target, target.role == "assistant", !target.done {
             if let start = requestStartTime {
-                lastMessage.totalTime = Date().timeIntervalSince(start)
+                target.totalTime = Date().timeIntervalSince(start)
             }
             if let usage = lastUsage {
-                if let prompt = usage.prompt_tokens { lastMessage.promptTokens = prompt }
-                if let completion = usage.completion_tokens { lastMessage.completionTokens = completion }
-                if let total = usage.total_tokens { lastMessage.totalTokens = total }
+                if let prompt = usage.prompt_tokens { target.promptTokens = prompt }
+                if let completion = usage.completion_tokens { target.completionTokens = completion }
+                if let total = usage.total_tokens { target.totalTokens = total }
             }
-            if lastMessage.completionTokens == nil, let content = lastMessage.realContent, !content.isEmpty {
-                lastMessage.completionTokens = max(1, content.count / 4)
+            if target.completionTokens == nil, let content = target.realContent, !content.isEmpty {
+                target.completionTokens = max(1, content.count / 4)
             }
             Task(priority: .background) {
-                try? await swiftDataService.updateMessage(lastMessage)
+                try? await swiftDataService.updateMessage(target)
             }
         }
 
@@ -208,7 +207,7 @@ final class ConversationStore: @unchecked Sendable {
         // This ensures the stop button ALWAYS reverts
         conversationState = .completed
         
-        guard let lastMessage = messages.last else {
+        guard let lastMessage = streamingMessage ?? messages.last else {
             resetStreamingState()
             return
         }
@@ -271,6 +270,7 @@ final class ConversationStore: @unchecked Sendable {
 
         let assistantMessage = MessageSD(content: "", role: "assistant")
         assistantMessage.conversation = conversation
+        streamingMessage = assistantMessage
 
         conversationState = .loading
 
@@ -445,7 +445,7 @@ final class ConversationStore: @unchecked Sendable {
     /// Handle successful stream completion - calculate analytics and finalize
     @MainActor
     func handleComplete(requestStart: Date) {
-        guard let lastMessage = messages.last else {
+        guard let lastMessage = streamingMessage ?? messages.last else {
             finalizeMessage()
             return
         }
@@ -490,10 +490,6 @@ final class ConversationStore: @unchecked Sendable {
 
     @MainActor
     func handleReceive(_ response: ChatCompletionResponse, requestStart: Date) {
-        if messages.isEmpty {
-            return
-        }
-
         // Keep the latest server-reported usage (final chunk carries it).
         if let usage = response.usage {
             lastUsage = usage
@@ -540,30 +536,38 @@ final class ConversationStore: @unchecked Sendable {
             // Use weak self to prevent retain cycles in throttler
             throttler.throttle { [weak self] in
                 guard let self = self else { return }
-                let lastIndex = self.messages.count - 1
-                if lastIndex >= 0 && lastIndex < self.messages.count {
-                    // Join all buffered chunks at once - O(n) total instead of O(n²)
-                    let bufferedContent = self.currentMessageBuffer.joined()
-                    self.messages[lastIndex].content += bufferedContent
-                    self.currentMessageBuffer = []
-                }
+                // Write to the captured streaming message so content lands in
+                // the right conversation even if the user switched away.
+                guard let target = self.streamingMessage ?? self.messages.last else { return }
+                // Join all buffered chunks at once - O(n) total instead of O(n²)
+                target.content += self.currentMessageBuffer.joined()
+                self.currentMessageBuffer = []
             }
         }
     }
 
     @MainActor
     private func handleError(_ errorMessage: String) {
-        guard let lastMesasge = messages.last else { return }
-        lastMesasge.error = true
-        lastMesasge.done = false
+        let target = streamingMessage ?? messages.last
+        if let target {
+            target.error = true
+            target.done = false
 
-        Task(priority: .background) {
-            try? await swiftDataService.updateMessage(lastMesasge)
+            Task(priority: .background) {
+                try? await swiftDataService.updateMessage(target)
+            }
         }
 
         withAnimation {
             conversationState = .error(message: errorMessage)
         }
+
+        // Clear streaming state so a later Stop can't flush stale chunks.
+        // (finalizeMessage is not used here: it would reset the error state.)
+        currentMessageBuffer = []
+        streamingMessage = nil
+        hasReceivedFirstToken = false
+        generationTask = nil
     }
 
     /// Dismisses the error banner, if one is showing (F-35).
