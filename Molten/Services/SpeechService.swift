@@ -61,7 +61,7 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
         }
         
 #if os(iOS)
-        let audioSession = AVAudioSession()
+        let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.playback, mode: .default, options: .duckOthers)
             try audioSession.setActive(true)
@@ -69,13 +69,16 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
             logger.error("Audio session error: \(error.localizedDescription, privacy: .private)")
         }
 #endif
-        
+
         lastCancelation = onFinished
         delegate.onSpeechFinished = {
             Task { @MainActor in
                 withAnimation {
                     self.isSpeaking = false
                 }
+                #if os(iOS)
+                self.deactivateAudioSession()
+                #endif
                 onFinished()
             }
         }
@@ -99,7 +102,23 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
         }
         lastCancelation?()
         synthesizer.stopSpeaking(at: .immediate)
+        #if os(iOS)
+        deactivateAudioSession()
+        #endif
     }
+
+#if os(iOS)
+    /// Release the playback session so other apps' audio stops being ducked
+    /// once speech finishes or is stopped. stopSpeaking(at:) delivers
+    /// didCancel (not didFinish), so both paths must deactivate explicitly.
+    private func deactivateAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch let error {
+            logger.error("Audio session deactivation error: \(error.localizedDescription, privacy: .private)")
+        }
+    }
+#endif
     
     
     func fetchVoices() {

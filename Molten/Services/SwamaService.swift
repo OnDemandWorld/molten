@@ -195,19 +195,19 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                         return
                     }
 
-                    // SSE is line-based, so use URLSession's buffered line
-                    // splitting instead of iterating byte-by-byte. The old
-                    // approach appended one byte at a time and re-scanned the
-                    // whole buffer with firstIndex(of:) on every byte — O(n²)
-                    // per line plus per-byte async overhead on long responses.
-                    // Line streaming also removes the need for a manual buffer
-                    // and its 1MB safety cap: data is consumed as it arrives.
-                    for try await line in bytes.lines {
-                        if Task.isCancelled {
-                            continuation.finish()
-                            return
-                        }
+                    // SSE is line-based. Accumulate bytes and split on
+                    // newlines as they arrive — each byte is looked at only
+                    // once (O(n) total, no whole-buffer re-scans), and the
+                    // buffer holds at most one partial line. The 1MB cap
+                    // bounds memory if a server never sends a newline;
+                    // bytes.lines can't be used here because it buffers an
+                    // entire line with no length limit.
+                    var buffer = Data()
+                    let maxBufferSize = 1024 * 1024 // 1MB safety limit per line
 
+                    // Handles one complete line. Returns false on [DONE],
+                    // meaning the stream should end.
+                    let handleLine: (String) -> Bool = { line in
                         let trimmedLine = line.trimmingCharacters(in: .whitespaces)
 
                         // Skip empty lines (SSE event separators) and metadata
@@ -215,26 +215,53 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
                             || trimmedLine.hasPrefix("event:")
                             || trimmedLine.hasPrefix("id:")
                             || trimmedLine.hasPrefix(":") {
-                            continue
+                            return true
                         }
 
                         // Process SSE format: "data: {...}" or "data: [DONE]"
-                        guard trimmedLine.hasPrefix("data: ") else { continue }
+                        guard trimmedLine.hasPrefix("data: ") else { return true }
                         let jsonString = String(trimmedLine.dropFirst(6))
 
                         if jsonString == "[DONE]" {
+                            return false
+                        }
+
+                        if let jsonData = jsonString.data(using: .utf8) {
+                            do {
+                                let response = try JSONDecoder().decode(ChatCompletionResponse.self, from: jsonData)
+                                continuation.yield(response)
+                            } catch {
+                                logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
+                            }
+                        }
+                        return true
+                    }
+
+                    for try await byte in bytes {
+                        if Task.isCancelled {
                             continuation.finish()
                             return
                         }
 
-                        guard let jsonData = jsonString.data(using: .utf8) else { continue }
-                        do {
-                            let response = try JSONDecoder().decode(ChatCompletionResponse.self, from: jsonData)
-                            continuation.yield(response)
-                        } catch {
-                            logger.error("SwamaService: failed to decode SSE response: \(error.localizedDescription, privacy: .private)")
-                            continue
+                        if byte == 10 { // \n — line complete
+                            let lineData = buffer
+                            buffer = Data()
+                            if let line = String(data: lineData, encoding: .utf8),
+                               !handleLine(line) {
+                                continuation.finish()
+                                return
+                            }
+                        } else {
+                            buffer.append(byte)
+                            if buffer.count > maxBufferSize {
+                                logger.warning("SwamaService: SSE line exceeded 1MB limit; discarding")
+                                buffer = Data()
+                            }
                         }
+                    }
+                    // Flush a trailing line that arrived without a final newline.
+                    if !buffer.isEmpty, let line = String(data: buffer, encoding: .utf8) {
+                        _ = handleLine(line)
                     }
                     continuation.finish()
                 } catch {

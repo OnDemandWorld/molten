@@ -28,13 +28,18 @@ final class PromptSuggestionsStore {
     private var refreshTask: Task<Void, Never>?
     private var hasLoadedCache = false
 
+    /// Injectable so tests can run against an isolated store instead of the
+    /// app's real cache (the test bundle is hosted in Molten.app).
+    private let defaults: UserDefaults
+
     private static let cacheKey = "promptSuggestions"
     private static let cacheDateKey = "promptSuggestionsDate"
     /// Regenerate at most once a day: generation is on-device but battery
     /// and model warm-up still matter.
     private static let maxCacheAge: TimeInterval = 24 * 60 * 60
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         loadCache()
     }
 
@@ -145,11 +150,16 @@ final class PromptSuggestionsStore {
                 text = String(text.dropFirst()).trimmingCharacters(in: .whitespaces)
             }
 
-            // Strip leading numbering like "1." or "2)"
+            // Strip leading numbering like "1." or "2)" — but only when the
+            // separator is followed by whitespace or end of line, so leading
+            // decimals like "3.14 ways to compute pi" aren't mangled.
             if let separatorIndex = text.firstIndex(where: { $0 == "." || $0 == ")" }),
                !text[..<separatorIndex].isEmpty,
                text[..<separatorIndex].allSatisfy(\.isNumber) {
-                text = String(text[text.index(after: separatorIndex)...]).trimmingCharacters(in: .whitespaces)
+                let afterSeparator = text.index(after: separatorIndex)
+                if afterSeparator == text.endIndex || text[afterSeparator].isWhitespace {
+                    text = String(text[afterSeparator...]).trimmingCharacters(in: .whitespaces)
+                }
             }
 
             // Strip surrounding quotes
@@ -167,20 +177,20 @@ final class PromptSuggestionsStore {
     // MARK: - Cache
 
     private var lastGenerationDate: Date {
-        let timestamp = UserDefaults.standard.double(forKey: Self.cacheDateKey)
+        let timestamp = defaults.double(forKey: Self.cacheDateKey)
         return Date(timeIntervalSince1970: timestamp)
     }
 
     private func loadCache() {
         guard !hasLoadedCache else { return }
         hasLoadedCache = true
-        let stored = UserDefaults.standard.stringArray(forKey: Self.cacheKey) ?? []
+        let stored = defaults.stringArray(forKey: Self.cacheKey) ?? []
         generated = Self.parseSuggestions(stored.joined(separator: "\n"))
             .map { SamplePrompts(prompt: $0, type: .question) }
     }
 
     private func saveCache(_ prompts: [String]) {
-        UserDefaults.standard.set(prompts, forKey: Self.cacheKey)
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.cacheDateKey)
+        defaults.set(prompts, forKey: Self.cacheKey)
+        defaults.set(Date().timeIntervalSince1970, forKey: Self.cacheDateKey)
     }
 }

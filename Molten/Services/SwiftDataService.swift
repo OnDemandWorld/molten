@@ -53,10 +53,26 @@ extension SwiftDataService {
     }
     
     func saveModels(models: [LanguageModelSD]) throws {
-        // Delete existing models to prevent unbounded growth
-        try modelContext.delete(model: LanguageModelSD.self)
+        // Upsert by unique name instead of delete-all + re-insert: existing
+        // rows keep their identity, so conversation.model relationships and
+        // the current selection survive a refresh. Only models that actually
+        // disappeared are deleted (nullifying just their conversations).
+        let existing = try modelContext.fetch(FetchDescriptor<LanguageModelSD>())
+        let existingByName = Dictionary(
+            existing.map { ($0.name, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let incomingNames = Set(models.map(\.name))
         for model in models {
-            modelContext.insert(model)
+            if let stored = existingByName[model.name] {
+                stored.imageSupport = model.imageSupport
+                stored.modelProvider = model.modelProvider
+            } else {
+                modelContext.insert(model)
+            }
+        }
+        for stored in existing where !incomingNames.contains(stored.name) {
+            modelContext.delete(stored)
         }
         try modelContext.saveChanges()
     }

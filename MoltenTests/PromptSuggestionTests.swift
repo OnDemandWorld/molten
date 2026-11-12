@@ -72,10 +72,25 @@ final class PromptSuggestionTests: XCTestCase {
         XCTAssertEqual(PromptSuggestionsStore.parseSuggestions("   \n\n  "), [])
     }
 
+    func testParsePreservesLeadingDecimals() {
+        let parsed = PromptSuggestionsStore.parseSuggestions("3.14 ways to compute pi")
+        XCTAssertEqual(parsed, ["3.14 ways to compute pi"])
+    }
+
     // MARK: - mixPrompts
 
+    /// The test bundle is hosted in Molten.app, so UserDefaults.standard can
+    /// hold the app's real suggestion cache. Give each store a fresh,
+    /// isolated defaults suite so tests don't depend on prior app usage.
+    private func makeStore() -> PromptSuggestionsStore {
+        let suiteName = "PromptSuggestionTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return PromptSuggestionsStore(defaults: defaults)
+    }
+
     func testMixFallsBackEntirelyToStaticPoolWhenNothingGenerated() {
-        let store = PromptSuggestionsStore()
+        let store = makeStore()
 
         let mix = store.mixPrompts(total: 4, generatedCount: 2)
 
@@ -85,7 +100,7 @@ final class PromptSuggestionTests: XCTestCase {
     }
 
     func testMixNeverDuplicatesPrompts() {
-        let store = PromptSuggestionsStore()
+        let store = makeStore()
 
         // Run repeatedly because the mix is shuffled.
         for _ in 0..<20 {

@@ -101,8 +101,13 @@ final class AppStore {
                 } else {
                     // Increase backoff on failure
                     self.consecutiveFailures += 1
-                    // Restart timer with longer interval if we've had multiple failures
-                    if self.consecutiveFailures > 3 && effectiveInterval < self.maxBackoffInterval {
+                    // Restart while the backoff ladder is still climbing.
+                    // Gate on the next step, not on maxBackoffInterval (60s):
+                    // the default-localhost ladder caps at 300s, and comparing
+                    // the captured interval against 60 froze it at the first
+                    // step >= 60s.
+                    let nextInterval = self.calculateEffectiveInterval(baseInterval: interval)
+                    if self.consecutiveFailures > 3 && nextInterval > effectiveInterval {
                         self.startCheckingReachability(interval: interval)
                     }
                 }

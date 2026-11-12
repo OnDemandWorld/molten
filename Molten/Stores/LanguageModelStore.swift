@@ -100,20 +100,24 @@ final class LanguageModelStore: Sendable {
                 modelProvider: model.provider
             )
         }
+        // Capture the name before saving: a model that disappeared from its
+        // provider is deleted by saveModels, which would invalidate the
+        // instance currently held by selectedModel.
+        let selectedName = self.selectedModel?.name
         try await swiftDataService.saveModels(models: modelsToSave)
-        
+
         // Load stored models and filter to only available ones
         let storedModels = (try? await swiftDataService.fetchModels()) ?? []
-        
+
         let availableModelNames = allModels.map { $0.name }
         self.models = storedModels.filter { availableModelNames.contains($0.name) }
-        
-        // Update image support flag based on selected model
-        if let selected = self.selectedModel {
-            self.supportsImages = selected.supportsImages
-        } else {
-            self.supportsImages = false
+
+        // Re-anchor the selection to the refreshed instances; drop it if the
+        // selected model is gone so the UI can fall back to the default.
+        if let selectedName {
+            self.selectedModel = storedModels.first { $0.name == selectedName }
         }
+        self.supportsImages = self.selectedModel?.supportsImages ?? false
     }
     
     func deleteAllModels() async throws {
