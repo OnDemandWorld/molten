@@ -9,6 +9,7 @@ Molten is a privacy-first macOS, iOS, and iPadOS app that runs local LLMs — Ol
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000000?logo=apple&logoColor=white)
 ![iPadOS](https://img.shields.io/badge/iPadOS-26.0+-000000?logo=apple&logoColor=white)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+[![App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/hk/app/molten-local-ai-chat/id6758496039)
 
 ## 🌟 Key Differentiators
 
@@ -100,10 +101,13 @@ Molten follows a clean architecture pattern with clear separation of concerns:
 
 ### Installation
 
-#### Option 1: Download Pre-built App
+#### Option 1: App Store (recommended)
+Download [Molten on the App Store](https://apps.apple.com/hk/app/molten-local-ai-chat/id6758496039) — one purchase, macOS, iPhone, and iPad.
+
+#### Option 2: Download Pre-built App
 Download the latest release from the [Releases](https://github.com/OnDemandWorld/molten/releases) page.
 
-#### Option 2: Build from Source
+#### Option 3: Build from Source
 
 1. **Clone the repository**
    ```bash

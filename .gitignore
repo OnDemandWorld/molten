@@ -59,6 +59,7 @@ Carthage/Build/
 # Internal audit / process / AI-assistant documents (not for the public repo)
 AGENTS.md
 DEFERRED_FIXES_*.md
+NEXT_RELEASE_RESEARCH_*.md
 QWEN.md
 CLAUDE.md
 IOS_TECHNICAL_AUDIT.md
