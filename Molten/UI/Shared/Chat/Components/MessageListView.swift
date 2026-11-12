@@ -15,6 +15,9 @@ struct MessageListView: View {
     var messages: [MessageSD]
     var conversationState: ConversationState
     var userInitials: String
+    /// Monotonic flush counter from ConversationStore — the auto-scroll
+    /// trigger during streaming (cheap Int change signal, no row re-diff).
+    var streamTickCount: Int
     @Binding var editMessage: MessageSD?
     @State private var messageSelected: MessageSD?
     @StateObject private var speechSynthesizer = SpeechSynthesizer.shared
@@ -22,10 +25,6 @@ struct MessageListView: View {
     // Track for auto-scroll during streaming
     private var isStreaming: Bool {
         conversationState == .loading && !(messages.last?.done ?? true)
-    }
-
-    private var currentContentLength: Int {
-        messages.last?.content.count ?? 0
     }
     
     func onEditMessageTap() -> (MessageSD) -> Void {
@@ -50,7 +49,11 @@ struct MessageListView: View {
         ZStack(alignment: .top) {
             ScrollViewReader { scrollViewProxy in
                 ScrollView {
-                    VStack {
+                    // Lazy so long conversations don't build every Markdown
+                    // row up front. Initial bottom position is handled by
+                    // defaultScrollAnchor below (scrollTo can't target rows
+                    // that don't exist yet in a lazy container).
+                    LazyVStack {
                         ForEach(messages) { message in
                             let contextMenu = ContextMenu(menuItems: {
                                 Button(action: {Clipboard.shared.setString(message.content)}) {
@@ -92,6 +95,12 @@ struct MessageListView: View {
                                 userInitials: userInitials,
                                 editMessage: $editMessage
                             )
+                            // Skip body re-evaluation (Markdown re-parsing)
+                            // for rows whose inputs didn't change — during
+                            // streaming that's every row except the last.
+                            // Direct @Model observation still updates rows
+                            // whose own properties change.
+                            .equatable()
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                             .padding(.vertical, 10)
@@ -103,22 +112,32 @@ struct MessageListView: View {
                         }
                     }
                 }
+                // Open pinned to the bottom without needing the last row to
+                // exist yet (LazyVStack + scrollTo would silently no-op).
+                .defaultScrollAnchor(.bottom)
                 .onAppear {
                     scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                 }
                 // Scroll when new message is added
                 .onChange(of: messages.last?.id) { _, newId in
-                    if newId != nil {
+                    guard let newId else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        scrollViewProxy.scrollTo(newId, anchor: .bottom)
+                    }
+                    // In a lazy container the new row may not be rendered
+                    // yet, making the call above a no-op. Retry once the
+                    // layout pass has had a chance to instantiate it.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         withAnimation(.easeOut(duration: 0.2)) {
                             scrollViewProxy.scrollTo(newId, anchor: .bottom)
                         }
                     }
                 }
-                // Scroll during streaming - use a counter to trigger on content changes
-                // This is more reliable than observing content length directly
-                .onChange(of: currentContentLength) { oldValue, newValue in
-                    guard isStreaming && newValue > oldValue else { return }
-                    // Scroll every content update during streaming (throttled by SwiftUI)
+                // Follow streamed content: the store bumps streamTickCount on
+                // every throttled flush (explicit signal — no dependence on
+                // observing the last row's content length from this body).
+                .onChange(of: streamTickCount) {
+                    guard isStreaming else { return }
                     withAnimation(.easeOut(duration: 0.1)) {
                         scrollViewProxy.scrollTo(messages.last?.id, anchor: .bottom)
                     }
@@ -155,6 +174,7 @@ struct MessageListView: View {
         messages: MessageSD.sample,
         conversationState: .loading,
         userInitials: "AM",
+        streamTickCount: 0,
         editMessage: .constant(MessageSD.sample[0])
     )
 }

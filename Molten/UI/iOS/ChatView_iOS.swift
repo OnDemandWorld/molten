@@ -21,6 +21,7 @@ struct ChatView: View {
     var reachable: Bool
     var onSelectModel: @MainActor (_ model: LanguageModelSD?) -> ()
     var userInitials: String
+    var streamTickCount: Int = 0
     var onDismissError: () -> Void = {}
 
     private var selectedModel: LanguageModelSD?
@@ -48,6 +49,7 @@ struct ChatView: View {
         reachable: Bool,
         modelSupportsImages: Bool = false,
         userInitials: String,
+        streamTickCount: Int = 0,
         onDismissError: @escaping () -> Void = {}
     ) {
         self.conversation = conversation
@@ -62,6 +64,7 @@ struct ChatView: View {
         self.onSelectModel = onSelectModel
         self.selectedModel = selectedModel
         self.userInitials = userInitials
+        self.streamTickCount = streamTickCount
         self.onDismissError = onDismissError
     }
     
@@ -193,6 +196,7 @@ struct ChatView: View {
                     messages: messages,
                     conversationState: conversationState,
                     userInitials: userInitials,
+                    streamTickCount: streamTickCount,
                     editMessage: $editMessage
                 )
             } else {

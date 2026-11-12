@@ -28,42 +28,19 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func initEndpoint(url: String? = nil, bearerToken: String? = nil) {
-        let localStorageUrl = UserDefaults.standard.string(forKey: "ollamaUri")
-        // Honor an explicitly passed token (e.g. from Settings), falling back
-        // to the stored one. Empty values mean "no token".
-        // F-44/F-48: the parameter used to be shadowed by the stored value,
-        // and the default-localhost path dropped the token entirely — silently
-        // unauthenticating token-protected local servers.
-        let storedToken = UserDefaults.standard.string(forKey: "ollamaBearerToken")
-        let resolvedToken: String? = {
-            guard let token = bearerToken ?? storedToken, !token.isEmpty else { return nil }
-            return token
-        }()
-
-        // Priority: explicit url param > stored URL > default localhost
-        let configuredUrl = url?.trimmingCharacters(in: .whitespacesAndNewlines) ??
-                               localStorageUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // If user explicitly configured a URL, use it
-        if let ollamaUrl = configuredUrl, !ollamaUrl.isEmpty {
-            var finalUrl = ollamaUrl
-            if !finalUrl.contains("http") {
-                finalUrl = "http://" + finalUrl
-            }
-
-            if let url = URL(string: finalUrl) {
-                ollamaKit = OllamaKit(baseURL: url, bearerToken: resolvedToken)
-                isConfigured = true
-                isUsingDefaultLocalhost = false // User explicitly configured URL
-                return
-            }
-        }
-
-        // No explicit config - use default localhost (common case for local Ollama)
-        // Mark as "default" so we can use different backoff strategy
-        ollamaKit = OllamaKit(baseURL: URL(string: "http://localhost:11434")!, bearerToken: resolvedToken)
-        isConfigured = true // Still configured, just using default
-        isUsingDefaultLocalhost = true
+        // Shared resolution (URL priority, empty-disables, F-44/F-48 token
+        // semantics) lives in ProviderEndpointResolver so Ollama and Swama
+        // can't drift apart.
+        let endpoint = ProviderEndpointResolver.resolve(
+            url: url,
+            token: bearerToken,
+            urlKey: "ollamaUri",
+            tokenKey: "ollamaBearerToken",
+            defaultLocalhost: URL(string: "http://localhost:11434")!
+        )
+        ollamaKit = OllamaKit(baseURL: endpoint.baseURL, bearerToken: endpoint.bearerToken)
+        isConfigured = !endpoint.disabled
+        isUsingDefaultLocalhost = endpoint.usingDefaultLocalhost
     }
     
     /// Returns true if using default localhost (vs user-configured URL)

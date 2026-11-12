@@ -176,6 +176,86 @@ struct Usage: Codable {
     }
 }
 
+// MARK: - Provider Endpoint Resolution
+
+/// Resolved endpoint configuration for a network provider.
+struct ProviderEndpoint {
+    let baseURL: URL
+    let bearerToken: String?
+    /// True when falling back to the built-in localhost default (drives the
+    /// aggressive backoff strategy in AppStore).
+    let usingDefaultLocalhost: Bool
+    /// True when the user explicitly disabled the provider by clearing its
+    /// URL. `reachable()` must return false without any network call.
+    let disabled: Bool
+}
+
+/// Shared URL/token resolution for OllamaService and SwamaService.
+/// Extracted so the two services can't drift (F-44/F-48 originally had to be
+/// fixed in OllamaService alone).
+enum ProviderEndpointResolver {
+    /// URL priority: explicit non-empty > stored non-empty > default localhost.
+    ///
+    /// Disabling: a stored URL key that is *present but empty* means the user
+    /// explicitly cleared the field ("leave empty to disable checking" in the
+    /// README). An *absent* key means "never configured" and auto-detects the
+    /// default localhost — so a first launch (or Settings passing its empty
+    /// @AppStorage default) never disables anything.
+    ///
+    /// Token: explicit wins over stored; an empty token means "no token"
+    /// (F-44/F-48 — the default-localhost path must keep the token).
+    static func resolve(
+        url: String?,
+        token: String?,
+        urlKey: String,
+        tokenKey: String,
+        defaultLocalhost: URL,
+        defaults: UserDefaults = .standard
+    ) -> ProviderEndpoint {
+        let storedURL = defaults.string(forKey: urlKey)
+        let explicitURL = url?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let storedTrimmed = storedURL?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let resolvedToken: String? = {
+            guard let token = token ?? defaults.string(forKey: tokenKey), !token.isEmpty else { return nil }
+            return token
+        }()
+
+        let candidate = (explicitURL?.isEmpty == false ? explicitURL : nil)
+            ?? (storedTrimmed?.isEmpty == false ? storedTrimmed : nil)
+
+        if let candidate {
+            var finalURL = candidate
+            if !finalURL.contains("http") {
+                finalURL = "http://" + finalURL
+            }
+            if let parsed = URL(string: finalURL) {
+                return ProviderEndpoint(
+                    baseURL: parsed,
+                    bearerToken: resolvedToken,
+                    usingDefaultLocalhost: false,
+                    disabled: false
+                )
+            }
+            // Malformed URL: fall back to the default (legacy behavior).
+        } else if storedURL != nil {
+            return ProviderEndpoint(
+                baseURL: defaultLocalhost,
+                bearerToken: resolvedToken,
+                usingDefaultLocalhost: false,
+                disabled: true
+            )
+        }
+
+        return ProviderEndpoint(
+            baseURL: defaultLocalhost,
+            bearerToken: resolvedToken,
+            usingDefaultLocalhost: true,
+            disabled: false
+        )
+    }
+}
+
 // MARK: - Model Provider Protocol
 
 /// Unified protocol that all model providers must implement.

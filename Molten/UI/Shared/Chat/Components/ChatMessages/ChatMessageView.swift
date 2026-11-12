@@ -194,6 +194,25 @@ struct ChatMessageView: View {
     }
 }
 
+/// Inputs that affect rendering. Used by `.equatable()` in MessageListView
+/// so unchanged rows skip body evaluation (and Markdown re-parsing) while
+/// the last row streams. `think`/`realContent`/`hasThink` are cached parses
+/// of `content`, and the attachment image is immutable per message, so
+/// identity + content + flags covers everything the body reads.
+/// Property-level @Model observation still invalidates rows directly when
+/// their own data changes — this only prunes parent-driven re-evaluations.
+extension ChatMessageView: Equatable {
+    static func == (lhs: ChatMessageView, rhs: ChatMessageView) -> Bool {
+        lhs.message === rhs.message
+            && lhs.message.content == rhs.message.content
+            && lhs.message.done == rhs.message.done
+            && lhs.message.error == rhs.message.error
+            && lhs.isStreaming == rhs.isStreaming
+            && lhs.userInitials == rhs.userInitials
+            && lhs.editMessage?.id == rhs.editMessage?.id
+    }
+}
+
 #Preview {
     VStack {
         ChatMessageView(message: MessageSD.sample[0], userInitials: "AM", editMessage: .constant(nil))

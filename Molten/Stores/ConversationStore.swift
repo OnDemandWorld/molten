@@ -52,6 +52,12 @@ final class ConversationStore: @unchecked Sendable {
     @MainActor var selectedConversation: ConversationSD?
     @MainActor var messages: [MessageSD] = []
 
+    /// Monotonic counter incremented on every streamed-content flush. Gives
+    /// the message list's auto-scroll a cheap, explicit change signal without
+    /// re-diffing row identity (replaces the `messages = []; messages = …`
+    /// observation hammer and the content-length scroll trigger).
+    @MainActor var streamTickCount: Int = 0
+
     init(swiftDataService: SwiftDataService) {
         self.swiftDataService = swiftDataService
     }
@@ -59,6 +65,7 @@ final class ConversationStore: @unchecked Sendable {
     /// Reset streaming state for a new request
     @MainActor
     private func resetStreamingState() {
+        throttler.cancel()
         currentMessageBuffer = []
         requestStartTime = nil
         firstTokenTime = nil
@@ -212,14 +219,12 @@ final class ConversationStore: @unchecked Sendable {
             return
         }
 
-        // Mark message as done if not already
+        // Mark message as done if not already. Rows observe `done` directly
+        // (SwiftData @Model observation) and the Stop button is driven by
+        // `conversationState`, set above — no list-wide reassignment needed.
         if !lastMessage.done {
             lastMessage.done = true
             lastMessage.error = false
-            // Force SwiftUI to see the change by reassigning
-            let currentMessages = messages
-            messages = []
-            messages = currentMessages
 
             // Save to disk asynchronously
             Task(priority: .background) {
@@ -475,11 +480,6 @@ final class ConversationStore: @unchecked Sendable {
         lastMessage.error = false
         lastMessage.done = true
 
-        // Force SwiftUI observation
-        let currentMessages = messages
-        messages = []
-        messages = currentMessages
-
         Task(priority: .background) {
             try await swiftDataService.updateMessage(lastMessage)
         }
@@ -542,6 +542,7 @@ final class ConversationStore: @unchecked Sendable {
                 // Join all buffered chunks at once - O(n) total instead of O(n²)
                 target.content += self.currentMessageBuffer.joined()
                 self.currentMessageBuffer = []
+                self.streamTickCount += 1
             }
         }
     }
@@ -564,6 +565,7 @@ final class ConversationStore: @unchecked Sendable {
 
         // Clear streaming state so a later Stop can't flush stale chunks.
         // (finalizeMessage is not used here: it would reset the error state.)
+        throttler.cancel()
         currentMessageBuffer = []
         streamingMessage = nil
         hasReceivedFirstToken = false

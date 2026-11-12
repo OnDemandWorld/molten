@@ -20,6 +20,7 @@ struct ChatView: View {
     var onConversationTap: (_ conversation: ConversationSD) -> ()
     var conversationState: ConversationState
     var onStopGenerateTap: @MainActor () -> ()
+    var streamTickCount: Int = 0
     var reachable: Bool
     var modelSupportsImages: Bool
     var selectedModel: LanguageModelSD?
@@ -67,6 +68,7 @@ struct ChatView: View {
                         messages: messages,
                         conversationState: conversationState,
                         userInitials: userInitials,
+                        streamTickCount: streamTickCount,
                         editMessage: $editMessage
                     )
                 } else {

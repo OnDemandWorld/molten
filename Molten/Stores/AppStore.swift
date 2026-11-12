@@ -178,21 +178,26 @@ final class AppStore {
         }
     }
 
-    /// Checks if any provider is reachable (Swama, Ollama, or Apple Foundation)
-    /// Services already have timeouts, but we check sequentially to avoid multiple simultaneous requests
+    /// Checks if any provider is reachable (Swama, Ollama, or Apple Foundation).
+    /// Apple Foundation is local (no network) and checked first as the fast
+    /// path; the two network providers run in parallel — each keeps its own
+    /// 2s timeout, so the fully-offline worst case is ~2s instead of ~4s.
+    /// Cache TTL, backoff ladder, and ping intervals are unchanged.
     private func reachable() async -> Bool {
-        // Check providers sequentially to avoid Swift 6 concurrency issues
-        // Apple Foundation is always available if the framework is present, so check it first (no network)
         let appleReachable = await AppleFoundationService.shared.reachable()
         if appleReachable { return true }
-        
-        // Check Swama (has 2s timeout built-in)
-        let swamaReachable = await SwamaService.shared.reachable()
-        if swamaReachable { return true }
-        
-        // Check Ollama (OllamaKit has its own timeout)
-        let ollamaReachable = await OllamaService.shared.reachable()
-        return ollamaReachable
+
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask { await SwamaService.shared.reachable() }
+            group.addTask { await OllamaService.shared.reachable() }
+            for await result in group {
+                if result {
+                    group.cancelAll()
+                    return true
+                }
+            }
+            return false
+        }
     }
     
     @MainActor func uiLog(message: String, status: NotificationMessage.Status) {

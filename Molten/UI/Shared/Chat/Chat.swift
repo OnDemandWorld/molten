@@ -141,6 +141,7 @@ struct Chat: View, Sendable {
                 onConversationTap:onConversationTap,
                 conversationState: conversationStore.conversationState,
                 onStopGenerateTap: onStopGenerateTap,
+                streamTickCount: conversationStore.streamTickCount,
                 reachable: appStore.isReachable,
                 modelSupportsImages: languageModelStore.supportsImages,
                 selectedModel: languageModelStore.selectedModel,
@@ -175,6 +176,7 @@ struct Chat: View, Sendable {
                     reachable: appStore.isReachable,
                     modelSupportsImages: languageModelStore.supportsImages,
                     userInitials: userInitials,
+                    streamTickCount: conversationStore.streamTickCount,
                     onDismissError: { conversationStore.dismissError() }
                 )
             }

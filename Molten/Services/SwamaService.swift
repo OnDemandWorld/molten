@@ -38,34 +38,19 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     }
     
     func initEndpoint(url: String? = nil, apiKey: String? = nil) {
-        let localStorageUrl = UserDefaults.standard.string(forKey: "swamaUri")
-        let storedApiKey = UserDefaults.standard.string(forKey: "swamaApiKey")
-        
-        // Priority: explicit url param > stored URL > default localhost
-        let configuredUrl = url?.trimmingCharacters(in: .whitespacesAndNewlines) ?? 
-                           localStorageUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // If user explicitly configured a URL, use it
-        if let swamaUrl = configuredUrl, !swamaUrl.isEmpty {
-            var finalUrl = swamaUrl
-            if !finalUrl.contains("http") {
-                finalUrl = "http://" + finalUrl
-            }
-            
-            if let url = URL(string: finalUrl) {
-                baseURL = url
-                self.apiKey = apiKey ?? storedApiKey
-                isConfigured = true
-                isUsingDefaultLocalhost = false // User explicitly configured URL
-                return
-            }
-        }
-        
-        // No explicit config - use default localhost (common case for local Swama)
-        baseURL = URL(string: "http://localhost:28100")!
-        self.apiKey = apiKey ?? storedApiKey
-        isConfigured = true // Still configured, just using default
-        isUsingDefaultLocalhost = true
+        // Shared resolution (URL priority, empty-disables, token semantics)
+        // lives in ProviderEndpointResolver so Ollama and Swama can't drift.
+        let endpoint = ProviderEndpointResolver.resolve(
+            url: url,
+            token: apiKey,
+            urlKey: "swamaUri",
+            tokenKey: "swamaApiKey",
+            defaultLocalhost: URL(string: "http://localhost:28100")!
+        )
+        baseURL = endpoint.baseURL
+        self.apiKey = endpoint.bearerToken
+        isConfigured = !endpoint.disabled
+        isUsingDefaultLocalhost = endpoint.usingDefaultLocalhost
     }
     
     /// Returns true if using default localhost (vs user-configured URL)

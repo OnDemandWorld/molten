@@ -86,6 +86,11 @@ final class PromptSuggestionTests: XCTestCase {
         let suiteName = "PromptSuggestionTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
+        // Don't leave a new suite behind in the hosted app's container on
+        // every test run.
+        addTeardownBlock {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
         return PromptSuggestionsStore(defaults: defaults)
     }
 

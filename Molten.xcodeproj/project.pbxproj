@@ -97,6 +97,7 @@
 		AD0F300000000000000000C2 /* ConversationStoreErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */; };
 		AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C3 /* ApplePromptTests.swift */; };
 		AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C5 /* SwamaRequestTests.swift */; };
+		AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C7 /* ThrottlerTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -208,6 +209,7 @@
 		AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationStoreErrorTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C3 /* ApplePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePromptTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C5 /* SwamaRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwamaRequestTests.swift; sourceTree = "<group>"; };
+		AD0F300000000000000000C7 /* ThrottlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrottlerTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -601,6 +603,7 @@
 				AD0F300000000000000000C1 /* ConversationStoreErrorTests.swift */,
 				AD0F300000000000000000C3 /* ApplePromptTests.swift */,
 				AD0F300000000000000000C5 /* SwamaRequestTests.swift */,
+				AD0F300000000000000000C7 /* ThrottlerTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
 				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
@@ -827,6 +830,7 @@
 				AD0F300000000000000000C2 /* ConversationStoreErrorTests.swift in Sources */,
 				AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */,
 				AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */,
+				AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
 				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);
