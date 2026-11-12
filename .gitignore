@@ -53,7 +53,12 @@ ehthumbs.db
 Pods/
 Carthage/Build/
 
+# Claude Code session transcripts / build info dumps
+*-command-message*.txt
+
 # Internal audit / process / AI-assistant documents (not for the public repo)
+AGENTS.md
+DEFERRED_FIXES_*.md
 QWEN.md
 CLAUDE.md
 IOS_TECHNICAL_AUDIT.md
