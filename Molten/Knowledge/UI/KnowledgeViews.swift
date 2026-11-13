@@ -229,6 +229,64 @@ struct KnowledgeOnboarding: View {
     }
 }
 
+// MARK: - Conversations settings (C2/C3/X1)
+
+struct ConversationsSettingsSection: View {
+    @AppStorage("autoTitles") private var autoTitles = true
+    @AppStorage("swamaContextWindow") private var swamaContextWindow = ContextWindow.defaultWindow
+    @State private var exporting = false
+    @State private var importing = false
+    @State private var status = ""
+    @State private var includeAnalytics = true
+
+    var body: some View {
+        Section("Conversations") {
+            Toggle("Auto-generate titles", isOn: $autoTitles)
+            Stepper("OpenAI-compatible context window: \(swamaContextWindow)",
+                    value: $swamaContextWindow, in: 1024...131072, step: 1024)
+            Toggle("Include analytics in exports", isOn: $includeAnalytics)
+            Button("Export all conversations (zip)") { exporting = true }
+            Button("Import conversations (JSON)") { importing = true }
+            if !status.isEmpty {
+                Text(status).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .fileExporter(isPresented: $exporting, document: ZipDocument(), contentType: .zip, defaultFilename: "Molten-Conversations") { result in
+            if case .success(let url) = result {
+                Task {
+                    let conversations = (try? await SwiftDataService.shared.fetchConversations()) ?? []
+                    if let data = try? Exporter.zipAll(conversations, includeAnalytics: includeAnalytics) {
+                        try? data.write(to: url)
+                        status = "Exported \(conversations.count) conversations"
+                    }
+                }
+            }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                Task {
+                    let secured = url.startAccessingSecurityScopedResource()
+                    defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                    if let data = try? Data(contentsOf: url) {
+                        let count = (try? await Importer.importJSON(data)) ?? 0
+                        status = "Imported \(count) conversations"
+                        try? await ConversationStore.shared.loadConversations()
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ZipDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.zip] }
+    init() {}
+    init(configuration: ReadConfiguration) throws {}
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: Data())
+    }
+}
+
 // MARK: - Processing settings (K-P3/K-P4)
 
 struct KnowledgeSettingsSection: View {

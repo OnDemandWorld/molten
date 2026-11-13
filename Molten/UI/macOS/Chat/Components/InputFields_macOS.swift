@@ -103,6 +103,9 @@ struct InputFieldsView: View {
                         }
                     }
 
+                    // X1: context usage ring.
+                    ContextRingForModel(model: selectedModel, text: message)
+
                     // K-U4: use a document once in this chat (Free, not indexed).
                     SimpleFloatingButton(systemImage: "doc.text", onClick: { docSelectingActive.toggle() }, accessibilityTitle: "Use document once")
                         .fileImporter(isPresented: $docSelectingActive, allowedContentTypes: [.pdf, .plainText, .rtf, .html], allowsMultipleSelection: false) { result in

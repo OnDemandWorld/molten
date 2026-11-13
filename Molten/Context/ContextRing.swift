@@ -2,14 +2,53 @@
 //  ContextRing.swift
 //  Molten
 //
-//  Molten 2.0 — M0 skeleton stub (PRD §7.1/§7.2). Inert until its milestone.
+//  Molten 2.0 — M6, X1. Composer ring: estimated tokens vs the model's
+//  context window. Warns at 80% (orange) and 95% (red).
 //
 
 import SwiftUI
 
-/// X1 stub. M6: composer ring, warnings at 80% and 95%; window from Ollama
-/// /api/show, per-server setting for OpenAI-compatible (default 8192),
-/// 4096 for Apple's on-device model.
 struct ContextRing: View {
-    var body: some View { EmptyView() }
+    let used: Int
+    let window: Int
+
+    private var fraction: Double {
+        ContextWindow.usageFraction(used: used, window: window)
+    }
+
+    private var color: Color {
+        if fraction >= ContextWindow.criticalThreshold { return .red }
+        if fraction >= ContextWindow.warningThreshold { return .orange }
+        return .accentColor
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.25), lineWidth: 3)
+            Circle()
+                .trim(from: 0, to: min(1, fraction))
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: 22, height: 22)
+        .accessibilityLabel("Context usage \(Int(fraction * 100)) percent")
+        .help("\(used) / \(window) tokens (estimated)")
+    }
+}
+
+/// Loads the window for the selected model and estimates current usage.
+struct ContextRingForModel: View {
+    let model: LanguageModelSD?
+    let text: String
+    @State private var window = ContextWindow.defaultWindow
+
+    var body: some View {
+        ContextRing(used: TokenEstimator.estimate(text), window: window)
+            .task(id: model?.name) {
+                if let model {
+                    window = await ContextWindow.window(for: model)
+                }
+            }
+    }
 }
