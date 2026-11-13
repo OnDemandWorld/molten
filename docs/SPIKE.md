@@ -36,16 +36,19 @@ PRD §10 M1 exit criteria: cosine > 0.999 between Mac and iPhone vectors on
 
 ## Results (fill during spike)
 
-| Metric | Mac (M-series, macOS 27.2 beta) | iPhone |
+| Metric | Mac (M-series, macOS 27.2 beta) | iPhone (eplt Maximus 8) |
 |--------|-----|--------|
-| Min cosine (100 texts) | pending device run | — |
-| Mean cosine | pending device run | — |
-| Model download size (disk) | **481 MB** (fp32 safetensors + tokenizer) | — |
-| Peak memory during embed | **2534 MB** (hosted app footprint incl. MLX runtime) | — |
-| Throughput (100 texts) | **4.16 s** (~24 texts/s, batched) | — |
-| Cold-load time (after download) | **11.20 s** | — |
+| Min cosine (100 texts) | **0.99999833** | **0.99999833** |
+| Mean cosine | **0.9999994** | **0.9999994** |
+| Model download size (disk) | **481 MB** (fp32 safetensors + tokenizer) | **481 MB** |
+| Peak memory during embed | **2531 MB** (hosted app footprint incl. MLX runtime) | **2098 MB** |
+| Throughput (100 texts) | **1.15 s** (warm load; first run 4.16 s) | **3.89 s** |
+| Cold-load time (after download) | **3.55 s** (warm; first run 11.20 s) | **11.91 s** |
 
-**Pass criterion:** min cosine > 0.999 (K-E5).
+**Pass criterion:** min cosine > 0.999 (K-E5). ✅ **PASSED 2026-11-14** —
+min 0.99999833 across all 100 mixed-language samples, iPhone vs Mac,
+pinned revision 614241f6. Device run used the signed build after the
+CloudKit `.none` fix (SwiftData auto-CloudKit with iCloud entitlements).
 
 ## Performance acceptance (M7, 2026-11-14, Mac)
 

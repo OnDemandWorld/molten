@@ -33,8 +33,8 @@ an iCloud sign-in inside the simulator, an owner step.
 
 | Issue | Why blocked | Alternative / mitigation |
 |-------|-------------|--------------------------|
-| K-E5/M1: embedding spike + cross-device cosine > 0.999 | MLX cannot run on the simulator; device builds need provisioning | (a) Owner signs into Xcode once → automatic provisioning → run the spike on the iPhone (markers ready). (b) Watch for an mlx-swift release fixing simulator support, then re-run on simulator. (c) Interim: verify the pipeline with Ollama embeddings — **not** K-E5-compliant (different engine), diagnostic only. |
-| iPhone-class A1/A4 numbers | Same provisioning | Simulator numbers first (Bucket 1); device numbers at beta. |
+| K-E5/M1: embedding spike + cross-device cosine > 0.999 | **DONE 2026-11-14**: owner provisioned via Xcode; spike ran on the iPhone (embed 3.89s, 481MB model) and Mac; **min cosine 0.99999833 > 0.999 ✅**. Fixed en route: SwiftData auto-CloudKit crash (cloudKitDatabase: .none). | — |
+| iPhone-class A1/A4 numbers | Simulator numbers recorded (A1 0.28s, A4 53.3ms); device re-measure optional at beta. | — |
 | Share sheet on device | Extension needs a signed host | Simulator install can exercise the share sheet without provisioning (simulator builds are unsigned). |
 
 **Automation alternative to interactive sign-in:** an App Store Connect API

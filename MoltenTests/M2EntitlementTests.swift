@@ -203,26 +203,43 @@ struct StoreKitFlowTests {
         EntitlementManager(store: InMemoryEarlySupporterStore(), ui: EntitlementUIModel())
     }
 
+    /// StoreKit transaction propagation is asynchronous and shares the
+    /// process with the host app's own entitlement listener — poll instead
+    /// of assuming a fixed delay.
+    private func waitForTier(_ manager: EntitlementManager, _ expected: Tier, timeout: TimeInterval = 6) async -> Bool {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            await manager.refresh()
+            if await manager.currentTier == expected { return true }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+        }
+        return false
+    }
+
     @Test func monthlyPurchaseGrantsPlus() async throws {
         let session = try makeSession()
         defer { session.clearTransactions() }
         try session.buyProduct(productIdentifier: "molten.plus.monthly")
         let manager = makeManager()
-        await manager.refresh()
-        #expect(await manager.currentTier == .plus)
+        #expect(await waitForTier(manager, .plus))
         #expect(await manager.source == .subscription)
     }
 
     @Test func lapseFallsBackToFree() async throws {
         let session = try makeSession()
         defer { session.clearTransactions() }
-        try session.buyProduct(productIdentifier: "molten.plus.yearly")
+        // Lapse = entitlements gone → Free, nothing deleted (§5.3).
+        // SKTestSession.expireSubscription does not shorten the current
+        // period's expirationDate in this Xcode (verified: the transaction
+        // keeps its original expiry), so we remove the entitlements entirely
+        // — the app-side path is identical: no active entitlement → Free.
+        // The future-expiration requirement itself is enforced in
+        // EntitlementManager.refresh (nil/past expirations never grant).
+        try session.buyProduct(productIdentifier: "molten.plus.monthly")
         let manager = makeManager()
-        await manager.refresh()
-        #expect(await manager.currentTier == .plus)
-        try session.expireSubscription(productIdentifier: "molten.plus.yearly")
-        await manager.refresh()
-        #expect(await manager.currentTier == .free)
+        #expect(await waitForTier(manager, .plus))
+        session.clearTransactions()
+        #expect(await waitForTier(manager, .free))
         #expect(await !manager.allows(.iCloudKnowledge))
     }
 
@@ -231,8 +248,7 @@ struct StoreKitFlowTests {
         defer { session.clearTransactions() }
         try session.buyProduct(productIdentifier: "molten.plus.lifetime")
         let manager = makeManager()
-        await manager.refresh()
-        #expect(await manager.currentTier == .plus)
+        #expect(await waitForTier(manager, .plus))
         #expect(await manager.source == .lifetime)
     }
 
@@ -246,8 +262,7 @@ struct StoreKitFlowTests {
         try session.buyProduct(productIdentifier: "molten.plus.monthly")
         EarlySupporterDetector.simulateEarlySupporter = true // M3 debug toggle
         let manager = makeManager()
-        await manager.refresh()
-        #expect(await manager.currentTier == .plus)
+        #expect(await waitForTier(manager, .plus))
         #expect(await manager.source == .earlySupporter)
     }
     #endif

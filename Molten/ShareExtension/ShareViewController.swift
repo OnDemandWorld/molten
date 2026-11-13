@@ -7,9 +7,31 @@
 //  the shared iCloud container; no copy is kept.
 //
 
+import UniformTypeIdentifiers
+
+#if os(macOS)
+import Cocoa
+
+/// macOS placeholder: the share-sheet flow (K-U3) is iOS-only per the PRD.
+/// The extension exists on macOS so the universal app can embed it; it
+/// points users at the shared Finder folder instead.
+class ShareViewController: NSViewController {
+    override func loadView() {
+        let label = NSTextField(wrappingLabelWithString: "To add files to Molten Knowledge, drop them into the Molten folder in Finder, or use Add files… in the app.")
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 120))
+        container.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+        view = container
+    }
+}
+#else
 import UIKit
 import Social
-import UniformTypeIdentifiers
 
 class ShareViewController: SLComposeServiceViewController {
     private var bases: [String] = []
@@ -99,3 +121,4 @@ class ShareViewController: SLComposeServiceViewController {
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
 }
+#endif
