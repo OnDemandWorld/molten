@@ -49,7 +49,7 @@ Claude and the 2.0 build number will be bumped instead.
 
 ---
 
-## Step 2 — Create the in-app purchases in App Store Connect (20 min)
+## Step 2 — Create the in-app purchases in App Store Connect (20 min) — ✅ DONE (2026-11-14)
 
 **Why:** the paywall sells these. The local `Molten.storekit` mirrors them
 for development; ASC needs the real ones.

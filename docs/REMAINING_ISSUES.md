@@ -46,8 +46,8 @@ owner creates the key once in ASC ▸ Users ▸ Integrations.
 
 | Issue | Action |
 |-------|--------|
-| `iosCutoffBuild` | ASC ▸ build history: highest shipped 1.x iOS build; set the cutoff above it (2.0 builds start at 6). Fail-closed until set — no iOS Early Supporter grants. |
-| ASC products | Create group "Molten Membership": Plus level 2 (monthly $2.99, yearly $19.99 + 1-week trial), lifetime $49.99; Pro level 1 reserved, not created. `Molten.storekit` mirrors this for development. |
+| `iosCutoffBuild` | **DONE 2026-11-14:** highest 1.x build = 6 (owner-confirmed); cutoff set to 7; 2.0 = build 7. |
+| ASC products | **DONE 2026-11-14 (owner):** Molten Membership group, Plus level 2 (monthly $2.99, yearly $19.99 + 1-week trial), lifetime $49.99; Pro level 1 reserved, not created. |
 | A8/A9 production upgrade | TestFlight: upgrade a real 1.1 install; thank-you sheet + Plus via Keychain on every device. The DEBUG simulate toggle covers development; production detection can't be simulated (M3 forbids it by design). |
 | StoreKit live flows | SKTestSession flows are implemented and gated (`STOREKIT_FLOWS_ENABLED`); they need a signed host. Run in Xcode with the Molten.storekit configuration. |
 | PL4 / pricing / release | ASC: Vision Pro availability off; price Free; manual release after approval; listing update (materials in docs/APP_STORE_v2.md). |

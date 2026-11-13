@@ -535,7 +535,7 @@ Molten/
   to `Transaction.updates` from launch and finishes transactions.
 - **Early Supporter** (`EarlySupporterDetector`): `AppTransaction.originalAppVersion`
   vs per-platform cutoffs — macOS marketing version ("2.0"), iOS build number
-  (`iosCutoffBuild`, set from ASC history; fail-closed while nil). Sandbox/Xcode
+  (`iosCutoffBuild = 7`; highest shipped 1.x build was 6). Sandbox/Xcode
   environments NEVER grant; a DEBUG-only simulate toggle is compiled out of
   Release. The grant is persisted as a **synchronizable iCloud Keychain** item
   (`molten.entitlement`/`earlySupporter`) so any device grants Plus offline.
