@@ -5,7 +5,7 @@
 //  Created by Augustinas Malinauskas on 10/02/2024.
 //
 
-#if os(macOS) || os(visionOS)
+#if os(macOS)
 import SwiftUI
 import OSLog
 
@@ -23,6 +23,7 @@ struct InputFieldsView: View {
     @State private var selectedImage: Image?
     @State private var fileDropActive: Bool = false
     @State private var fileSelectingActive: Bool = false
+    @State private var docSelectingActive: Bool = false
     @FocusState private var isFocusedInput: Bool
     
     @MainActor private func sendMessage() {
@@ -101,6 +102,21 @@ struct InputFieldsView: View {
                             self.message = transcription
                         }
                     }
+
+                    // X1: context usage ring.
+                    ContextRingForModel(model: selectedModel, text: message)
+
+                    // K-U4: use a document once in this chat (Free, not indexed).
+                    SimpleFloatingButton(systemImage: "doc.text", onClick: { docSelectingActive.toggle() }, accessibilityTitle: "Use document once")
+                        .fileImporter(isPresented: $docSelectingActive, allowedContentTypes: [.pdf, .plainText, .rtf, .html], allowsMultipleSelection: false) { result in
+                            if case .success(let urls) = result, let url = urls.first {
+                                Task {
+                                    if let text = await UseOnce.extractText(from: url) {
+                                        message += "\n\n[Document: \(url.lastPathComponent)]\n" + text
+                                    }
+                                }
+                            }
+                        }
 
                     SimpleFloatingButton(systemImage: "photo.fill", onClick: { fileSelectingActive.toggle() }, accessibilityTitle: "Add image")
                         .showIf(selectedModel?.supportsImages ?? false)

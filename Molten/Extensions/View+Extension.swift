@@ -44,7 +44,7 @@ extension View {
         
         renderer.scale = displayScale
         
-#if os(iOS) || os(visionOS)
+#if os(iOS)
         let image = renderer.uiImage
 #elseif os(macOS)
         let image = renderer.nsImage
