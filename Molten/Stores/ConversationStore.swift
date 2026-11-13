@@ -240,6 +240,19 @@ final class ConversationStore: @unchecked Sendable {
     func sendPrompt(userPrompt: String, model: LanguageModelSD, image: Image? = nil, systemPrompt: String = "", trimmingMessageId: String? = nil) {
         guard userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 else { return }
 
+        // K-R1: "@Base name …" attaches a knowledge base for this conversation.
+        var userPrompt = userPrompt
+        if userPrompt.hasPrefix("@") {
+            let rest = userPrompt.dropFirst()
+            if let space = rest.firstIndex(of: " ") {
+                let name = String(rest[..<space])
+                if FileManager.default.fileExists(atPath: KnowledgeContainer.baseDirectory(name).path) {
+                    selectedConversation?.attachedKnowledgeBase = name
+                    userPrompt = String(rest[rest.index(after: space)...])
+                }
+            }
+        }
+
         // Reset any previous streaming state before starting new request
         resetStreamingState()
 
@@ -297,6 +310,46 @@ final class ConversationStore: @unchecked Sendable {
             }
             try? await loadConversations()
 
+            // K-R1/K-R4: ground the prompt in the attached knowledge base.
+            // The context is an ephemeral system message (not persisted);
+            // citations are stored on the assistant message for K-R5 chips.
+            var requestHistory = messageHistory
+            if let base = conversation.attachedKnowledgeBase {
+                let retrieval = await Retriever.shared.retrieve(query: userPrompt, base: base)
+                let isApple = model.modelProvider == .appleFoundation
+                let window = isApple ? 4096 : 8192 // X1 metadata lands in M6
+                let reserve = ContextBudget.defaultReserve(window: window)
+                let assembled = PromptAssembler.assemble(
+                    passages: retrieval.passages,
+                    budgetTokens: max(0, window - reserve),
+                    isAppleModel: isApple,
+                    tokenCount: { TokenEstimator.estimate($0) })
+                if !assembled.contextText.isEmpty {
+                    requestHistory.insert(ChatMessage(
+                        role: "system",
+                        content: assembled.instruction + "\n\n" + assembled.contextText,
+                        image_url: nil), at: 0)
+                    let refs = assembled.chunks.map {
+                        CitationRef(sourceName: $0.sourceName, page: $0.page,
+                                    charStart: $0.charStart, charEnd: $0.charEnd, base: base)
+                    }
+                    assistantMessage.knowledgeCitationsData = try? JSONEncoder().encode(refs)
+                }
+            }
+
+            // X2: budget the context window — history newest-first with a
+            // reply reserve; system messages (incl. Knowledge grounding) kept.
+            let window = await ContextWindow.window(for: model)
+            let systemMessages = requestHistory.filter { $0.role == "system" }
+            let systemTokens = systemMessages.reduce(0) { $0 + TokenEstimator.estimate($1.content?.textContent ?? "") }
+            let allocation = ContextBudget().allocate(
+                window: window,
+                system: systemTokens,
+                reserve: ContextBudget.defaultReserve(window: window),
+                chunks: [],
+                history: requestHistory.filter { $0.role != "system" })
+            requestHistory = systemMessages + allocation.history
+
             // Get the appropriate provider based on model
             guard let provider = getProvider(for: model) else {
                 await MainActor.run {
@@ -327,7 +380,7 @@ final class ConversationStore: @unchecked Sendable {
                 do {
                     let stream = provider.chatStream(
                         model: model.name,
-                        messages: messageHistory,
+                        messages: requestHistory,
                         temperature: 0.0,
                         maxTokens: nil
                     )
@@ -486,6 +539,19 @@ final class ConversationStore: @unchecked Sendable {
 
         // Finalize message and reset state
         finalizeMessage()
+
+        // C3: auto-title after the first exchange (AFM first, active model
+        // fallback; only while the conversation keeps its default name).
+        if let conversation = selectedConversation {
+            let fallbackModel = conversation.model
+            let fallbackProvider = fallbackModel.flatMap { getProvider(for: $0) }
+            Task {
+                await AutoTitler.shared.titleIfNeeded(
+                    conversation: conversation,
+                    fallbackProvider: fallbackProvider,
+                    fallbackModel: fallbackModel?.name)
+            }
+        }
     }
 
     @MainActor

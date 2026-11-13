@@ -5,7 +5,7 @@
 //  Created by Augustinas Malinauskas on 10/02/2024.
 //
 
-#if os(macOS) || os(visionOS)
+#if os(macOS)
 import SwiftUI
 
 struct ChatView: View {
@@ -45,22 +45,6 @@ struct ChatView: View {
                 onConversationDelete: onConversationDelete,
                 onDeleteDailyConversations: onDeleteDailyConversations
             )
-            .toolbar {
-#if os(visionOS)
-                ToolbarItemGroup(placement:.navigationBarTrailing) {
-                    Button(action: {
-                        withAnimation(.easeIn(duration: 0.3)) {
-                            columnVisibility = .detailOnly
-                        }
-                    }) {
-                        Image(systemName: "sidebar.left")
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .showIf(columnVisibility != .detailOnly)
-                }
-                
-#endif
-            }
         } detail: {
             VStack(alignment: .center) {
                 if selectedConversation != nil {
@@ -99,26 +83,6 @@ struct ChatView: View {
                 .frame(maxWidth: 800)
             }
             .toolbar {
-                #if os(visionOS)
-                ToolbarItemGroup(placement: .topBarLeading) {
-                    Button(action: {
-                        withAnimation {
-                            columnVisibility = .automatic
-                        }
-                    }) {
-                        Image(systemName: "sidebar.left")
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .showIf(columnVisibility == .detailOnly)
-                    
-                    // Show styled Molten title when in a conversation
-                    if selectedConversation != nil {
-                        Text("Molten")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .moltenify()
-                    }
-                }
-                #else
                 ToolbarItem(placement: .navigation) {
                     // Show Molten button when in a conversation (not on empty start page)
                     // Opens GitHub repo when clicked
@@ -138,7 +102,6 @@ struct ChatView: View {
                         .contentShape(Rectangle())
                     }
                 }
-                #endif
 
                 
                 ToolbarItemGroup(placement: .automatic) {

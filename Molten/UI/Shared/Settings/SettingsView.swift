@@ -65,6 +65,15 @@ struct SettingsView: View {
             .padding()
             
             Form {
+                // Molten 2.0 — M13: Subscription (tier, source, restore, manage)
+                SubscriptionSettingsSection()
+
+                // Molten 2.0 — K-P3/K-P4: Knowledge processing roles.
+                KnowledgeSettingsSection()
+
+                // Molten 2.0 — C2/C3/X1: Conversations (export/import, titles, window).
+                ConversationsSettingsSection()
+
                 // General Settings
                 Section(header: Text("General Settings").font(.headline)) {
                     Picker(selection: $defaultModel) {
