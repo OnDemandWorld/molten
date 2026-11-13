@@ -18,6 +18,14 @@ requirement ID and reason.
 | §0.9 | Existing v1.1 tests are XCTest; new milestone tests use Swift Testing. Both frameworks coexist in the `MoltenTests` target. | PRD mandates Swift Testing for new tests; rewriting the existing suite is out of scope (§0.7: do not change existing behavior). |
 | K-S1 (signing) | macOS compile + tests verified with `CODE_SIGNING_ALLOWED=NO`. The iCloud capability requires a Mac App Development provisioning profile; `xcodebuild -allowProvisioningUpdates` cannot authenticate the developer account from the agent environment ("login details rejected"). iOS Simulator builds succeed (no provisioning required). | **Owner action:** open the project in Xcode once, signed in as edward@ondemandworld.com, and let automatic signing register the iCloud container `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create the profile. After that, normal signed builds work. Entitlements themselves are complete and identical across targets as required. |
 
+## M5 — Processing on the best device (2026-11-14)
+
+| ID | Deviation | Reason |
+|----|-----------|--------|
+| K-U3 / K-S4 | **Share Extension cut** (first in the PRD §10 cut order). Files can still be added via Finder/Files into the shared folder, Add files…, and Mac drag; the extension target is deferred to a follow-up. | Schedule pressure per §10 ("If the schedule slips, cut in this order: Share Extension → OCR → auto-titles"). OCR and auto-titles are NOT cut. |
+| A3 | Background continued processing implemented (BGContinuedProcessingTask, user-action triggered, per-file/per-stage durable outputs); the kill-and-resume acceptance run is a manual device test. | Requires a provisioned iPhone. |
+| K-P3 | Two-device role behavior (Mac processes, iPhone shows Waiting for Mac) unit-tested at the logic level; live two-device script is a manual owner test. | Same provisioning constraint as M4. |
+
 ## M4 — Knowledge, iCloud (2026-11-14)
 
 | ID | Deviation | Reason |
