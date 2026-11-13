@@ -20,11 +20,12 @@ struct EmbeddingProfile: Codable, Sendable, Hashable {
     let passagePrefix: String    // "passage: "
     let maxTokens: Int           // 512
 
-    /// K-E1 profile. modelRevision is pinned by commit hash in M1.
+    /// K-E1 profile. Revision pinned to the Hugging Face commit hash verified
+    /// during the M1 spike (2026-11-13). Never change without a K-E4 migration.
     static let e5sV1 = EmbeddingProfile(
         id: "e5s-v1",
         modelID: "intfloat/multilingual-e5-small",
-        modelRevision: "",
+        modelRevision: "614241f622f53c4eeff9890bdc4f31cfecc418b3",
         dims: 384,
         pooling: "mean",
         normalize: true,

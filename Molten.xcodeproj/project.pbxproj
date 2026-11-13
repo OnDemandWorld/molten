@@ -125,6 +125,9 @@
 		AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C3 /* ApplePromptTests.swift */; };
 		AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C5 /* SwamaRequestTests.swift */; };
 		AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C7 /* ThrottlerTests.swift */; };
+		200000000000000000000302 /* HFSnapshotDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000301 /* HFSnapshotDownloader.swift */; };
+		200000000000000000000304 /* TransformersTokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000303 /* TransformersTokenizer.swift */; };
+		200000000000000000000306 /* M1SpikeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000305 /* M1SpikeTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -264,6 +267,9 @@
 		AD0F300000000000000000C3 /* ApplePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePromptTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C5 /* SwamaRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwamaRequestTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C7 /* ThrottlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrottlerTests.swift; sourceTree = "<group>"; };
+		200000000000000000000301 /* HFSnapshotDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HFSnapshotDownloader.swift; sourceTree = "<group>"; };
+		200000000000000000000303 /* TransformersTokenizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformersTokenizer.swift; sourceTree = "<group>"; };
+		200000000000000000000305 /* M1SpikeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M1SpikeTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -662,6 +668,7 @@
 				AD0F300000000000000000C3 /* ApplePromptTests.swift */,
 				AD0F300000000000000000C5 /* SwamaRequestTests.swift */,
 				AD0F300000000000000000C7 /* ThrottlerTests.swift */,
+				200000000000000000000305 /* M1SpikeTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
 				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
@@ -748,6 +755,8 @@
 				200000000000000000000022 /* EmbeddingProfile.swift */,
 				200000000000000000000024 /* EmbeddingService.swift */,
 				200000000000000000000026 /* ModelDownloader.swift */,
+				200000000000000000000301 /* HFSnapshotDownloader.swift */,
+				200000000000000000000303 /* TransformersTokenizer.swift */,
 			);
 			path = Embed;
 			sourceTree = "<group>";
@@ -796,6 +805,9 @@
 			);
 			name = Molten;
 			packageProductDependencies = (
+				200000000000000000000103 /* MLXEmbedders */,
+				200000000000000000000104 /* MLXLMCommon */,
+				200000000000000000000105 /* Tokenizers */,
 				FF1002652B2653EE0011A4DC /* ActivityIndicatorView */,
 				FF464B122B8026DA008E5130 /* Vortex */,
 				FFD5FAD42B8130CE0055AB51 /* OllamaKit */,
@@ -824,6 +836,11 @@
 				AD0F200000000000000000A2 /* PBXTargetDependency */,
 			);
 			name = MoltenTests;
+			packageProductDependencies = (
+				200000000000000000000103 /* MLXEmbedders */,
+				200000000000000000000104 /* MLXLMCommon */,
+				200000000000000000000105 /* Tokenizers */,
+			);
 			productName = MoltenTests;
 			productReference = AD0F200000000000000000A6 /* MoltenTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -857,6 +874,8 @@
 			);
 			mainGroup = FFEC32842B24779A003E5C04;
 			packageReferences = (
+				200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				FF1002642B2653EE0011A4DC /* XCRemoteSwiftPackageReference "ActivityIndicatorView" */,
 				FF464B112B8026DA008E5130 /* XCRemoteSwiftPackageReference "Vortex" */,
 				FFD5FAD32B8130CE0055AB51 /* XCRemoteSwiftPackageReference "OllamaKit" */,
@@ -1015,6 +1034,8 @@
 				FFEC9BE72B813A8D00AFBA63 /* RemovableImage.swift in Sources */,
 				FFFD00C22B92607800392AE6 /* CompletionsStore.swift in Sources */,
 				AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */,
+				200000000000000000000302 /* HFSnapshotDownloader.swift in Sources */,
+				200000000000000000000304 /* TransformersTokenizer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1027,6 +1048,7 @@
 				AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */,
 				AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */,
 				AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */,
+				200000000000000000000306 /* M1SpikeTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
 				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);
@@ -1438,6 +1460,22 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.32.3;
+			};
+		};
+		200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1485,6 +1523,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FFFD00C72B94CB5E00392AE6 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
 			productName = AsyncAlgorithms;
+		};
+		200000000000000000000103 /* MLXEmbedders */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXEmbedders;
+		};
+		200000000000000000000104 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		200000000000000000000105 /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
