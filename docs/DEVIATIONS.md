@@ -18,6 +18,14 @@ requirement ID and reason.
 | §0.9 | Existing v1.1 tests are XCTest; new milestone tests use Swift Testing. Both frameworks coexist in the `MoltenTests` target. | PRD mandates Swift Testing for new tests; rewriting the existing suite is out of scope (§0.7: do not change existing behavior). |
 | K-S1 (signing) | macOS compile + tests verified with `CODE_SIGNING_ALLOWED=NO`. The iCloud capability requires a Mac App Development provisioning profile; `xcodebuild -allowProvisioningUpdates` cannot authenticate the developer account from the agent environment ("login details rejected"). iOS Simulator builds succeed (no provisioning required). | **Owner action:** open the project in Xcode once, signed in as edward@ondemandworld.com, and let automatic signing register the iCloud container `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create the profile. After that, normal signed builds work. Entitlements themselves are complete and identical across targets as required. |
 
+## M2 — Entitlements (2026-11-13)
+
+| ID | Deviation | Reason |
+|----|-----------|--------|
+| M2 | `EarlySupporterDetector.iosCutoffBuild` is nil (fail-closed: no iOS Early Supporter grants until set). | **Owner action:** confirm the highest shipped 1.x iOS build in App Store Connect (highest known: 5, v1.1) and set the cutoff; every 2.0 build must be numerically greater. |
+| M6 exit | The pure M6 matrix (version comparison, per-platform cutoffs, malformed/empty, sandbox/xcode, tier math incl. Early Supporter + subscription and lifetime, Keychain-only offline grant) all pass. The four SKTestSession flows (buy/lapse/lifetime/simulated-ES+subscription) are implemented but **gated behind `build/session/STOREKIT_FLOWS_ENABLED`**: SKTestSession requires a provisioned test host, and the iCloud entitlement cannot be provisioned from the agent environment (ad-hoc signing rejected: "requires a provisioning profile"). | **Owner action:** after the Xcode sign-in (same action as M0/M1), create the marker file and run M2EntitlementTests, or run them in Xcode with the Molten.storekit configuration (already set in the scheme's TestAction). |
+| M7 | App Store Connect product creation (subscription group "Molten Membership", Plus level 2, 1-week trial, lifetime non-consumable; Pro level 1 reserved) is a portal action; `Molten.storekit` mirrors it for development. | **Owner action** at release prep (§11). |
+
 ## M1 — Embedding spike (2026-11-13)
 
 | ID | Deviation | Reason |
