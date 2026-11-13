@@ -21,6 +21,8 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     private var ollamaKit: OllamaKit
     private var isConfigured: Bool = false
     private var isUsingDefaultLocalhost: Bool = true // Track if using default vs user-configured URL
+    private var currentBaseURL = URL(string: "http://localhost:11434")!
+    private var currentToken: String?
     
     init() {
         ollamaKit = OllamaKit(baseURL: URL(string: "http://localhost:11434")!)
@@ -39,8 +41,30 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
             defaultLocalhost: URL(string: "http://localhost:11434")!
         )
         ollamaKit = OllamaKit(baseURL: endpoint.baseURL, bearerToken: endpoint.bearerToken)
+        currentBaseURL = endpoint.baseURL
+        currentToken = endpoint.bearerToken
         isConfigured = !endpoint.disabled
         isUsingDefaultLocalhost = endpoint.usingDefaultLocalhost
+    }
+
+    /// X1: context window from Ollama /api/show (model_info "<arch>.context_length").
+    func contextLength(model: String) async -> Int? {
+        guard isConfigured else { return nil }
+        var request = URLRequest(url: currentBaseURL.appendingPathComponent("api/show"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 5
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let currentToken { request.setValue("Bearer \(currentToken)", forHTTPHeaderField: "Authorization") }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": model])
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let info = json["model_info"] as? [String: Any] else { return nil }
+        for (key, value) in info where key.hasSuffix(".context_length") {
+            if let length = value as? Int { return length }
+            if let number = value as? NSNumber { return number.intValue }
+        }
+        return nil
     }
     
     /// Returns true if using default localhost (vs user-configured URL)
