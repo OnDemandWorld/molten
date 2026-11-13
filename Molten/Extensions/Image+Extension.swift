@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-#if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
+#if os(iOS) || os(watchOS) || os(tvOS)
 extension Image {
     init?(data: Data) {
         guard let uiImage = UIImage(data: data) else { return nil }
@@ -26,7 +26,7 @@ extension Image {
 extension Image {
     /// Creates an Image from the platform's native image type.
     init(platformImage: PlatformImage) {
-#if os(iOS) || os(watchOS) || os(tvOS) || os(visionOS)
+#if os(iOS) || os(watchOS) || os(tvOS)
         self.init(uiImage: platformImage)
 #elseif os(macOS)
         self.init(nsImage: platformImage)

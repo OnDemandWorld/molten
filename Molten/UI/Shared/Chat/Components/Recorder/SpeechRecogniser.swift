@@ -130,7 +130,7 @@ import Speech
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         
-#if os(iOS) || os(visionOS)
+#if os(iOS)
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord, mode: .measurement, options: .duckOthers)
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)

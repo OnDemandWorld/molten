@@ -110,6 +110,13 @@ struct ChatMessageView: View {
                         
                     }
                     
+                    // K-R5: citation chips for knowledge-grounded answers.
+                    if let data = message.knowledgeCitationsData,
+                       let citations = try? JSONDecoder().decode([CitationRef].self, from: data),
+                       !citations.isEmpty {
+                        CitationChips(citations: citations)
+                    }
+
                     // Analytics footer for assistant messages
                     if message.role == "assistant" {
                         AnalyticsFooterView(message: message)
