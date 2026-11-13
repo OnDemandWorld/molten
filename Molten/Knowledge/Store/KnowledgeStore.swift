@@ -129,6 +129,14 @@ actor KnowledgeStore {
         return result
     }
 
+    func hasDocument(hash: String) -> Bool {
+        var found = false
+        query("SELECT 1 FROM documents WHERE hash = ? LIMIT 1", bind: { stmt in
+            sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_TRANSIENT)
+        }) { _ in found = true }
+        return found
+    }
+
     func documentCount(base: BaseID) -> Int {
         var count = 0
         query("SELECT COUNT(*) FROM documents WHERE base = ?", bind: { stmt in

@@ -65,6 +65,7 @@
 		20000000000000000000051A /* EarlySupporterDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* EarlySupporterDetector.swift */; };
 		20000000000000000000051B /* EntitlementKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000403 /* EntitlementKeychain.swift */; };
 		20000000000000000000051C /* VersionCompare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000401 /* VersionCompare.swift */; };
+		200000000000000000000520 /* MoltenShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000505 /* MoltenShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); platformFilter = ios; }; };
 		3396E0762BD877D500213816 /* Menus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3396E0752BD877D500213816 /* Menus.swift */; };
 		401A08CD30A77FDF009DDB5F /* MLXEmbedders in Frameworks */ = {isa = PBXBuildFile; productRef = 200000000000000000000103 /* MLXEmbedders */; };
 		401A08CE30A77FDF009DDB5F /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 200000000000000000000104 /* MLXLMCommon */; };
@@ -256,7 +257,6 @@
 		200000000000000000000503 /* MoltenShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoltenShare.entitlements; sourceTree = "<group>"; };
 		200000000000000000000504 /* ShareImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImport.swift; sourceTree = "<group>"; };
 		200000000000000000000505 /* MoltenShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MoltenShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		200000000000000000000520 /* MoltenShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000505 /* MoltenShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); platformFilter = ios; }; };
 		3396E0752BD877D500213816 /* Menus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Menus.swift; sourceTree = "<group>"; };
 		AD0F10000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AD0F200000000000000000A3 /* DayDeletionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayDeletionTests.swift; sourceTree = "<group>"; };
@@ -1255,12 +1255,12 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Molten/ShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1282,12 +1282,12 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Molten/ShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1476,7 +1476,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Molten/Preview Content\"";
 				DEVELOPMENT_TEAM = DVGF44TKAX;
@@ -1505,7 +1505,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -1541,7 +1540,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Molten/Preview Content\"";
 				DEVELOPMENT_TEAM = DVGF44TKAX;
@@ -1570,7 +1569,6 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;

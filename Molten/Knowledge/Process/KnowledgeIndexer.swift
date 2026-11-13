@@ -66,19 +66,25 @@ actor KnowledgeIndexer {
             options: [.skipsHiddenFiles]) else { return }
 
         let unlimited = await EntitlementManager.shared.allows(.unlimitedKnowledge)
+        // Match the entitlement extractStage uses — hardcoding false here
+        // would skip images even for Plus users with OCR.
+        let ocrAllowed = await EntitlementManager.shared.allows(.ocr)
         var processed = await store.documentCount(base: base)
 
         for case let url as URL in enumerator {
             let values = try? url.resourceValues(forKeys: [.isRegularFileKey])
             guard values?.isRegularFile == true else { continue }
-            guard ExtractorFactory.extractor(for: url, ocrAllowed: false) != nil else { continue }
+            guard ExtractorFactory.extractor(for: url, ocrAllowed: ocrAllowed) != nil else { continue }
             if !KnowledgeLimits.canAddDocument(existing: processed, unlimited: unlimited) {
                 logger.info("Free document limit reached for base \(base, privacy: .public)")
                 break
             }
             do {
-                try await process(file: url, base: base)
-                processed += 1
+                // Only newly ingested documents count against the limit —
+                // re-scanning already-indexed files must not consume quota.
+                if try await process(file: url, base: base) {
+                    processed += 1
+                }
             } catch {
                 logger.error("Indexing failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
@@ -88,20 +94,25 @@ actor KnowledgeIndexer {
     /// Extract → chunk → .mkt, then embed → .mkv when the model is ready.
     /// Existing outputs are never regenerated (K-D3, G4). Stages are claimed
     /// per K-P2 and gated by the device's stage policy (K-P4).
-    func process(file: URL, base: BaseID) async throws {
+    /// Returns true when this call ingested a document new to the store.
+    @discardableResult
+    func process(file: URL, base: BaseID) async throws -> Bool {
         let hash = try Self.sha256(of: file)
+        let isNew = !(await store.hasDocument(hash: hash))
         let profile = EmbeddingProfile.e5sV1
         let mktURL = KnowledgeContainer.textDirectory()
             .appendingPathComponent("\(hash).mkt")
         let mkvURL = KnowledgeContainer.vectorsDirectory(profile: profile.id)
             .appendingPathComponent("\(hash).mkv")
         let stages = DeviceRoles.allowedStages(policy: DeviceRoles.policy, isCharging: DeviceRoles.isCharging)
-        let claims = ClaimStore()
+        // Shared instance: the K-P11 attempt counter must survive across
+        // files and scans, not reset with every call.
+        let claims = ClaimStore.shared
 
         if stages.contains(.extract), !FileManager.default.fileExists(atPath: mktURL.path) {
             guard await claims.tryClaim(hash: hash, stage: .extract) else {
                 logger.info("Extract claimed by another device: \(hash, privacy: .public)")
-                return
+                return false
             }
             do {
                 try await extractStage(file: file, hash: hash, mktURL: mktURL)
@@ -120,7 +131,7 @@ actor KnowledgeIndexer {
         // Embed stage: skipped entirely until the model is ready (K-R2
         // keyword-only fallback keeps the text searchable meanwhile, A11).
         if stages.contains(.embed), await embeddings.isReady {
-            guard await claims.tryClaim(hash: hash, stage: .embed) else { return }
+            guard await claims.tryClaim(hash: hash, stage: .embed) else { return isNew }
             do {
                 if !FileManager.default.fileExists(atPath: mkvURL.path) {
                     let document = try MKTCodec.decode(Data(contentsOf: mktURL))
@@ -149,6 +160,7 @@ actor KnowledgeIndexer {
                 throw error
             }
         }
+        return isNew
     }
 
     private func extractStage(file: URL, hash: String, mktURL: URL) async throws {

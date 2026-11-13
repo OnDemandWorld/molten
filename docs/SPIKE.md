@@ -50,6 +50,11 @@ min 0.99999833 across all 100 mixed-language samples, iPhone vs Mac,
 pinned revision 614241f6. Device run used the signed build after the
 CloudKit `.none` fix (SwiftData auto-CloudKit with iCloud entitlements).
 
+**Re-verified 2026-11-14 after review-round-2** (position-based attention
+mask + masked mean pooling fix): **min cosine 0.9999985, mean 0.99999947**.
+Warm-cache embed: Mac 1.15s, iPhone 0.63s. The mask fix changes absolute
+vectors (closer to reference e5); cross-device agreement holds.
+
 ## Performance acceptance (M7, 2026-11-14, Mac)
 
 | Criterion | Limit | Mac | iOS Simulator (iPhone 17, iOS 26.5) | Status |

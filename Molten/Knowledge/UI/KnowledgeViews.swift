@@ -197,8 +197,12 @@ struct BaseDetailView: View {
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let dest = KnowledgeContainer.baseDirectory(base).appendingPathComponent(url.lastPathComponent)
-                try? FileManager.default.copyItem(at: url, to: dest)
-                added += 1
+                do {
+                    try FileManager.default.copyItem(at: url, to: dest)
+                    added += 1 // count only successful copies against the limit
+                } catch {
+                    status = "Could not add \(url.lastPathComponent): \(error.localizedDescription)"
+                }
             }
             loadFiles()
             process()
@@ -358,6 +362,9 @@ struct CitationRef: Codable, Sendable, Identifiable {
 
 struct CitationChips: View {
     let citations: [CitationRef]
+    #if os(iOS)
+    @State private var previewURL: URL?
+    #endif
 
     var body: some View {
         HStack(spacing: 6) {
@@ -373,6 +380,17 @@ struct CitationChips: View {
                 .accessibilityLabel("Open source \(citation.sourceName)")
             }
         }
+        #if os(iOS)
+        // K-R5: files in the app container can't be opened with
+        // UIApplication.open — use Quick Look.
+        .sheet(isPresented: Binding(
+            get: { previewURL != nil },
+            set: { if !$0 { previewURL = nil } })) {
+            if let url = previewURL {
+                QuickLookPreview(url: url)
+            }
+        }
+        #endif
     }
 
     private func open(_ citation: CitationRef) {
@@ -381,7 +399,34 @@ struct CitationChips: View {
         #if os(macOS)
         NSWorkspace.shared.open(file)
         #else
-        UIApplication.shared.open(file)
+        previewURL = file
         #endif
     }
 }
+
+#if os(iOS)
+import QuickLook
+
+struct QuickLookPreview: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController()
+        controller.dataSource = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ controller: QLPreviewController, context: Context) {}
+
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+        init(url: URL) { self.url = url }
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            url as QLPreviewItem
+        }
+    }
+}
+#endif

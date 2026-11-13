@@ -313,11 +313,12 @@ final class ConversationStore: @unchecked Sendable {
             // K-R1/K-R4: ground the prompt in the attached knowledge base.
             // The context is an ephemeral system message (not persisted);
             // citations are stored on the assistant message for K-R5 chips.
+            // X1: one resolved window drives both grounding and history budgets.
+            let window = await ContextWindow.window(for: model)
             var requestHistory = messageHistory
             if let base = conversation.attachedKnowledgeBase {
                 let retrieval = await Retriever.shared.retrieve(query: userPrompt, base: base)
                 let isApple = model.modelProvider == .appleFoundation
-                let window = isApple ? 4096 : 8192 // X1 metadata lands in M6
                 let reserve = ContextBudget.defaultReserve(window: window)
                 let assembled = PromptAssembler.assemble(
                     passages: retrieval.passages,
@@ -339,7 +340,6 @@ final class ConversationStore: @unchecked Sendable {
 
             // X2: budget the context window — history newest-first with a
             // reply reserve; system messages (incl. Knowledge grounding) kept.
-            let window = await ContextWindow.window(for: model)
             let systemMessages = requestHistory.filter { $0.role == "system" }
             let systemTokens = systemMessages.reduce(0) { $0 + TokenEstimator.estimate($1.content?.textContent ?? "") }
             let allocation = ContextBudget().allocate(

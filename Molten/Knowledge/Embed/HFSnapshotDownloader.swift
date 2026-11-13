@@ -101,14 +101,21 @@ struct HFSnapshotDownloader: Downloader {
                 throw KnowledgeError.notImplemented("Hub tree API failed for \(id)@\(revision)")
             }
             out.append(contentsOf: try JSONDecoder().decode([FileEntry].self, from: data))
-            // Pagination: the Hub returns a Link header with rel="next".
+            // Pagination: the Hub returns a Link header shaped like
+            // `<url>; rel="next", <url>; rel="last"`. Entries are separated
+            // by commas; the URL is the first ";"-segment of each entry and
+            // the rel parameter lives in the later segments.
             cursor = nil
             if let http = response as? HTTPURLResponse,
-               let link = http.value(forHTTPHeaderField: "Link"),
-               let next = link.split(separator: ";").first,
-               next.contains("rel=\"next\"") {
-                let raw = next.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
-                cursor = URLComponents(string: raw)?.queryItems?.first { $0.name == "cursor" }?.value
+               let link = http.value(forHTTPHeaderField: "Link") {
+                for entry in link.split(separator: ",") {
+                    let segments = entry.split(separator: ";")
+                    guard segments.count >= 2,
+                          segments[1...].contains(where: { $0.contains("rel=\"next\"") }) else { continue }
+                    let raw = segments[0].trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
+                    cursor = URLComponents(string: raw)?.queryItems?.first { $0.name == "cursor" }?.value
+                    break
+                }
             }
         } while cursor != nil
         return out.filter { $0.size > 0 || $0.lfs != nil }

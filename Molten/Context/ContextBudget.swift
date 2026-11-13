@@ -42,12 +42,21 @@ struct ContextBudget: Sendable {
         }
 
         var selectedHistory: [ChatMessage] = []
-        for message in history.reversed() { // newest first
+        for (index, message) in history.reversed().enumerated() { // newest first
             let cost = TokenEstimator.estimate(message.content?.textContent ?? "")
-            guard cost <= remaining else { break }
-            selectedHistory.insert(message, at: 0)
-            remaining -= cost
-            used += cost
+            if cost <= remaining {
+                selectedHistory.insert(message, at: 0)
+                remaining -= cost
+                used += cost
+            } else if index == 0 {
+                // The newest message is the prompt being answered — never
+                // drop it, even when it alone exceeds the remaining budget.
+                selectedHistory.insert(message, at: 0)
+                used += cost
+                remaining = 0
+            }
+            // Older messages that don't fit are skipped, not fatal: smaller
+            // older messages may still fit.
         }
 
         return Allocation(
