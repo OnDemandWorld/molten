@@ -135,6 +135,8 @@
 		20000000000000000000040B /* M2EntitlementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000040A /* M2EntitlementTests.swift */; };
 		20000000000000000000040D /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000040C /* DeviceIdentity.swift */; };
 		20000000000000000000040F /* M3KnowledgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000040E /* M3KnowledgeTests.swift */; };
+		200000000000000000000411 /* CoordinatedIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000410 /* CoordinatedIO.swift */; };
+		200000000000000000000413 /* M4KnowledgeSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000412 /* M4KnowledgeSyncTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -285,6 +287,8 @@
 		20000000000000000000040A /* M2EntitlementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M2EntitlementTests.swift; sourceTree = "<group>"; };
 		20000000000000000000040C /* DeviceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceIdentity.swift; sourceTree = "<group>"; };
 		20000000000000000000040E /* M3KnowledgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M3KnowledgeTests.swift; sourceTree = "<group>"; };
+		200000000000000000000410 /* CoordinatedIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinatedIO.swift; sourceTree = "<group>"; };
+		200000000000000000000412 /* M4KnowledgeSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M4KnowledgeSyncTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -686,6 +690,7 @@
 				200000000000000000000305 /* M1SpikeTests.swift */,
 				20000000000000000000040A /* M2EntitlementTests.swift */,
 				20000000000000000000040E /* M3KnowledgeTests.swift */,
+				200000000000000000000412 /* M4KnowledgeSyncTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
 				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
@@ -747,6 +752,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000014 /* KnowledgeContainer.swift */,
+				200000000000000000000410 /* CoordinatedIO.swift */,
 			);
 			path = Container;
 			sourceTree = "<group>";
@@ -1064,6 +1070,7 @@
 				200000000000000000000406 /* EarlySupporterThankYouView.swift in Sources */,
 				200000000000000000000408 /* SubscriptionSettingsSection.swift in Sources */,
 				20000000000000000000040D /* DeviceIdentity.swift in Sources */,
+				200000000000000000000411 /* CoordinatedIO.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1079,6 +1086,7 @@
 				200000000000000000000306 /* M1SpikeTests.swift in Sources */,
 				20000000000000000000040B /* M2EntitlementTests.swift in Sources */,
 				20000000000000000000040F /* M3KnowledgeTests.swift in Sources */,
+				200000000000000000000413 /* M4KnowledgeSyncTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
 				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);

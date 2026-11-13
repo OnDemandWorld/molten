@@ -18,6 +18,13 @@ requirement ID and reason.
 | §0.9 | Existing v1.1 tests are XCTest; new milestone tests use Swift Testing. Both frameworks coexist in the `MoltenTests` target. | PRD mandates Swift Testing for new tests; rewriting the existing suite is out of scope (§0.7: do not change existing behavior). |
 | K-S1 (signing) | macOS compile + tests verified with `CODE_SIGNING_ALLOWED=NO`. The iCloud capability requires a Mac App Development provisioning profile; `xcodebuild -allowProvisioningUpdates` cannot authenticate the developer account from the agent environment ("login details rejected"). iOS Simulator builds succeed (no provisioning required). | **Owner action:** open the project in Xcode once, signed in as edward@ondemandworld.com, and let automatic signing register the iCloud container `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create the profile. After that, normal signed builds work. Entitlements themselves are complete and identical across targets as required. |
 
+## M4 — Knowledge, iCloud (2026-11-14)
+
+| ID | Deviation | Reason |
+|----|-----------|--------|
+| A2/A13 | Two-device acceptance (Mac→iPhone searchable ≤5 min with zero iPhone processing; same bases visible on all devices) implemented and unit-verified at the logic level (ingest-only watchers, profile gating, mapping stability); the live two-device run is a **manual owner test** — requires provisioned devices and a signed-in iCloud account. | Agent environment cannot provision devices or sign into iCloud. Test script: create a base on Mac, drop a PDF, wait for sync, open Molten on iPhone, verify the base appears and search returns cited passages without the iPhone extracting/embedding (check its Index cache only receives .mkt/.mkv). |
+| K-S6 | Container debug check runs at launch; with no iCloud account signed in it logs the local-fallback path (expected in development). | Environment limitation, not a code deviation. |
+
 ## M3 — Knowledge, local (2026-11-13)
 
 | ID | Deviation | Reason |

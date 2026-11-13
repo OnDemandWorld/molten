@@ -107,9 +107,13 @@ actor KnowledgeIndexer {
                 encryption: nil,
                 createdBy: DeviceIdentity.id,
                 createdAt: ISO8601DateFormatter().string(from: Date()))
-            try Self.writeOnce(MKTCodec.encode(document), to: mktURL)
+            try CoordinatedIO.writeOnce(MKTCodec.encode(document), to: mktURL)
         }
         try await store.ingest(mkt: mktURL, base: base, name: file.lastPathComponent)
+        let mtime = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate?.timeIntervalSince1970 ?? 0
+        await FileMapping.shared.update(path: file.path, entry: FileMapEntry(
+            hash: hash, base: base, name: file.lastPathComponent, mtime: mtime))
 
         // Embed stage: skipped entirely until the model is ready (K-R2
         // keyword-only fallback keeps the text searchable meanwhile, A11).
@@ -128,9 +132,13 @@ actor KnowledgeIndexer {
                     encryption: nil,
                     createdBy: DeviceIdentity.id,
                     createdAt: ISO8601DateFormatter().string(from: Date()))
-                try Self.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
+                try CoordinatedIO.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
             }
-            try await store.ingest(mkv: mkvURL)
+            // K-E2/A6: only ingest vectors matching the active profile.
+            let (header, _) = try MKVCodec.decode(Data(contentsOf: mkvURL))
+            if ManifestStore.accepts(header: header, manifest: ManifestStore.loadOrCreate()) {
+                try await store.ingest(mkv: mkvURL)
+            }
         }
     }
 
