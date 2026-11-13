@@ -8,16 +8,16 @@ Claude afterwards. Estimated total: ~1–2 hours plus Apple review time.
 
 ## Step 0 — Merge the PRs into `develop` (5 min)
 
-The work is stacked: #2 → #3 → #4 → #5 → #6 → #7 → #8 → #9 → #10 → #11.
+The work is stacked: #2 → #3 → #4 → #5 → #6 → #7 → #8 → #9 → #10 → #11 → #12.
 Merge them **in that order** (each targets `develop`).
 
 **Option A — GitHub web:** open each PR, click "Merge pull request" →
-"Confirm merge", in order #2, #3, …, #11. If a PR shows conflicts because
+"Confirm merge", in order #2, #3, …, #12. If a PR shows conflicts because
 its parent just merged, click "Update branch" first.
 
 **Option B — terminal (or tell Claude "merge the PRs"):**
 ```bash
-for n in 2 3 4 5 6 7 8 9 10 11; do gh pr merge $n --merge; done
+for n in 2 3 4 5 6 7 8 9 10 11 12; do gh pr merge $n --merge; done
 git checkout develop && git pull
 ```
 
