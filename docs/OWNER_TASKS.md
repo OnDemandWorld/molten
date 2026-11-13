@@ -26,7 +26,10 @@ After merging, `develop` contains all of 2.0. `main` stays at the shipped
 
 ---
 
-## Step 1 — Find the highest 1.x iOS build number (2 min)
+## Step 1 — Find the highest 1.x iOS build number (2 min) — ✅ DONE
+
+**Result (2026-11-14): highest 1.x build = 6. `iosCutoffBuild = 7` set;
+2.0 ships as build 7. Products created in ASC (Step 2 done).**
 
 **Why:** Early Supporter detection on iOS compares the original build number
 against a cutoff. It's fail-closed until set, so no iOS buyer gets Plus
