@@ -306,6 +306,51 @@ struct AssemblyTests {
     }
 }
 
+@Suite("M3 — End-to-end local pipeline (no model)", .serialized)
+struct EndToEndPipelineTests {
+    @Test func fileToCitedContext() async throws {
+        // Full local path: extract → chunk → MKT → ingest → search →
+        // numbered citation context. No embedding model required (A11).
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("contracts.md")
+        try "# Contracts\n\nThe termination clause requires 30 days notice.\n\nPayment terms are net 60 for enterprise clients.".write(to: source, atomically: true, encoding: .utf8)
+
+        let extractor = try #require(ExtractorFactory.extractor(for: source, ocrAllowed: false))
+        let extracted = try await extractor.extract(from: source)
+        let chunks = await Chunker.chunk(text: extracted.text, pages: extracted.pages,
+                                         prefix: "passage: ", tokenCount: { max(1, $0.count / 4) })
+        #expect(!chunks.isEmpty)
+        let hash = try KnowledgeIndexer.sha256(of: source)
+        let document = MKTDocument(schema: 1, sourceHash: hash, mime: "text/markdown",
+                                   extractorVersion: 1, ocrUsed: false, chunkerVersion: 1,
+                                   pages: extracted.pages, chunks: chunks, encryption: nil,
+                                   createdBy: "test", createdAt: "t")
+        let mkt = dir.appendingPathComponent("\(hash).mkt")
+        try MKTCodec.encode(document).write(to: mkt)
+
+        let store = KnowledgeStore(directory: dir)
+        try await store.ingest(mkt: mkt, base: "Legal", name: source.lastPathComponent)
+        let hits = await store.search("termination notice", queryVector: nil, base: "Legal", limit: 8)
+        #expect(!hits.isEmpty)
+
+        let assembled = PromptAssembler.assemble(passages: hits, budgetTokens: 4000,
+                                                 isAppleModel: false, tokenCount: { $0.count / 4 })
+        #expect(assembled.contextText.contains("[1]"))
+        #expect(assembled.contextText.contains("contracts.md"))
+        #expect(assembled.instruction.contains("Cite"))
+    }
+
+    @Test func baseStatusVocabulary() {
+        #expect(BaseStatus.label(documents: 3, files: 3, chunks: 30, vectors: 30, waitingForMac: false, processing: false, error: nil) == "Indexed")
+        #expect(BaseStatus.label(documents: 3, files: 3, chunks: 30, vectors: 0, waitingForMac: false, processing: false, error: nil) == "Text ready — semantic search pending")
+        #expect(BaseStatus.label(documents: 1, files: 3, chunks: 10, vectors: 10, waitingForMac: false, processing: false, error: nil) == "Needs re-index")
+        #expect(BaseStatus.label(documents: 1, files: 3, chunks: 10, vectors: 0, waitingForMac: true, processing: false, error: nil) == "Waiting for Mac")
+        #expect(BaseStatus.label(documents: 1, files: 3, chunks: 10, vectors: 0, waitingForMac: false, processing: true, error: nil) == "Processing 1/3")
+        #expect(BaseStatus.label(documents: 0, files: 0, chunks: 0, vectors: 0, waitingForMac: false, processing: false, error: "boom").hasPrefix("Error"))
+    }
+}
+
 #if os(macOS)
 private typealias PlatformFont = NSFont
 #else

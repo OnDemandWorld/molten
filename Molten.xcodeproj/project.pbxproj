@@ -156,6 +156,7 @@
 		20000000000000000000041D /* M6ConversationsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000041C /* M6ConversationsTests.swift */; };
 		20000000000000000000041F /* ProfileMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000041E /* ProfileMigration.swift */; };
 		200000000000000000000421 /* M7BetaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000420 /* M7BetaTests.swift */; };
+		200000000000000000000423 /* ModelDownloadConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000422 /* ModelDownloadConsent.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -327,6 +328,7 @@
 		20000000000000000000041C /* M6ConversationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M6ConversationsTests.swift; sourceTree = "<group>"; };
 		20000000000000000000041E /* ProfileMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMigration.swift; sourceTree = "<group>"; };
 		200000000000000000000420 /* M7BetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M7BetaTests.swift; sourceTree = "<group>"; };
+		200000000000000000000422 /* ModelDownloadConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadConsent.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -842,6 +844,7 @@
 				200000000000000000000024 /* EmbeddingService.swift */,
 				200000000000000000000026 /* ModelDownloader.swift */,
 				20000000000000000000041E /* ProfileMigration.swift */,
+				200000000000000000000422 /* ModelDownloadConsent.swift */,
 				200000000000000000000301 /* HFSnapshotDownloader.swift */,
 				200000000000000000000303 /* TransformersTokenizer.swift */,
 			);
@@ -1171,6 +1174,7 @@
 				200000000000000000000419 /* ContextWindow.swift in Sources */,
 				20000000000000000000041B /* MoltenMigrationPlan.swift in Sources */,
 				20000000000000000000041F /* ProfileMigration.swift in Sources */,
+				200000000000000000000423 /* ModelDownloadConsent.swift in Sources */,
 				200000000000000000000512 /* ShareImport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

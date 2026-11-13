@@ -9,6 +9,23 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - Base status (K-U1 vocabulary)
+
+enum BaseStatus {
+    /// Indexed · Processing n/m · Text ready, semantic search pending ·
+    /// Waiting for Mac · Needs re-index · Error
+    static func label(documents: Int, files: Int, chunks: Int, vectors: Int, waitingForMac: Bool, processing: Bool, error: String?) -> String {
+        if let error { return "Error: \(error)" }
+        if waitingForMac { return "Waiting for Mac" }
+        if processing { return "Processing \(documents)/\(files)" }
+        if documents == 0 { return "Empty" }
+        if files > documents { return "Needs re-index" }
+        if chunks > 0 && vectors == 0 { return "Text ready — semantic search pending" }
+        if vectors > 0 && vectors < chunks { return "Processing \(vectors)/\(chunks)" }
+        return "Indexed"
+    }
+}
+
 // MARK: - Sidebar (K-U1)
 
 struct KnowledgeSidebar: View {
@@ -113,6 +130,7 @@ struct BaseDetailView: View {
     @State private var importing = false
     @State private var indexing = false
     @State private var status = ""
+    @State private var showDownloadConsent = false
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -151,6 +169,15 @@ struct BaseDetailView: View {
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.pdf, .plainText, .rtf, .html, .png, .jpeg, UTType("org.openxmlformats.wordprocessingml.document") ?? .data], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { addFiles(urls) }
+        }
+        .alert("Download embedding model?", isPresented: $showDownloadConsent) {
+            Button("Download (\(ModelDownloadConsent.estimatedSizeMB) MB)") {
+                ModelDownloadConsent.recordConsent()
+                process(force: true)
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Semantic search needs a one-time \(ModelDownloadConsent.estimatedSizeMB) MB model download. You appear to be on cellular data. Keyword search works without it.")
         }
         .task { loadFiles() }
     }
@@ -192,7 +219,16 @@ struct BaseDetailView: View {
             #if os(iOS)
             KnowledgeBackgroundTask.schedule() // K-P6: user-action long job
             #endif
-            // Model download happens once on first Knowledge use (K-E3).
+            // K-E3: size shown + cellular confirmation before the one-time
+            // model download.
+            do {
+                try await ModelDownloadConsent.check()
+            } catch {
+                status = ""
+                indexing = false
+                showDownloadConsent = true
+                return
+            }
             try? await EmbeddingService.shared.ensureModel { _ in }
             do {
                 try await KnowledgeIndexer.shared.scan(base: base, force: force)
