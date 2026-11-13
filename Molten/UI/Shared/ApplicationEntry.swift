@@ -23,6 +23,11 @@ struct ApplicationEntry: View {
             Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
         }
         .task {
+            #if DEBUG
+            // K-S6: verify the shared iCloud container resolves as expected.
+            KnowledgeContainer.debugCheck()
+            #endif
+
             // Load models and conversations on app start
             do {
                 try await languageModelStore.loadModels()
