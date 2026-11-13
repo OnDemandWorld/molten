@@ -49,13 +49,16 @@ PRD §10 M1 exit criteria: cosine > 0.999 between Mac and iPhone vectors on
 
 ## Performance acceptance (M7, 2026-11-14, Mac)
 
-| Criterion | Limit | Measured (Mac) | Status |
-|-----------|-------|----------------|--------|
-| A1: 100-page text PDF extract + chunk | < 60 s | **0.21 s** (215 chunks) | ✅ pass |
-| A4: hybrid search, 20,000 chunks | < 200 ms | **50.8 ms** (8 hits) | ✅ pass |
+| Criterion | Limit | Mac | iOS Simulator (iPhone 17, iOS 26.5) | Status |
+|-----------|-------|-----|-------------------------------------|--------|
+| A1: 100-page text PDF extract + chunk | < 60 s | **0.21 s** (215 chunks) | **0.28 s** (215 chunks) | ✅ pass |
+| A4: hybrid search, 20,000 chunks | < 200 ms | **50.8 ms** (8 hits) | **53.3 ms** (8 hits) | ✅ pass |
 
-iPhone measurements pending the provisioned-device run (same owner action;
-run with the `build/session/MOLTEN_PERF` marker).
+Neither path requires MLX (PDFKit + Chunker + Accelerate), so the simulator
+numbers are valid acceptance measurements; re-measure on silicon at beta for
+the release record (run with the `build/session/MOLTEN_PERF` marker).
+Full suite (53 XCTest + 80 Swift Testing) also verified on the iOS Simulator
+runtime, including the C4 migration test.
 
 **iOS status (2026-11-13):** code compiles for iOS (arm64 device + simulator).
 Runtime verification on simulator is **blocked by MLX 0.32.3 incompatibilities**

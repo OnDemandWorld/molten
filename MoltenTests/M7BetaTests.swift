@@ -103,6 +103,13 @@ struct ProfileMigrationTests {
 }
 
 #if os(macOS)
+private typealias PlatformFont = NSFont
+#else
+private typealias PlatformFont = UIFont
+#endif
+
+/// Runs on macOS and the iOS Simulator — A1/A4 do not require MLX
+/// (PDFKit + Chunker + Accelerate). See docs/REMAINING_ISSUES.md.
 @Suite("M7 — Performance acceptance (A1/A4)", .enabled(if: perfEnabled))
 struct PerformanceAcceptanceTests {
     @Test func a1HundredPagePDFUnder60s() async throws {
@@ -119,7 +126,7 @@ struct PerformanceAcceptanceTests {
             ctx.beginPDFPage(nil)
             for line in 0..<30 {
                 let text = "Page \(page + 1) line \(line + 1): the quick brown fox jumps over the lazy dog near the river bank."
-                let attr = NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: 11)])
+                let attr = NSAttributedString(string: text, attributes: [.font: PlatformFont.systemFont(ofSize: 11)])
                 let ctLine = CTLineCreateWithAttributedString(attr)
                 ctx.textPosition = CGPoint(x: 40, y: 740 - CGFloat(line) * 22)
                 CTLineDraw(ctLine, ctx)
@@ -187,4 +194,3 @@ struct PerformanceAcceptanceTests {
         #expect(elapsed < 0.2)
     }
 }
-#endif
