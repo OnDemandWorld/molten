@@ -7,6 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		200000000000000000000512 /* ShareImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000504 /* ShareImport.swift */; };
+		20000000000000000000050E /* MoltenShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 200000000000000000000505 /* MoltenShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); platformFilter = ios; }; };
+		200000000000000000000513 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000501 /* ShareViewController.swift */; };
+		200000000000000000000514 /* ShareImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000504 /* ShareImport.swift */; };
+		200000000000000000000515 /* KnowledgeContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* KnowledgeContainer.swift */; };
+		200000000000000000000516 /* CoordinatedIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000410 /* CoordinatedIO.swift */; };
+		200000000000000000000517 /* DeviceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000040C /* DeviceIdentity.swift */; };
+		200000000000000000000518 /* Entitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* Entitlements.swift */; };
+		200000000000000000000519 /* EntitlementManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* EntitlementManager.swift */; };
+		20000000000000000000051A /* EarlySupporterDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* EarlySupporterDetector.swift */; };
+		20000000000000000000051B /* EntitlementKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000403 /* EntitlementKeychain.swift */; };
+		20000000000000000000051C /* VersionCompare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000401 /* VersionCompare.swift */; };
 		20000000000000000000000D /* Entitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* Entitlements.swift */; };
 		20000000000000000000000F /* EntitlementManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* EntitlementManager.swift */; };
 		200000000000000000000011 /* EarlySupporterDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* EarlySupporterDetector.swift */; };
@@ -168,9 +180,21 @@
 			remoteGlobalIDString = FFEC328C2B24779A003E5C04;
 			remoteInfo = Molten;
 		};
+		20000000000000000000050F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FFEC32852B24779A003E5C04 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 200000000000000000000506;
+			remoteInfo = MoltenShare;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000501 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		200000000000000000000504 /* ShareImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareImport.swift; sourceTree = "<group>"; };
+		200000000000000000000502 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		200000000000000000000503 /* MoltenShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoltenShare.entitlements; sourceTree = "<group>"; };
+		200000000000000000000505 /* MoltenShare.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = MoltenShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		20000000000000000000000C /* Entitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entitlements.swift; sourceTree = "<group>"; };
 		20000000000000000000000E /* EntitlementManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementManager.swift; sourceTree = "<group>"; };
 		200000000000000000000010 /* EarlySupporterDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EarlySupporterDetector.swift; sourceTree = "<group>"; };
@@ -321,6 +345,9 @@
 		FFFD00C12B92607800392AE6 /* CompletionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionsStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		FFEC328A2B24779A003E5C04 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -339,6 +366,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AD0F200000000000000000A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		200000000000000000000508 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -567,6 +601,7 @@
 		FFEC328E2B24779A003E5C04 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000505 /* MoltenShare.appex */,
 				FFEC328D2B24779A003E5C04 /* Molten.app */,
 				AD0F200000000000000000A6 /* MoltenTests.xctest */,
 			);
@@ -595,6 +630,7 @@
 				FF1002422B25BAC50011A4DC /* Stores */,
 				FF1002412B25BAAE0011A4DC /* SwiftData */,
 				FFEC32A52B247879003E5C04 /* UI */,
+				200000000000000000000511 /* ShareExtension */,
 			);
 			path = Molten;
 			sourceTree = "<group>";
@@ -794,6 +830,7 @@
 				200000000000000000000020 /* Extractors.swift */,
 				20000000000000000000040C /* DeviceIdentity.swift */,
 				200000000000000000000414 /* KnowledgeBackgroundTask.swift */,
+				200000000000000000000504 /* ShareImport.swift */,
 			);
 			path = Process;
 			sourceTree = "<group>";
@@ -836,6 +873,16 @@
 				200000000000000000000032 /* KnowledgeViews.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		200000000000000000000511 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000501 /* ShareViewController.swift */,
+				200000000000000000000502 /* Info.plist */,
+				200000000000000000000503 /* MoltenShare.entitlements */,
+			);
+			path = ShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -895,6 +942,23 @@
 			productReference = AD0F200000000000000000A6 /* MoltenTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		200000000000000000000506 /* MoltenShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 20000000000000000000050A /* Build configuration list for PBXNativeTarget "MoltenShare" */;
+			buildPhases = (
+				200000000000000000000507 /* Sources */,
+				200000000000000000000508 /* Frameworks */,
+				200000000000000000000509 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MoltenShare;
+			productName = MoltenShare;
+			productReference = 200000000000000000000505 /* MoltenShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -911,6 +975,9 @@
 					AD0F200000000000000000B0 = {
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = FFEC328C2B24779A003E5C04;
+					};
+					200000000000000000000506 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -942,6 +1009,7 @@
 			targets = (
 				FFEC328C2B24779A003E5C04 /* Molten */,
 				AD0F200000000000000000B0 /* MoltenTests */,
+				200000000000000000000506 /* MoltenShare */,
 			);
 		};
 /* End PBXProject section */
@@ -959,6 +1027,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AD0F200000000000000000A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		200000000000000000000509 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1096,6 +1171,7 @@
 				200000000000000000000419 /* ContextWindow.swift in Sources */,
 				20000000000000000000041B /* MoltenMigrationPlan.swift in Sources */,
 				20000000000000000000041F /* ProfileMigration.swift in Sources */,
+				200000000000000000000512 /* ShareImport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1120,6 +1196,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		200000000000000000000507 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				200000000000000000000513 /* ShareViewController.swift in Sources */,
+				200000000000000000000514 /* ShareImport.swift in Sources */,
+				200000000000000000000515 /* KnowledgeContainer.swift in Sources */,
+				200000000000000000000516 /* CoordinatedIO.swift in Sources */,
+				200000000000000000000517 /* DeviceIdentity.swift in Sources */,
+				200000000000000000000518 /* Entitlements.swift in Sources */,
+				200000000000000000000519 /* EntitlementManager.swift in Sources */,
+				20000000000000000000051A /* EarlySupporterDetector.swift in Sources */,
+				20000000000000000000051B /* EntitlementKeychain.swift in Sources */,
+				20000000000000000000051C /* VersionCompare.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1127,6 +1220,11 @@
 			isa = PBXTargetDependency;
 			target = FFEC328C2B24779A003E5C04 /* Molten */;
 			targetProxy = AD0F200000000000000000A1 /* PBXContainerItemProxy */;
+		};
+		200000000000000000000510 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 200000000000000000000506 /* MoltenShare */;
+			targetProxy = 20000000000000000000050F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1421,6 +1519,58 @@
 			};
 			name = Release;
 		};
+		20000000000000000000050B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Molten/ShareExtension/MoltenShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = DVGF44TKAX;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Molten/ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		20000000000000000000050C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Molten/ShareExtension/MoltenShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 6;
+				DEVELOPMENT_TEAM = DVGF44TKAX;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Molten/ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ondemandworld.molten.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1447,6 +1597,15 @@
 			buildConfigurations = (
 				AD0F200000000000000000B1 /* Debug */,
 				AD0F200000000000000000B2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		20000000000000000000050A /* Build configuration list for PBXNativeTarget "MoltenShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				20000000000000000000050B /* Debug */,
+				20000000000000000000050C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

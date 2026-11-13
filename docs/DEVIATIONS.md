@@ -29,7 +29,7 @@ requirement ID and reason.
 
 | ID | Deviation | Reason |
 |----|-----------|--------|
-| K-U3 / K-S4 | **Share Extension cut** (first in the PRD §10 cut order). Files can still be added via Finder/Files into the shared folder, Add files…, and Mac drag; the extension target is deferred to a follow-up. | Schedule pressure per §10 ("If the schedule slips, cut in this order: Share Extension → OCR → auto-titles"). OCR and auto-titles are NOT cut. |
+| K-U3 / K-S4 | **Implemented** (follow-up branch feature/m5-share-extension): MoltenShare app-extension target with base picker + new-base creation, writing directly into the shared iCloud container via the testable ShareImport helper; identical iCloud entitlements; embedded iOS-only (platformFilter). The earlier §10 cut is reversed. | Extension builds for iOS Simulator; on-device share-sheet verification is part of the owner device test pass. |
 | A3 | Background continued processing implemented (BGContinuedProcessingTask, user-action triggered, per-file/per-stage durable outputs); the kill-and-resume acceptance run is a manual device test. | Requires a provisioned iPhone. |
 | K-P3 | Two-device role behavior (Mac processes, iPhone shows Waiting for Mac) unit-tested at the logic level; live two-device script is a manual owner test. | Same provisioning constraint as M4. |
 

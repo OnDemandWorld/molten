@@ -8,6 +8,9 @@
 import Foundation
 import OSLog
 
+/// A knowledge base identifier (top-level folder name under Documents/).
+typealias BaseID = String
+
 private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "knowledge")
 
 /// K-S1/K-S5: one shared iCloud container; identical local layout fallback.
