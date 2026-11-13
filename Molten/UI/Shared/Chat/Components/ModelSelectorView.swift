@@ -31,7 +31,7 @@ struct ModelSelectorView: View {
                 if let selectedModel = selectedModel {
                     HStack(alignment: .bottom, spacing: 5) {
                         
-                        #if os(macOS) || os(visionOS)
+                        #if os(macOS)
                         Text(selectedModel.displayName)
                             .font(.body)
                         #elseif os(iOS)

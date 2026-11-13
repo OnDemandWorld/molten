@@ -41,6 +41,7 @@ ehthumbs.db
 # IDE
 .idea/
 .vscode/
+.claude/settings.local.json
 *.swp
 *.swo
 *.swn
@@ -60,6 +61,7 @@ Carthage/Build/
 AGENTS.md
 DEFERRED_FIXES_*.md
 NEXT_RELEASE_RESEARCH_*.md
+Molten 2.0 — Product Requirements Document (Consolidated).md
 QWEN.md
 CLAUDE.md
 IOS_TECHNICAL_AUDIT.md

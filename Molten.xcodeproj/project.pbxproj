@@ -7,6 +7,33 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		20000000000000000000000D /* Entitlements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* Entitlements.swift */; };
+		20000000000000000000000F /* EntitlementManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000E /* EntitlementManager.swift */; };
+		200000000000000000000011 /* EarlySupporterDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* EarlySupporterDetector.swift */; };
+		200000000000000000000013 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000012 /* PaywallView.swift */; };
+		200000000000000000000015 /* KnowledgeContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000014 /* KnowledgeContainer.swift */; };
+		200000000000000000000017 /* Watchers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000016 /* Watchers.swift */; };
+		200000000000000000000019 /* KnowledgeIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000018 /* KnowledgeIndexer.swift */; };
+		20000000000000000000001B /* ClaimStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001A /* ClaimStore.swift */; };
+		20000000000000000000001D /* HeartbeatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001C /* HeartbeatService.swift */; };
+		20000000000000000000001F /* Chunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000001E /* Chunker.swift */; };
+		200000000000000000000021 /* Extractors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000020 /* Extractors.swift */; };
+		200000000000000000000023 /* EmbeddingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000022 /* EmbeddingProfile.swift */; };
+		200000000000000000000025 /* EmbeddingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000024 /* EmbeddingService.swift */; };
+		200000000000000000000027 /* ModelDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000026 /* ModelDownloader.swift */; };
+		200000000000000000000029 /* KnowledgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000028 /* KnowledgeStore.swift */; };
+		20000000000000000000002B /* Codecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002A /* Codecs.swift */; };
+		20000000000000000000002D /* Manifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002C /* Manifest.swift */; };
+		20000000000000000000002F /* Retriever.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000002E /* Retriever.swift */; };
+		200000000000000000000031 /* PromptAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000030 /* PromptAssembler.swift */; };
+		200000000000000000000033 /* KnowledgeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000032 /* KnowledgeViews.swift */; };
+		200000000000000000000035 /* ContextBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000034 /* ContextBudget.swift */; };
+		200000000000000000000037 /* TokenEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000036 /* TokenEstimator.swift */; };
+		200000000000000000000039 /* ContextRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000038 /* ContextRing.swift */; };
+		20000000000000000000003B /* ConversationSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000003A /* ConversationSearch.swift */; };
+		20000000000000000000003D /* Exporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000003C /* Exporter.swift */; };
+		20000000000000000000003F /* Importer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000003E /* Importer.swift */; };
+		200000000000000000000041 /* AutoTitler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000040 /* AutoTitler.swift */; };
 		3396E0762BD877D500213816 /* Menus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3396E0752BD877D500213816 /* Menus.swift */; };
 		FF0146CB2B3DA1DF00A2A9F6 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0146CA2B3DA1DF00A2A9F6 /* Settings.swift */; };
 		FF0146CD2B3DADCA00A2A9F6 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0146CC2B3DADCA00A2A9F6 /* HapticsService.swift */; };
@@ -98,6 +125,9 @@
 		AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C3 /* ApplePromptTests.swift */; };
 		AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C5 /* SwamaRequestTests.swift */; };
 		AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F300000000000000000C7 /* ThrottlerTests.swift */; };
+		200000000000000000000302 /* HFSnapshotDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000301 /* HFSnapshotDownloader.swift */; };
+		200000000000000000000304 /* TransformersTokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000303 /* TransformersTokenizer.swift */; };
+		200000000000000000000306 /* M1SpikeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000305 /* M1SpikeTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -125,6 +155,33 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		20000000000000000000000C /* Entitlements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entitlements.swift; sourceTree = "<group>"; };
+		20000000000000000000000E /* EntitlementManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementManager.swift; sourceTree = "<group>"; };
+		200000000000000000000010 /* EarlySupporterDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EarlySupporterDetector.swift; sourceTree = "<group>"; };
+		200000000000000000000012 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		200000000000000000000014 /* KnowledgeContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeContainer.swift; sourceTree = "<group>"; };
+		200000000000000000000016 /* Watchers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watchers.swift; sourceTree = "<group>"; };
+		200000000000000000000018 /* KnowledgeIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeIndexer.swift; sourceTree = "<group>"; };
+		20000000000000000000001A /* ClaimStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaimStore.swift; sourceTree = "<group>"; };
+		20000000000000000000001C /* HeartbeatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartbeatService.swift; sourceTree = "<group>"; };
+		20000000000000000000001E /* Chunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chunker.swift; sourceTree = "<group>"; };
+		200000000000000000000020 /* Extractors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extractors.swift; sourceTree = "<group>"; };
+		200000000000000000000022 /* EmbeddingProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingProfile.swift; sourceTree = "<group>"; };
+		200000000000000000000024 /* EmbeddingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingService.swift; sourceTree = "<group>"; };
+		200000000000000000000026 /* ModelDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloader.swift; sourceTree = "<group>"; };
+		200000000000000000000028 /* KnowledgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeStore.swift; sourceTree = "<group>"; };
+		20000000000000000000002A /* Codecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Codecs.swift; sourceTree = "<group>"; };
+		20000000000000000000002C /* Manifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Manifest.swift; sourceTree = "<group>"; };
+		20000000000000000000002E /* Retriever.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Retriever.swift; sourceTree = "<group>"; };
+		200000000000000000000030 /* PromptAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptAssembler.swift; sourceTree = "<group>"; };
+		200000000000000000000032 /* KnowledgeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeViews.swift; sourceTree = "<group>"; };
+		200000000000000000000034 /* ContextBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextBudget.swift; sourceTree = "<group>"; };
+		200000000000000000000036 /* TokenEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenEstimator.swift; sourceTree = "<group>"; };
+		200000000000000000000038 /* ContextRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextRing.swift; sourceTree = "<group>"; };
+		20000000000000000000003A /* ConversationSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearch.swift; sourceTree = "<group>"; };
+		20000000000000000000003C /* Exporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exporter.swift; sourceTree = "<group>"; };
+		20000000000000000000003E /* Importer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Importer.swift; sourceTree = "<group>"; };
+		200000000000000000000040 /* AutoTitler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTitler.swift; sourceTree = "<group>"; };
 		3396E0752BD877D500213816 /* Menus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Menus.swift; sourceTree = "<group>"; };
 		FF0146CA2B3DA1DF00A2A9F6 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		FF0146CC2B3DADCA00A2A9F6 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
@@ -210,6 +267,9 @@
 		AD0F300000000000000000C3 /* ApplePromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePromptTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C5 /* SwamaRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwamaRequestTests.swift; sourceTree = "<group>"; };
 		AD0F300000000000000000C7 /* ThrottlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrottlerTests.swift; sourceTree = "<group>"; };
+		200000000000000000000301 /* HFSnapshotDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HFSnapshotDownloader.swift; sourceTree = "<group>"; };
+		200000000000000000000303 /* TransformersTokenizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformersTokenizer.swift; sourceTree = "<group>"; };
+		200000000000000000000305 /* M1SpikeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M1SpikeTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -482,6 +542,10 @@
 		FFEC328F2B24779A003E5C04 /* Molten */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000001 /* Entitlements */,
+				200000000000000000000004 /* Knowledge */,
+				200000000000000000000002 /* Context */,
+				200000000000000000000003 /* Conversations */,
 				FF9C92072BF0B464004C8275 /* MoltenDebug.entitlements */,
 				FFEC32982B24779B003E5C04 /* Molten.entitlements */,
 				FFE2C8222B9A657A00BD82F3 /* Accessibility.plist */,
@@ -604,10 +668,124 @@
 				AD0F300000000000000000C3 /* ApplePromptTests.swift */,
 				AD0F300000000000000000C5 /* SwamaRequestTests.swift */,
 				AD0F300000000000000000C7 /* ThrottlerTests.swift */,
+				200000000000000000000305 /* M1SpikeTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
 				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
 			path = MoltenTests;
+			sourceTree = "<group>";
+		};
+		200000000000000000000001 /* Entitlements */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000000C /* Entitlements.swift */,
+				20000000000000000000000E /* EntitlementManager.swift */,
+				200000000000000000000010 /* EarlySupporterDetector.swift */,
+				200000000000000000000012 /* PaywallView.swift */,
+			);
+			path = Entitlements;
+			sourceTree = "<group>";
+		};
+		200000000000000000000002 /* Context */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000034 /* ContextBudget.swift */,
+				200000000000000000000036 /* TokenEstimator.swift */,
+				200000000000000000000038 /* ContextRing.swift */,
+			);
+			path = Context;
+			sourceTree = "<group>";
+		};
+		200000000000000000000003 /* Conversations */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000003A /* ConversationSearch.swift */,
+				20000000000000000000003C /* Exporter.swift */,
+				20000000000000000000003E /* Importer.swift */,
+				200000000000000000000040 /* AutoTitler.swift */,
+			);
+			path = Conversations;
+			sourceTree = "<group>";
+		};
+		200000000000000000000004 /* Knowledge */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000005 /* Container */,
+				200000000000000000000006 /* Watch */,
+				200000000000000000000007 /* Process */,
+				200000000000000000000008 /* Embed */,
+				200000000000000000000009 /* Store */,
+				20000000000000000000000A /* Retrieve */,
+				20000000000000000000000B /* UI */,
+			);
+			path = Knowledge;
+			sourceTree = "<group>";
+		};
+		200000000000000000000005 /* Container */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000014 /* KnowledgeContainer.swift */,
+			);
+			path = Container;
+			sourceTree = "<group>";
+		};
+		200000000000000000000006 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000016 /* Watchers.swift */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
+		200000000000000000000007 /* Process */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000018 /* KnowledgeIndexer.swift */,
+				20000000000000000000001A /* ClaimStore.swift */,
+				20000000000000000000001C /* HeartbeatService.swift */,
+				20000000000000000000001E /* Chunker.swift */,
+				200000000000000000000020 /* Extractors.swift */,
+			);
+			path = Process;
+			sourceTree = "<group>";
+		};
+		200000000000000000000008 /* Embed */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000022 /* EmbeddingProfile.swift */,
+				200000000000000000000024 /* EmbeddingService.swift */,
+				200000000000000000000026 /* ModelDownloader.swift */,
+				200000000000000000000301 /* HFSnapshotDownloader.swift */,
+				200000000000000000000303 /* TransformersTokenizer.swift */,
+			);
+			path = Embed;
+			sourceTree = "<group>";
+		};
+		200000000000000000000009 /* Store */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000028 /* KnowledgeStore.swift */,
+				20000000000000000000002A /* Codecs.swift */,
+				20000000000000000000002C /* Manifest.swift */,
+			);
+			path = Store;
+			sourceTree = "<group>";
+		};
+		20000000000000000000000A /* Retrieve */ = {
+			isa = PBXGroup;
+			children = (
+				20000000000000000000002E /* Retriever.swift */,
+				200000000000000000000030 /* PromptAssembler.swift */,
+			);
+			path = Retrieve;
+			sourceTree = "<group>";
+		};
+		20000000000000000000000B /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000032 /* KnowledgeViews.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -627,6 +805,9 @@
 			);
 			name = Molten;
 			packageProductDependencies = (
+				200000000000000000000103 /* MLXEmbedders */,
+				200000000000000000000104 /* MLXLMCommon */,
+				200000000000000000000105 /* Tokenizers */,
 				FF1002652B2653EE0011A4DC /* ActivityIndicatorView */,
 				FF464B122B8026DA008E5130 /* Vortex */,
 				FFD5FAD42B8130CE0055AB51 /* OllamaKit */,
@@ -655,6 +836,11 @@
 				AD0F200000000000000000A2 /* PBXTargetDependency */,
 			);
 			name = MoltenTests;
+			packageProductDependencies = (
+				200000000000000000000103 /* MLXEmbedders */,
+				200000000000000000000104 /* MLXLMCommon */,
+				200000000000000000000105 /* Tokenizers */,
+			);
 			productName = MoltenTests;
 			productReference = AD0F200000000000000000A6 /* MoltenTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -688,6 +874,8 @@
 			);
 			mainGroup = FFEC32842B24779A003E5C04;
 			packageReferences = (
+				200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				FF1002642B2653EE0011A4DC /* XCRemoteSwiftPackageReference "ActivityIndicatorView" */,
 				FF464B112B8026DA008E5130 /* XCRemoteSwiftPackageReference "Vortex" */,
 				FFD5FAD32B8130CE0055AB51 /* XCRemoteSwiftPackageReference "OllamaKit" */,
@@ -734,6 +922,33 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				20000000000000000000000D /* Entitlements.swift in Sources */,
+				20000000000000000000000F /* EntitlementManager.swift in Sources */,
+				200000000000000000000011 /* EarlySupporterDetector.swift in Sources */,
+				200000000000000000000013 /* PaywallView.swift in Sources */,
+				200000000000000000000015 /* KnowledgeContainer.swift in Sources */,
+				200000000000000000000017 /* Watchers.swift in Sources */,
+				200000000000000000000019 /* KnowledgeIndexer.swift in Sources */,
+				20000000000000000000001B /* ClaimStore.swift in Sources */,
+				20000000000000000000001D /* HeartbeatService.swift in Sources */,
+				20000000000000000000001F /* Chunker.swift in Sources */,
+				200000000000000000000021 /* Extractors.swift in Sources */,
+				200000000000000000000023 /* EmbeddingProfile.swift in Sources */,
+				200000000000000000000025 /* EmbeddingService.swift in Sources */,
+				200000000000000000000027 /* ModelDownloader.swift in Sources */,
+				200000000000000000000029 /* KnowledgeStore.swift in Sources */,
+				20000000000000000000002B /* Codecs.swift in Sources */,
+				20000000000000000000002D /* Manifest.swift in Sources */,
+				20000000000000000000002F /* Retriever.swift in Sources */,
+				200000000000000000000031 /* PromptAssembler.swift in Sources */,
+				200000000000000000000033 /* KnowledgeViews.swift in Sources */,
+				200000000000000000000035 /* ContextBudget.swift in Sources */,
+				200000000000000000000037 /* TokenEstimator.swift in Sources */,
+				200000000000000000000039 /* ContextRing.swift in Sources */,
+				20000000000000000000003B /* ConversationSearch.swift in Sources */,
+				20000000000000000000003D /* Exporter.swift in Sources */,
+				20000000000000000000003F /* Importer.swift in Sources */,
+				200000000000000000000041 /* AutoTitler.swift in Sources */,
 				FF6D82252B9204F3001183A8 /* AsyncQueue.swift in Sources */,
 				FF1002442B25BB730011A4DC /* ConversationStore.swift in Sources */,
 				FF15EF6A2B826C0300D4A541 /* SimpleFloatingButton.swift in Sources */,
@@ -819,6 +1034,8 @@
 				FFEC9BE72B813A8D00AFBA63 /* RemovableImage.swift in Sources */,
 				FFFD00C22B92607800392AE6 /* CompletionsStore.swift in Sources */,
 				AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */,
+				200000000000000000000302 /* HFSnapshotDownloader.swift in Sources */,
+				200000000000000000000304 /* TransformersTokenizer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -831,6 +1048,7 @@
 				AD0F300000000000000000C4 /* ApplePromptTests.swift in Sources */,
 				AD0F300000000000000000C6 /* SwamaRequestTests.swift in Sources */,
 				AD0F300000000000000000C8 /* ThrottlerTests.swift in Sources */,
+				200000000000000000000306 /* M1SpikeTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
 				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);
@@ -981,7 +1199,6 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
@@ -1029,7 +1246,6 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TVOS_DEPLOYMENT_TARGET = 26.0;
 				WATCHOS_DEPLOYMENT_TARGET = 26.0;
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -1047,7 +1263,6 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=xros*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
@@ -1095,7 +1310,6 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TVOS_DEPLOYMENT_TARGET = 26.0;
 				WATCHOS_DEPLOYMENT_TARGET = 26.0;
-				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -1246,6 +1460,22 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.32.3;
+			};
+		};
+		200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1293,6 +1523,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FFFD00C72B94CB5E00392AE6 /* XCRemoteSwiftPackageReference "swift-async-algorithms" */;
 			productName = AsyncAlgorithms;
+		};
+		200000000000000000000103 /* MLXEmbedders */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXEmbedders;
+		};
+		200000000000000000000104 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000101 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		200000000000000000000105 /* Tokenizers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 200000000000000000000102 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Tokenizers;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
