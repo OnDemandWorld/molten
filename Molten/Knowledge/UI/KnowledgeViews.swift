@@ -131,6 +131,7 @@ struct BaseDetailView: View {
     @State private var indexing = false
     @State private var status = ""
     @State private var showDownloadConsent = false
+    @State private var showPaywall = false
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -170,6 +171,7 @@ struct BaseDetailView: View {
         .fileImporter(isPresented: $importing, allowedContentTypes: [.pdf, .plainText, .rtf, .html, .png, .jpeg, UTType("org.openxmlformats.wordprocessingml.document") ?? .data], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { addFiles(urls) }
         }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
         .alert("Download embedding model?", isPresented: $showDownloadConsent) {
             Button("Download (\(ModelDownloadConsent.estimatedSizeMB) MB)") {
                 ModelDownloadConsent.recordConsent()
@@ -193,7 +195,10 @@ struct BaseDetailView: View {
             let existing = await KnowledgeStore.shared.documentCount(base: base)
             var added = 0
             for url in urls {
-                guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else { break }
+                guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else {
+                    showPaywall = true // K-U5: over a limit opens the paywall
+                    break
+                }
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let dest = KnowledgeContainer.baseDirectory(base).appendingPathComponent(url.lastPathComponent)
