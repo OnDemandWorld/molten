@@ -65,6 +65,9 @@ struct SettingsView: View {
             .padding()
             
             Form {
+                // Molten 2.0 — M13: Subscription (tier, source, restore, manage)
+                SubscriptionSettingsSection()
+
                 // General Settings
                 Section(header: Text("General Settings").font(.headline)) {
                     Picker(selection: $defaultModel) {
