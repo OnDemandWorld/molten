@@ -2,23 +2,68 @@
 //  ContextBudget.swift
 //  Molten
 //
-//  Molten 2.0 — M0 skeleton stub (PRD §7.1/§7.2). Inert until its milestone.
+//  Molten 2.0 — X2 (used by K-R4 and K-U4 from M3; meter UI in M6).
+//  Divides the context window between system prompt, Knowledge chunks,
+//  history (newest first) and a reply reserve: min(1024, 25% of window).
 //
 
 import Foundation
 
-/// X2 stub. M6: shared allocator dividing the window between system prompt,
-/// Knowledge chunks, history (newest first) and reply reserve
-/// (min(1024, 25% of window)). Used by K-R4, K-U4 and normal chat.
 struct ContextBudget: Sendable {
     struct Allocation: Sendable {
         var chunks: [Passage]
         var history: [ChatMessage]
         var usedTokens: Int
+        var window: Int
+        var reserve: Int
     }
 
-    func allocate(window: Int, system: Int, reserve: Int,
-                  chunks: [Passage], history: [ChatMessage]) -> Allocation {
-        Allocation(chunks: [], history: [], usedTokens: 0) // M6
+    static func defaultReserve(window: Int) -> Int {
+        min(1024, window / 4)
+    }
+
+    func allocate(
+        window: Int,
+        system: Int,
+        reserve: Int,
+        chunks: [Passage],
+        history: [ChatMessage]
+    ) -> Allocation {
+        var remaining = max(0, window - system - reserve)
+        var used = system
+
+        var selectedChunks: [Passage] = []
+        for chunk in chunks {
+            let cost = TokenEstimator.estimate(chunk.text)
+            guard cost <= remaining else { break }
+            selectedChunks.append(chunk)
+            remaining -= cost
+            used += cost
+        }
+
+        var selectedHistory: [ChatMessage] = []
+        for message in history.reversed() { // newest first
+            let cost = TokenEstimator.estimate(message.content?.textContent ?? "")
+            guard cost <= remaining else { break }
+            selectedHistory.insert(message, at: 0)
+            remaining -= cost
+            used += cost
+        }
+
+        return Allocation(
+            chunks: selectedChunks,
+            history: selectedHistory,
+            usedTokens: used,
+            window: window,
+            reserve: reserve)
+    }
+}
+
+extension ContentType {
+    var textContent: String? {
+        switch self {
+        case .string(let text): return text
+        case .array(let parts): return parts.compactMap(\.text).joined(separator: " ")
+        }
     }
 }

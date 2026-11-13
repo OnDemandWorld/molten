@@ -18,6 +18,15 @@ requirement ID and reason.
 | §0.9 | Existing v1.1 tests are XCTest; new milestone tests use Swift Testing. Both frameworks coexist in the `MoltenTests` target. | PRD mandates Swift Testing for new tests; rewriting the existing suite is out of scope (§0.7: do not change existing behavior). |
 | K-S1 (signing) | macOS compile + tests verified with `CODE_SIGNING_ALLOWED=NO`. The iCloud capability requires a Mac App Development provisioning profile; `xcodebuild -allowProvisioningUpdates` cannot authenticate the developer account from the agent environment ("login details rejected"). iOS Simulator builds succeed (no provisioning required). | **Owner action:** open the project in Xcode once, signed in as edward@ondemandworld.com, and let automatic signing register the iCloud container `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create the profile. After that, normal signed builds work. Entitlements themselves are complete and identical across targets as required. |
 
+## M3 — Knowledge, local (2026-11-13)
+
+| ID | Deviation | Reason |
+|----|-----------|--------|
+| A1/A4 | Performance acceptance (100-page PDF <60s; 20k-chunk search <200ms on iPhone) measured on Mac only for now; iPhone numbers require the provisioned device run (same owner action as M1). | Device provisioning blocked in agent environment. |
+| K-R5 | Citation chips open the source file; in-page passage highlighting not implemented yet ("where possible"). | PDFKit page navigation lands in M4 polish; opening the file satisfies the core flow. |
+| K-U3 | Share Extension arrives in M5 per the milestone plan; Mac drag-into-folder works via Finder (the shared folder layout is the drop target). | Planned sequencing, not a cut. |
+| X1 | Context window defaults (8192 server / 4096 AFM) used by K-R4 until M6 wires Ollama /api/show metadata and the composer ring. | X1/X2 formalized in M6; X2 allocator already implemented and used. |
+
 ## M2 — Entitlements (2026-11-13)
 
 | ID | Deviation | Reason |

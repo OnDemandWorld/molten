@@ -45,6 +45,15 @@ actor EmbeddingService {
         try await embed(texts: passages, prefix: profile.passagePrefix)
     }
 
+    /// K-E6: chunk token counts use the e5 tokenizer, not the chat model's.
+    /// Falls back to the character estimate until the model is ready.
+    func countTokens(_ text: String) async -> Int {
+        guard let container else { return TokenEstimator.estimate(text) }
+        return await container.perform { context in
+            context.tokenizer.encode(text: text, addSpecialTokens: false).count
+        }
+    }
+
     /// K-E1: "query: " prefix. Each device embeds only its own questions (K-E5).
     func embed(query: String) async throws -> [Float] {
         let result = try await embed(texts: [query], prefix: profile.queryPrefix)
