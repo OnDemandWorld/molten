@@ -29,7 +29,10 @@ Molten is a native Apple-platform application for macOS, iOS, and iPadOS. It pro
   - **Swama** - an MLX-based inference CLI optimized for Apple Silicon
 - **Apple Foundation Models** - Native on-device models (macOS 26.0+)
 
-All processing happens locally on your device. No data leaves your device. Ever.
+All inference happens on your devices. With Molten 2.0, your knowledge bases
+sync through **your own iCloud** — on your devices and your own iCloud, no
+Molten servers, no account. For end-to-end encryption, turn on Advanced Data
+Protection.
 
 ## ✨ Features
 
@@ -56,6 +59,18 @@ All processing happens locally on your device. No data leaves your device. Ever.
 - **Offline-First**: Works completely offline once models are loaded
 - **Open Source**: Full source code available for audit
 - **Note on voice input**: voice transcription uses the system speech recognizer, which may process audio with Apple's speech services depending on your device and settings — everything else stays local
+
+## 💚 Supporting Molten
+
+Molten's source stays **Apache-2.0** — free to use, audit, and build. The App
+Store build is a free download with optional **Plus** subscriptions (monthly,
+yearly with a free trial, or lifetime) that fund development and unlock
+Knowledge: private, cited document chat across Mac, iPhone, and iPad via your
+own iCloud.
+
+**Early Supporters:** everyone who bought Molten before 2.0 gets **Molten Plus
+forever** — every Plus feature we ship, at no cost. Pro will be a separate,
+optional upgrade.
 
 ## 🏗️ Architecture
 
