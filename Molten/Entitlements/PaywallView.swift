@@ -69,32 +69,21 @@ struct PaywallView: View {
     // MARK: - Sections
 
     private var header: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 6) {
-                Image(systemName: "books.vertical.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(Color.accentColor)
-                Text("Molten Plus")
-                    .font(.title2.bold())
-                Text("Your documents, on all your devices") // paywall.headline
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 24)
-            .padding(.bottom, 12)
-
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .padding(12)
-            .accessibilityLabel("Close")
+        // No close button here — the sheet already provides one at the top
+        // right; a second X next to the title was redundant.
+        VStack(spacing: 6) {
+            Image(systemName: "books.vertical.fill")
+                .font(.system(size: 34))
+                .foregroundStyle(Color.accentColor)
+            Text("Molten Plus")
+                .font(.title2.bold())
+            Text("Your documents, on all your devices") // paywall.headline
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+        .padding(.bottom, 12)
     }
 
     private var featureList: some View {
