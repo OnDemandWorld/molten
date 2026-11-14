@@ -116,6 +116,10 @@ final class MessageSD: Identifiable {
     var createdAt: Date = Date.now
     @Attribute(.externalStorage) var image: Data?
 
+    /// K-R5: JSON-encoded [CitationRef] for answers grounded in a knowledge
+    /// base. Optional addition — lightweight migration; nil for v1.1 rows.
+    var knowledgeCitationsData: Data?
+
     // Analytics fields
     var promptTokens: Int?
     var completionTokens: Int?

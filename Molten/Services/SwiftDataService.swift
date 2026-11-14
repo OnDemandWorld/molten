@@ -26,10 +26,22 @@ final actor SwiftDataService: ModelActor {
                 MessageSD.self,
                 CompletionInstructionSD.self
             ])
-            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+            // K-D4: no database is synced. CloudKit must be explicitly .none —
+            // with iCloud entitlements present, .automatic enables CloudKit
+            // integration, which rejects non-optional attributes without
+            // defaults (crash on device). Chat-history sync is a 2.1 feature.
+            let modelConfiguration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: inMemory,
+                cloudKitDatabase: .none)
 
             do {
-                return try ModelContainer(for: schema, configurations: [modelConfiguration])
+                // C4: versioned migration plan (v1.1 → 2.0 is additive
+                // optional fields, handled lightweight by SwiftData).
+                return try ModelContainer(
+                    for: schema,
+                    migrationPlan: MoltenMigrationPlan.self,
+                    configurations: [modelConfiguration])
             } catch {
                 fatalError("Could not create ModelContainer: \(error)")
             }
@@ -92,11 +104,14 @@ extension SwiftDataService {
     
     func renameConversation(_ conversation: ConversationSD) throws {
         try modelContext.saveChanges()
+        ConversationSearch.shared.renameConversation(conversationID: conversation.id, name: conversation.name)
     }
-    
+
     func deleteConversation(_ conversation: ConversationSD) throws {
+        let id = conversation.id
         self.modelContext.delete(conversation)
         try modelContext.saveChanges()
+        ConversationSearch.shared.removeConversation(conversationID: id)
     }
     
     func updateConversation(_ conversation: ConversationSD) throws {
@@ -123,11 +138,13 @@ extension SwiftDataService {
     func deleteConversations() throws {
         try modelContext.delete(model: ConversationSD.self)
         try modelContext.saveChanges()
+        ConversationSearch.shared.removeAll()
     }
-    
+
     func deleteMessages() throws {
         try modelContext.delete(model: MessageSD.self)
         try modelContext.saveChanges()
+        ConversationSearch.shared.removeAll()
     }
     
     /// Deletes conversations whose `updatedAt` falls within the calendar day
@@ -138,8 +155,13 @@ extension SwiftDataService {
         let startOfDay = calendar.startOfDay(for: date)
         guard let startOfNextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
         let predicate = #Predicate<ConversationSD> { $0.updatedAt >= startOfDay && $0.updatedAt < startOfNextDay }
+        // C1: capture IDs before deletion so the FTS sidecar stays in sync.
+        let doomed = try modelContext.fetch(FetchDescriptor<ConversationSD>(predicate: predicate))
         try modelContext.delete(model: ConversationSD.self, where: predicate)
         try modelContext.saveChanges()
+        for conversation in doomed {
+            ConversationSearch.shared.removeConversation(conversationID: conversation.id)
+        }
     }
 }
 
@@ -155,11 +177,17 @@ extension SwiftDataService {
     
     func updateMessage(_ message: MessageSD) throws {
         try modelContext.saveChanges()
+        if let conversation = message.conversation {
+            ConversationSearch.shared.indexMessage(message, conversation: conversation)
+        }
     }
-    
+
     func createMessage(_ message: MessageSD) throws {
         self.modelContext.insert(message)
         try modelContext.saveChanges()
+        if let conversation = message.conversation {
+            ConversationSearch.shared.indexMessage(message, conversation: conversation)
+        }
     }
 }
 
@@ -193,5 +221,6 @@ extension SwiftDataService {
         try modelContext.delete(model: MessageSD.self)
         try modelContext.delete(model: CompletionInstructionSD.self)
         try modelContext.saveChanges()
+        ConversationSearch.shared.removeAll()
     }
 }

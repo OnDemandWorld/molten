@@ -305,7 +305,9 @@ actor SwiftDataService {
 
 ### Data Migration
 
-SwiftData handles schema migrations automatically. For manual migrations, use `ModelConfiguration`.
+`MoltenMigrationPlan` (versioned `SchemaMigrationPlan`, currently `MoltenSchemaV2` = 2.0.0) is wired into the data actor's `ModelContainer`. v1.1 → 2.0 adds only optional properties (`ConversationSD.attachedKnowledgeBase`, `MessageSD.knowledgeCitationsData`), which SwiftData migrates lightweight. Future releases add stages to the plan.
+
+**Critical:** the container uses `cloudKitDatabase: .none`. With iCloud entitlements present, SwiftData's `.automatic` default enables CloudKit integration, which rejects non-optional attributes without defaults (launch crash on device). Chat-history sync is a 2.1 feature and will revisit this deliberately.
 
 ## UI Architecture
 
@@ -382,8 +384,9 @@ generationTask = Task {
 Streaming responses are throttled to prevent UI freezing:
 
 ```swift
-private let throttler = Throttler(delay: 0.1)
-// Updates UI every 100ms instead of every chunk
+private let throttler = Throttler(delay: 0.15)
+// Leading+trailing throttle: flushes every 150ms even under continuous
+// streaming (a debounce would wait for a pause).
 ```
 
 ### 2. Smart Reachability Polling
@@ -456,23 +459,28 @@ The app uses intelligent polling strategies to minimize network requests and red
 
 ## Testing Strategy
 
-### Unit Tests
+`MoltenTests` (hosted in Molten.app): **53 XCTest + 80 Swift Testing** tests.
+New tests use Swift Testing; both frameworks coexist.
 
-- Service layer tests (mocked providers)
-- Store logic tests
-- Utility function tests
+- **XCTest (v1.1):** analytics, Apple prompt assembly, conversation-store
+  errors, day-deletion safety, prompt suggestions, Swama request wiring,
+  throttler cadence.
+- **Swift Testing (2.0):** M2 entitlement matrix + StoreKit flows
+  (buy/lapse/lifetime/ES+subscription, gated by
+  `build/session/STOREKIT_FLOWS_ENABLED`); M3 codecs/chunker/retrieval/
+  extraction/e2e pipeline; M4 manifest/coordinated-IO/mapping; M5 claims/
+  roles/heartbeats/resume durability; M6 export/import/search/migration;
+  M7 profile migration + performance acceptance (A1/A4, gated by
+  `build/session/MOLTEN_PERF`); M1 embedding spike (gated by
+  `build/session/SPIKE_ENABLED`, cross-device compare by `SPIKE_COMPARE`).
 
-### Integration Tests
+Run: `xcodebuild test -scheme Molten -destination 'platform=macOS'
+-enableCodeCoverage NO` (default coverage fails linking the yyjson C
+dependency — `___llvm_profile_runtime` — a toolchain artifact).
 
-- End-to-end chat flow
-- Model discovery
-- Data persistence
-
-### UI Tests
-
-- User interaction flows
-- Keyboard shortcuts
-- Settings configuration
+Acceptance measurements (docs/SPIKE.md): A1 100-page PDF 0.21s Mac / 0.28s
+sim; A4 20k-chunk hybrid search 50.8ms Mac / 53.3ms sim; K-E5 cross-device
+min cosine 0.9999985 (iPhone vs Mac, hardware-verified).
 
 ## Security Considerations
 
@@ -488,22 +496,149 @@ The app uses intelligent polling strategies to minimize network requests and red
 - Sandboxing where appropriate
 - Secure storage for sensitive data
 
+## Molten 2.0 Subsystems
+
+2.0 adds a freemium tier system and the Knowledge workspace. Module layout
+(PRD §7.1):
+
+```
+Molten/
+├── Entitlements/      Tier/Feature, EntitlementManager, EarlySupporterDetector,
+│                      EntitlementKeychain, PaywallView, SubscriptionSettingsSection,
+│                      Molten.storekit (local StoreKit configuration)
+├── Knowledge/
+│   ├── Container/     KnowledgeContainer (iCloud vs local root, migration),
+│   │                  CoordinatedIO (NSFileCoordinator, download-on-read)
+│   ├── Watch/         DocumentWatcher, IndexWatcher (NSMetadataQuery),
+│   │                  FileMapping (path→hash), KnowledgeSync, KnowledgeCleanup
+│   ├── Process/       KnowledgeIndexer, ClaimStore, HeartbeatService,
+│   │                  DeviceRoles, Chunker, Extractors, ShareImport,
+│   │                  DeviceIdentity, KnowledgeBackgroundTask
+│   ├── Embed/         EmbeddingService (MLXEmbedders), EmbeddingProfile,
+│   │                  HFSnapshotDownloader, ModelDownloadConsent, ProfileMigration
+│   ├── Store/         KnowledgeStore (SQLite FTS5 + vectors), MKT/MKV codecs,
+│   │                  Manifest
+│   ├── Retrieve/      Retriever (hybrid RRF), PromptAssembler (citations)
+│   └── UI/            KnowledgeSidebar, BaseDetailView, KnowledgeOnboarding,
+│                      CitationChips (Quick Look on iOS), settings sections
+├── Context/           ContextBudget, ContextWindow, ContextRing, TokenEstimator
+├── Conversations/     ConversationSearch (FTS5 sidecar), Exporter (+ZipWriter),
+│                      Importer, AutoTitler
+└── ShareExtension/    MoltenShare target (iOS share sheet; macOS placeholder)
+```
+
+### Entitlements (Free / Plus / Pro-later)
+
+- `EntitlementManager` (actor) computes
+  `currentTier = max(earlySupporter ? .plus : .free, active subscription, lifetime)`
+  and publishes to `EntitlementUIModel` (`@Observable`, main actor). It listens
+  to `Transaction.updates` from launch and finishes transactions.
+- **Early Supporter** (`EarlySupporterDetector`): `AppTransaction.originalAppVersion`
+  vs per-platform cutoffs — macOS marketing version ("2.0"), iOS build number
+  (`iosCutoffBuild = 7`; highest shipped 1.x build was 6). Sandbox/Xcode
+  environments NEVER grant; a DEBUG-only simulate toggle is compiled out of
+  Release. The grant is persisted as a **synchronizable iCloud Keychain** item
+  (`molten.entitlement`/`earlySupporter`) so any device grants Plus offline.
+- **Gating**: every gated feature is a `Feature` case with `requiredTier`;
+  callers use `entitlements.allows(feature)` only. Subscriptions grant only
+  with a future `expirationDate` (lapse → Free, nothing deleted).
+- **Paywall**: `SubscriptionStoreView` + lifetime button, shown only at Free
+  limits (1 base / 10 docs / local-only / no OCR). Products:
+  `molten.plus.monthly`, `molten.plus.yearly` (1-week trial),
+  `molten.plus.lifetime`; Pro level reserved, not created.
+
+### Knowledge pipeline (RAG)
+
+```
+file → SHA-256 → extract → chunk → .mkt ─┐
+                                         ├→ SQLite (FTS5 + vectors) → search
+              embed (e5-small) → .mkv ───┘
+```
+
+- **Process once, reuse everywhere (G4):** outputs are content-addressed by
+  the source SHA-256 and written once (`CoordinatedIO.writeOnce`). Renames,
+  moves, duplicates, and second devices never reprocess.
+- **Extraction (K-P8):** PDFKit; Vision OCR (Plus) for pages with <50
+  extractable chars and for PNG/JPEG/HEIC; UTF-8 text/code; NSAttributedString
+  RTF/HTML; built-in DOCX reader (mini-ZIP + raw deflate via Compression).
+- **Chunking (K-P9):** ~350 tokens, ~50 overlap, heading/paragraph-first,
+  hard cap 480 incl. the "passage: " prefix; page + UTF-16 char ranges;
+  token counts use the e5 tokenizer.
+- **Embedding (K-E):** `intfloat/multilingual-e5-small` via MLXEmbedders,
+  pinned revision, 384-dim, mean pooling with a **position-based attention
+  mask** (padId is EOS — value masking would hide real tokens), L2-normalized.
+  One-time download with SHA-256 verification, size shown, cellular
+  confirmation on iOS (`ModelDownloadConsent`).
+- **File formats (§7.3):** `.mkt` = `MKT1` + LZFSE-compressed JSON (text +
+  chunks, model-independent); `.mkv` = `MKV1` + JSON header + Float16 vectors
+  per profile. `manifest.json` names the active profile; vectors from other
+  profiles/revisions are never ingested. `encryption` field reserved (2.1).
+- **Storage (K-D4):** no database is synced. Each device builds a local
+  SQLite (`knowledge.sqlite`, FTS5 + vector table) from `.mkt`/`.mkv`, with a
+  local file cache (`Caches/Molten/IndexCache`) so search never depends on
+  iCloud download state.
+- **Retrieval (K-R):** hybrid = FTS5 BM25 top-20 + vDSP cosine top-20 merged
+  by reciprocal rank fusion (k=60); keyword-only fallback without the model.
+  `PromptAssembler` injects ≤8 chunks (≤3 for Apple's model) within the
+  context budget, numbered `[1]…[n]` with file/page; citation chips open the
+  source (Quick Look on iOS).
+- **Best-device processing (K-P):** per-hash per-stage claims (10-min leases,
+  60s renewal, expired takeover, 3-strikes `.failed` markers); 15-min
+  heartbeats; iOS defers to a fresh Mac (<24h) unless "Process now";
+  stage policy: both while charging / extract-only on battery (default) or
+  always-both; `BGContinuedProcessingTask` registered in `MoltenApp.init()`.
+- **iCloud (M4):** one shared container
+  (`iCloud.DVGF44TKAX.com.ondemandworld.molten`), `Documents/<base>/` =
+  user-visible bases, hidden `Index/` = outputs. `NSMetadataQuery` watchers;
+  receiving devices only ingest finished outputs (zero processing).
+  Cleanup deletes unreferenced outputs after 7 days, and defers whenever the
+  local mapping is incomplete (evicted cloud files). Free→Plus moves the
+  local layout into the container without reprocessing.
+
+### Conversations (Free)
+
+- **Search (C1):** `ConversationSearch` — SQLite FTS5 sidecar
+  (`conversations.sqlite`), maintained by `SwiftDataService` on
+  insert/update/delete/rename/day-delete; one-time backfill for pre-2.0
+  history at launch; sidebar search jumps to the conversation.
+- **Export/Import (C2):** Markdown/JSON (optional analytics) per
+  conversation; zip-all via a built-in stored-ZIP writer (CRC32); JSON import.
+- **Auto-titles (C3):** Apple on-device model first, active-model fallback;
+  only while the conversation keeps its default name; Settings toggle;
+  titles stay editable.
+
+### Context (Free)
+
+- `ContextWindow`: Ollama `/api/show` context length; per-server setting for
+  OpenAI-compatible (default 8192); 4096 for Apple's model.
+- `ContextBudget`: window split between system, Knowledge chunks, history
+  (newest first; the newest message is never dropped), reply reserve
+  `min(1024, window/4)`. Used by grounding and by `sendPrompt`.
+- `ContextRing`: composer gauge, warnings at 80% / 95%.
+
+### Share Extension
+
+`MoltenShare` (iOS): `SLComposeServiceViewController` with base picker +
+new-base creation; writes directly into the shared container via
+`ShareImport` (testable, in the app target). macOS builds embed a
+placeholder controller (share-sheet flow is iOS-only per the PRD).
+
 ## Future Enhancements
 
-### Planned Features
+### Roadmap (PRD §13)
 
-1. **Plugin System**: Allow custom provider implementations
-2. **Advanced Analytics**: More detailed performance metrics
-3. **Export/Import**: Conversation backup and restore
-4. **Themes**: Customizable UI themes
-5. **Accessibility**: Enhanced screen reader support
+- **2.1:** background Mac indexing helper; iCloud chat-history sync;
+  personas/prompt library; `/compact` + auto-compact; Index encryption.
+- **2.2:** tool calling + MCP client (official Swift SDK); **Pro launch**.
+- **2.3:** multi-model compare; branching/editing; artifacts/LaTeX/Mermaid.
+- **2.4+:** Mac voice/hands-free; local memory; App Intents/Services;
+  screenshot-to-panel; opt-in web search.
 
 ### Technical Debt
 
-- Migrate to Swift 6 strict concurrency
-- Improve error handling consistency
-- Add comprehensive test coverage
-- Performance profiling and optimization
+- Swift 6 language mode (currently Swift 5 + strict concurrency complete)
+- MLX simulator support (0.32.3 crashes on simulator; device-only embedding)
+- Per-message historical context-usage display
 
 ---
 

@@ -25,8 +25,35 @@ struct SidebarView: View {
         }
     }
     
+    // C1: full-text search across all conversations.
+    @State private var searchText = ""
+    @State private var searchHits: [ConversationSearchHit] = []
+
     var body: some View {
         VStack {
+            TextField("Search conversations", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: searchText) { _, query in
+                    searchHits = query.isEmpty ? [] : ConversationSearch.shared.search(query)
+                }
+            if !searchHits.isEmpty {
+                List(searchHits) { hit in
+                    Button {
+                        if let conversation = conversations.first(where: { $0.id == hit.conversationID }) {
+                            onConversationTap(conversation)
+                            searchText = ""
+                            searchHits = []
+                        }
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(hit.conversationName).font(.caption.bold())
+                            Text(hit.snippet).font(.caption2).lineLimit(2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxHeight: 200)
+            }
             ScrollView() {
                 ConversationHistoryList(
                     selectedConversation: selectedConversation,
@@ -37,7 +64,10 @@ struct SidebarView: View {
                 )
             }
             .scrollIndicators(.never)
-            
+
+            // Molten 2.0 — K-U1: Knowledge bases.
+            KnowledgeSidebar()
+
             Divider()
             
 #if os(macOS)
