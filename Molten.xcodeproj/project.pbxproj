@@ -54,6 +54,7 @@
 		20000000000000000000041F /* ProfileMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000041E /* ProfileMigration.swift */; };
 		200000000000000000000421 /* M7BetaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000420 /* M7BetaTests.swift */; };
 		200000000000000000000423 /* ModelDownloadConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000422 /* ModelDownloadConsent.swift */; };
+		200000000000000000000425 /* ODWLegal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000424 /* ODWLegal.swift */; };
 		200000000000000000000512 /* ShareImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000504 /* ShareImport.swift */; };
 		200000000000000000000513 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000501 /* ShareViewController.swift */; };
 		200000000000000000000514 /* ShareImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000504 /* ShareImport.swift */; };
@@ -252,6 +253,7 @@
 		20000000000000000000041E /* ProfileMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMigration.swift; sourceTree = "<group>"; };
 		200000000000000000000420 /* M7BetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M7BetaTests.swift; sourceTree = "<group>"; };
 		200000000000000000000422 /* ModelDownloadConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadConsent.swift; sourceTree = "<group>"; };
+		200000000000000000000424 /* ODWLegal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ODWLegal.swift; sourceTree = "<group>"; };
 		200000000000000000000501 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		200000000000000000000502 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		200000000000000000000503 /* MoltenShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoltenShare.entitlements; sourceTree = "<group>"; };
@@ -411,6 +413,7 @@
 				200000000000000000000403 /* EntitlementKeychain.swift */,
 				200000000000000000000405 /* EarlySupporterThankYouView.swift */,
 				200000000000000000000407 /* SubscriptionSettingsSection.swift */,
+				200000000000000000000424 /* ODWLegal.swift */,
 				200000000000000000000409 /* Molten.storekit */,
 			);
 			path = Entitlements;
@@ -1230,6 +1233,7 @@
 				20000000000000000000041B /* MoltenMigrationPlan.swift in Sources */,
 				20000000000000000000041F /* ProfileMigration.swift in Sources */,
 				200000000000000000000423 /* ModelDownloadConsent.swift in Sources */,
+				200000000000000000000425 /* ODWLegal.swift in Sources */,
 				200000000000000000000512 /* ShareImport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

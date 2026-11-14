@@ -158,8 +158,9 @@ struct PaywallView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             HStack(spacing: 16) {
-                Link("Terms", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                Link("Privacy", destination: URL(string: "https://github.com/OnDemandWorld/molten/blob/main/PRIVACY.md")!)
+                Link("Terms & Conditions", destination: ODWLegal.terms)
+                Link("Privacy Policy", destination: ODWLegal.privacy)
+                Link("House Rules", destination: ODWLegal.houseRules)
             }
             .font(.caption)
         }
