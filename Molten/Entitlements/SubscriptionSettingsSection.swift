@@ -11,8 +11,10 @@ import StoreKit
 
 struct SubscriptionSettingsSection: View {
     @State private var ui = EntitlementUIModel.shared
-    @State private var showPaywall = false
-    @State private var showPlanDetail = false
+    // Presentation state lives in SettingsView (sheets anchored to Form
+    // sections get torn down by the Form's update cycle).
+    @Binding var showPaywall: Bool
+    @Binding var showPlanDetail: Bool
 
     var body: some View {
         Section("Subscription") {
@@ -54,10 +56,6 @@ struct SubscriptionSettingsSection: View {
                 }))
             #endif
         }
-        // Stable identity so sheet anchors survive section re-renders.
-        .id("subscription-settings-section")
-        .sheet(isPresented: $showPaywall) { PaywallView() }
-        .sheet(isPresented: $showPlanDetail) { PlanDetailView() }
     }
 
     private var planText: String {
