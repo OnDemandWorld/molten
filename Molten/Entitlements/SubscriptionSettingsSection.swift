@@ -54,6 +54,8 @@ struct SubscriptionSettingsSection: View {
                 }))
             #endif
         }
+        // Stable identity so sheet anchors survive section re-renders.
+        .id("subscription-settings-section")
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .sheet(isPresented: $showPlanDetail) { PlanDetailView() }
     }
