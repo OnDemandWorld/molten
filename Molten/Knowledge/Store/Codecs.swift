@@ -100,7 +100,7 @@ enum MKVCodec {
         out.append(headerJSON)
         for vector in vectors {
             for value in vector {
-                var bits = Float16(value).bitPattern.littleEndian
+                var bits = HalfFloat.bits(from: value).littleEndian
                 withUnsafeBytes(of: &bits) { out.append(contentsOf: $0) }
             }
         }
@@ -134,12 +134,80 @@ enum MKVCodec {
                 let bits = payload.subdata(in: offset..<offset + 2).withUnsafeBytes {
                     UInt16(littleEndian: $0.loadUnaligned(as: UInt16.self))
                 }
-                vector.append(Float(Float16(bitPattern: bits)))
+                vector.append(HalfFloat.float(fromBits: bits))
                 offset += 2
             }
             vectors.append(vector)
         }
         return (header, vectors)
+    }
+}
+
+// MARK: - IEEE 754 binary16 (architecture-independent)
+
+/// `Float16` is unavailable on x86_64, but Release archives build universal
+/// (arm64 + x86_64). These bit-level conversions produce exactly the same
+/// IEEE binary16 values as `Float16(_:)` / `Float(Float16)` on arm64
+/// (round-to-nearest-even, subnormals, inf/NaN), so the .mkv on-disk format
+/// is identical on every architecture and CPU.
+enum HalfFloat {
+    static func bits(from value: Float) -> UInt16 {
+        let b = value.bitPattern
+        let sign = UInt16((b >> 16) & 0x8000)
+        let rawExp = (b >> 23) & 0xFF
+        let mant = b & 0x7FFFFF
+
+        // inf / NaN
+        if rawExp == 0xFF {
+            if mant != 0 {
+                var m = UInt16(mant >> 13) | 0x200 // quiet bit, as hardware FCVT does
+                if m == 0 { m = 1 } // keep NaN non-zero after truncation
+                return sign | 0x7C00 | m
+            }
+            return sign | 0x7C00
+        }
+
+        let exp = Int32(rawExp) - 127 + 15
+        if exp >= 0x1F { return sign | 0x7C00 } // overflow → inf
+
+        if exp <= 0 {
+            // Subnormal (or rounds to zero).
+            if exp < -10 { return sign }
+            let m = mant | 0x800000 // implicit leading 1
+            let shift = UInt32(14 - exp)
+            var half = m >> shift
+            let rem = m & ((1 << shift) - 1)
+            let halfway = UInt32(1) << (shift - 1)
+            if rem > halfway || (rem == halfway && (half & 1) == 1) { half += 1 }
+            return sign | UInt16(half)
+        }
+
+        var half = (UInt32(exp) << 10) | (mant >> 13)
+        let rem = mant & 0x1FFF
+        if rem > 0x1000 || (rem == 0x1000 && (half & 1) == 1) { half += 1 }
+        return sign | UInt16(half) // carry may round up into the exponent
+    }
+
+    static func float(fromBits bits: UInt16) -> Float {
+        let sign = UInt32(bits & 0x8000) << 16
+        let exp = UInt32(bits >> 10) & 0x1F
+        let mant = UInt32(bits & 0x3FF)
+        if exp == 0 {
+            if mant == 0 { return Float(bitPattern: sign) }
+            // Normalize the subnormal into a Float normal.
+            var e = UInt32(127 - 15 + 1)
+            var m = mant
+            while (m & 0x400) == 0 {
+                m <<= 1
+                e -= 1
+            }
+            m &= 0x3FF
+            return Float(bitPattern: sign | (e << 23) | (m << 13))
+        }
+        if exp == 0x1F {
+            return Float(bitPattern: sign | 0x7F800000 | (mant << 13))
+        }
+        return Float(bitPattern: sign | ((exp + 127 - 15) << 23) | (mant << 13))
     }
 }
 
