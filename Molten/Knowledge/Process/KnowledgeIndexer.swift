@@ -122,6 +122,9 @@ actor KnowledgeIndexer {
                 throw error
             }
         }
+        // No .mkt yet and this device can't extract (e.g. iPhone deferring
+        // to Mac): skip gracefully — the watcher ingests it when it syncs.
+        guard FileManager.default.fileExists(atPath: mktURL.path) else { return false }
         try await store.ingest(mkt: mktURL, base: base, name: file.lastPathComponent)
         let mtime = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate?.timeIntervalSince1970 ?? 0

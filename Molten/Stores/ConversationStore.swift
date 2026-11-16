@@ -320,9 +320,13 @@ final class ConversationStore: @unchecked Sendable {
                 let retrieval = await Retriever.shared.retrieve(query: userPrompt, base: base)
                 let isApple = model.modelProvider == .appleFoundation
                 let reserve = ContextBudget.defaultReserve(window: window)
+                // AFM's 4096-token window covers instructions + prompt +
+                // output. Cap grounding at ~1536 tokens (3 × 480-token
+                // chunks) so history and the reply reserve still fit.
+                let groundingBudget = max(0, window - reserve)
                 let assembled = PromptAssembler.assemble(
                     passages: retrieval.passages,
-                    budgetTokens: max(0, window - reserve),
+                    budgetTokens: isApple ? min(groundingBudget, 1536) : groundingBudget,
                     isAppleModel: isApple,
                     tokenCount: { TokenEstimator.estimate($0) })
                 if !assembled.contextText.isEmpty {

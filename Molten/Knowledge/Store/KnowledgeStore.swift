@@ -232,6 +232,19 @@ actor KnowledgeStore {
         run("DELETE FROM documents WHERE hash = ?", bind: { sqlite3_bind_text($0, 1, hash, -1, SQLITE_TRANSIENT) })
     }
 
+    /// Remove by base + file name (used when the local path→hash mapping
+    /// has no entry for the file, e.g. it was never processed on this device).
+    func removeDocument(base: BaseID, name: String) {
+        var hashes: [String] = []
+        query("SELECT hash FROM documents WHERE base = ? AND name = ?", bind: { stmt in
+            sqlite3_bind_text(stmt, 1, base, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT)
+        }) { stmt in
+            hashes.append(String(cString: sqlite3_column_text(stmt, 0)))
+        }
+        for hash in hashes { removeDocument(hash: hash) }
+    }
+
     // MARK: - Search (K-R2/K-R3)
 
     /// Hybrid: FTS5 BM25 top-20 + cosine top-20 merged with reciprocal rank

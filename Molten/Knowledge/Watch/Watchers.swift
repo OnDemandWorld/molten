@@ -225,6 +225,23 @@ final class KnowledgeSync {
                 }
             }
         }
+        // Prune mapping entries for files deleted on this or another device,
+        // and drop their index rows so deleted documents stop appearing in
+        // search. Evicted iCloud files still exist as ".name.icloud"
+        // placeholders — keep those entries.
+        let mapping = await FileMapping.shared.all()
+        for (path, entry) in mapping {
+            if fm.fileExists(atPath: path) { continue }
+            let url = URL(fileURLWithPath: path)
+            let placeholder = url.deletingLastPathComponent()
+                .appendingPathComponent(".\(url.lastPathComponent).icloud")
+            if fm.fileExists(atPath: placeholder.path) { continue }
+            await FileMapping.shared.remove(path: path)
+            let stillReferenced = await FileMapping.shared.referencedHashes().contains(entry.hash)
+            if !stillReferenced {
+                await KnowledgeStore.shared.removeDocument(hash: entry.hash)
+            }
+        }
     }
 }
 

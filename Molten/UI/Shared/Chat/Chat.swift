@@ -159,7 +159,11 @@ struct Chat: View, Sendable {
                     conversations: conversationStore.conversations,
                     onConversationTap: onConversationTap,
                     onConversationDelete: onConversationDelete,
-                    onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } }
+                    onDeleteDailyConversations: { date in Task { await conversationStore.deleteDailyConversations(date) } },
+                    onKnowledgeUseInChat: {
+                        // K-R1: "Use in Chat" lands directly in the conversation.
+                        withAnimation(.spring) { showMenu = false }
+                    }
                 )
             }) {
                 ChatView(
