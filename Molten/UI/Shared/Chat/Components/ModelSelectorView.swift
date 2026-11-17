@@ -30,7 +30,7 @@ struct ModelSelectorView: View {
             HStack(alignment: .center) {
                 if let selectedModel = selectedModel {
                     HStack(alignment: .bottom, spacing: 5) {
-                        
+
                         #if os(macOS)
                         Text(selectedModel.displayName)
                             .font(.body)
@@ -40,8 +40,15 @@ struct ModelSelectorView: View {
                             .foregroundColor(Color.labelCustom)
                         #endif
                     }
+                } else {
+                    // Placeholder keeps the menu a real tap target even
+                    // before a model is selected (a bare 10pt chevron was
+                    // effectively untappable).
+                    Text("Select model")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
-                
+
                 Image(systemName: "chevron.down")
                     .resizable()
                     .scaledToFit()
@@ -49,6 +56,8 @@ struct ModelSelectorView: View {
                     .foregroundColor(Color(.label))
                     .showIf(showChevron)
             }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityLabel("Select model")
         }
     }

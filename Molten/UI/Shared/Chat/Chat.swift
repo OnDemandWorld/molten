@@ -192,9 +192,12 @@ struct Chat: View, Sendable {
             }
         })
         .onChange(of: conversationStore.selectedConversation, initial: true, { _, newConversation in
-            if let conversation = newConversation {
-                languageModelStore.setModel(model: conversation.model)
+            if let conversation = newConversation, let model = conversation.model {
+                languageModelStore.setModel(model: model)
             } else {
+                // No conversation, or a fresh one without a model yet
+                // (e.g. "Use in Chat"): keep/restore the default selection
+                // instead of clearing it.
                 updateSelectedModel()
             }
         })

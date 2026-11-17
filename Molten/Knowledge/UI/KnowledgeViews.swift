@@ -291,6 +291,9 @@ struct BaseDetailView: View {
             } else {
                 let conversation = ConversationSD(name: base)
                 conversation.attachedKnowledgeBase = base
+                // Carry the current model into the new chat so the selector
+                // doesn't end up empty.
+                conversation.model = LanguageModelStore.shared.selectedModel
                 store.selectedConversation = conversation
                 store.messages = []
                 try? await store.create(conversation)
