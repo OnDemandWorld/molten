@@ -1,0 +1,102 @@
+{
+  "identifier" : "MOLTEN20STOREKIT",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "49.99",
+      "familyShareable" : false,
+      "internalID" : "M2LIFETIME0001",
+      "localizations" : [
+        {
+          "description" : "Molten Plus forever. One purchase, all your devices.",
+          "displayName" : "Plus Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "molten.plus.lifetime",
+      "referenceName" : "Plus Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "M2MEMBERSHIP01",
+      "localizations" : [
+
+      ],
+      "name" : "Molten Membership",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "M2MONTHLY00001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Knowledge bases on all your devices.",
+              "displayName" : "Plus Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "molten.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Plus Monthly",
+          "subscriptionGroupID" : "M2MEMBERSHIP01",
+          "type" : "RecurringSubscription",
+          "level" : 2
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "M2YEARLY000001",
+          "introductoryOffer" : {
+            "internalID" : "M2TRIAL0000001",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Knowledge bases on all your devices. 1-week free trial.",
+              "displayName" : "Plus Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "molten.plus.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Plus Yearly",
+          "subscriptionGroupID" : "M2MEMBERSHIP01",
+          "type" : "RecurringSubscription",
+          "level" : 2
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

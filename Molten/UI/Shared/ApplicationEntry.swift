@@ -17,16 +17,24 @@ struct ApplicationEntry: View {
     @State private var conversationStore = ConversationStore.shared
     @State private var completionsStore = CompletionsStore.shared
     @State private var appStore = AppStore.shared
-    
+    @State private var entitlementUI = EntitlementUIModel.shared
+
     var body: some View {
         VStack {
             Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
+        }
+        // M5: one-time Early Supporter thank-you sheet.
+        .sheet(isPresented: Bindable(entitlementUI).showEarlySupporterThankYou) {
+            EarlySupporterThankYouView()
         }
         .task {
             #if DEBUG
             // K-S6: verify the shared iCloud container resolves as expected.
             KnowledgeContainer.debugCheck()
             #endif
+
+            // M8: entitlements listener + evaluation from launch.
+            await EntitlementManager.shared.start()
 
             // Load models and conversations on app start
             do {
