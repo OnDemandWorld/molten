@@ -126,8 +126,15 @@ struct DeviceRoleTests {
     }
 
     @Test func stagePolicy() {
+        #if os(macOS)
         // macOS always runs both stages.
         #expect(DeviceRoles.allowedStages(policy: .bothWhileCharging, isCharging: false) == Set([.extract, .embed]))
+        #else
+        // K-P4: extract-only on battery, both while charging, always-both opt-in.
+        #expect(DeviceRoles.allowedStages(policy: .bothWhileCharging, isCharging: false) == Set([.extract]))
+        #expect(DeviceRoles.allowedStages(policy: .bothWhileCharging, isCharging: true) == Set([.extract, .embed]))
+        #expect(DeviceRoles.allowedStages(policy: .alwaysBoth, isCharging: false) == Set([.extract, .embed]))
+        #endif
     }
 
     private var isMac: Bool {

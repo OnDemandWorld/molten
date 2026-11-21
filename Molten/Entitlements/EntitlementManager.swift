@@ -75,15 +75,19 @@ actor EntitlementManager {
         var renewal: Date?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
-            let active = tx.expirationDate.map { $0 > Date() } ?? true
-            guard active else { continue }
             switch tx.productID {
             case "molten.plus.monthly", "molten.plus.yearly":
-                subscriptionTier = .plus
-                renewal = tx.expirationDate
+                // Subscriptions grant only with a future expiration; a nil
+                // or past expiration never grants (lapse policy, §5.3).
+                if let expiration = tx.expirationDate, expiration > Date() {
+                    subscriptionTier = .plus
+                    renewal = expiration
+                }
             case "molten.pro.monthly", "molten.pro.yearly": // reserved (M15)
-                subscriptionTier = .pro
-                renewal = tx.expirationDate
+                if let expiration = tx.expirationDate, expiration > Date() {
+                    subscriptionTier = .pro
+                    renewal = expiration
+                }
             case "molten.plus.lifetime":
                 lifetime = true
             default:

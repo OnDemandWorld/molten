@@ -144,7 +144,7 @@ struct MigrationTests {
         defer { try? FileManager.default.removeItem(at: dir) }
         let storeURL = dir.appendingPathComponent("fixture.store")
         let schema = Schema([LanguageModelSD.self, ConversationSD.self, MessageSD.self, CompletionInstructionSD.self])
-        let config = ModelConfiguration(schema: schema, url: storeURL)
+        let config = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
 
         // 1. Create a store with rows that never set the 2.0 fields.
         do {

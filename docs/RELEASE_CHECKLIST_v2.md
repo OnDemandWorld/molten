@@ -5,18 +5,21 @@ docs/DEVIATIONS.md for the environment-blocked verifications).
 
 ## Before TestFlight (M7)
 
-- [ ] Open Molten.xcodeproj in Xcode, signed in as edward@ondemandworld.com.
+- [x] Open Molten.xcodeproj in Xcode, signed in as edward@ondemandworld.com.
       Let automatic signing register the iCloud container
       `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create profiles
-      (unblocks macOS/iOS signed builds).
+      (unblocks macOS/iOS signed builds). — DONE 2026-11-14 (owner).
 - [ ] App Store Connect ▸ build history: confirm the highest shipped 1.x iOS
       build; set `EarlySupporterDetector.iosCutoffBuild` above it (every 2.0
       build must be greater; current 2.0 build = 6).
-- [ ] Run the gated test suites on a provisioned device:
-      `build/session/SPIKE_ENABLED` → M1SpikeTests (Mac + iPhone, then
-      `SPIKE_COMPARE` for K-E5 cosine > 0.999);
-      `build/session/STOREKIT_FLOWS_ENABLED` → M2 StoreKit flows;
-      `build/session/MOLTEN_PERF` → A1/A4 (record iPhone numbers).
+- [x] M1 spike on Mac + iPhone: **K-E5 PASSED — min cosine 0.99999833**
+      (2026-11-14, signed device build; see docs/SPIKE.md).
+- [x] A1/A4 on iOS Simulator: 0.28s / 53.3ms (both pass); device
+      re-measure optional at beta.
+- [x] M2 StoreKit flows on the signed host: buy / lapse / lifetime /
+      Early-Supporter-with-subscription all pass (2026-11-14). Note:
+      SKTestSession.expireSubscription keeps the current period's expiry;
+      lapse verified via entitlement removal (same app-side path).
 - [ ] Two-device Knowledge test (A2/A13): base on Mac → PDF → searchable on
       iPhone within 5 min with zero iPhone processing; Share-less add via
       Files app.

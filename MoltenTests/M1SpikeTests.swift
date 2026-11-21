@@ -34,7 +34,15 @@ private let platformTag = "ios-device"
 private let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .deletingLastPathComponent()
-private let spikeDir = repoRoot.appendingPathComponent("build/session/spike", isDirectory: true)
+private let spikeDir: URL = {
+    #if os(macOS) || targetEnvironment(simulator)
+    return repoRoot.appendingPathComponent("build/session/spike", isDirectory: true)
+    #else
+    // On-device: write to the app's Documents (retrievable via devicectl).
+    return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("molten-spike", isDirectory: true)
+    #endif
+}()
 
 /// Gated by env var OR a marker file (xcodebuild's TEST_RUNNER_ env forwarding
 /// proved unreliable for hosted unit tests; the marker is deterministic).

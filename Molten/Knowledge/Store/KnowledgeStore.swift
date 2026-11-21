@@ -139,6 +139,34 @@ actor KnowledgeStore {
         return count
     }
 
+    /// K-U1: vector coverage for the status vocabulary.
+    func vectorCount(base: BaseID) -> Int {
+        var count = 0
+        query("""
+            SELECT COUNT(*) FROM vectors v JOIN documents d ON d.hash = v.hash
+            WHERE d.base = ? AND v.profile = ? AND v.revision = ?
+            """, bind: { stmt in
+                sqlite3_bind_text(stmt, 1, base, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_text(stmt, 2, EmbeddingProfile.e5sV1.id, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_text(stmt, 3, EmbeddingProfile.e5sV1.modelRevision, -1, SQLITE_TRANSIENT)
+            }) { stmt in
+                count = Int(sqlite3_column_int64(stmt, 0))
+        }
+        return count
+    }
+
+    func chunkCount(base: BaseID) -> Int {
+        var count = 0
+        query("""
+            SELECT COUNT(*) FROM chunks c JOIN documents d ON d.hash = c.hash WHERE d.base = ?
+            """, bind: { stmt in
+                sqlite3_bind_text(stmt, 1, base, -1, SQLITE_TRANSIENT)
+            }) { stmt in
+                count = Int(sqlite3_column_int64(stmt, 0))
+        }
+        return count
+    }
+
     // MARK: - Ingest (K-D1/K-D2/K-D3)
 
     func ingest(mkt: URL, base: BaseID, name: String) throws {

@@ -26,7 +26,14 @@ final actor SwiftDataService: ModelActor {
                 MessageSD.self,
                 CompletionInstructionSD.self
             ])
-            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+            // K-D4: no database is synced. CloudKit must be explicitly .none —
+            // with iCloud entitlements present, .automatic enables CloudKit
+            // integration, which rejects non-optional attributes without
+            // defaults (crash on device). Chat-history sync is a 2.1 feature.
+            let modelConfiguration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: inMemory,
+                cloudKitDatabase: .none)
 
             do {
                 // C4: versioned migration plan (v1.1 → 2.0 is additive

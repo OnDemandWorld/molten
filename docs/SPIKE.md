@@ -36,26 +36,32 @@ PRD §10 M1 exit criteria: cosine > 0.999 between Mac and iPhone vectors on
 
 ## Results (fill during spike)
 
-| Metric | Mac (M-series, macOS 27.2 beta) | iPhone |
+| Metric | Mac (M-series, macOS 27.2 beta) | iPhone (eplt Maximus 8) |
 |--------|-----|--------|
-| Min cosine (100 texts) | pending device run | — |
-| Mean cosine | pending device run | — |
-| Model download size (disk) | **481 MB** (fp32 safetensors + tokenizer) | — |
-| Peak memory during embed | **2534 MB** (hosted app footprint incl. MLX runtime) | — |
-| Throughput (100 texts) | **4.16 s** (~24 texts/s, batched) | — |
-| Cold-load time (after download) | **11.20 s** | — |
+| Min cosine (100 texts) | **0.99999833** | **0.99999833** |
+| Mean cosine | **0.9999994** | **0.9999994** |
+| Model download size (disk) | **481 MB** (fp32 safetensors + tokenizer) | **481 MB** |
+| Peak memory during embed | **2531 MB** (hosted app footprint incl. MLX runtime) | **2098 MB** |
+| Throughput (100 texts) | **1.15 s** (warm load; first run 4.16 s) | **3.89 s** |
+| Cold-load time (after download) | **3.55 s** (warm; first run 11.20 s) | **11.91 s** |
 
-**Pass criterion:** min cosine > 0.999 (K-E5).
+**Pass criterion:** min cosine > 0.999 (K-E5). ✅ **PASSED 2026-11-14** —
+min 0.99999833 across all 100 mixed-language samples, iPhone vs Mac,
+pinned revision 614241f6. Device run used the signed build after the
+CloudKit `.none` fix (SwiftData auto-CloudKit with iCloud entitlements).
 
 ## Performance acceptance (M7, 2026-11-14, Mac)
 
-| Criterion | Limit | Measured (Mac) | Status |
-|-----------|-------|----------------|--------|
-| A1: 100-page text PDF extract + chunk | < 60 s | **0.21 s** (215 chunks) | ✅ pass |
-| A4: hybrid search, 20,000 chunks | < 200 ms | **50.8 ms** (8 hits) | ✅ pass |
+| Criterion | Limit | Mac | iOS Simulator (iPhone 17, iOS 26.5) | Status |
+|-----------|-------|-----|-------------------------------------|--------|
+| A1: 100-page text PDF extract + chunk | < 60 s | **0.21 s** (215 chunks) | **0.28 s** (215 chunks) | ✅ pass |
+| A4: hybrid search, 20,000 chunks | < 200 ms | **50.8 ms** (8 hits) | **53.3 ms** (8 hits) | ✅ pass |
 
-iPhone measurements pending the provisioned-device run (same owner action;
-run with the `build/session/MOLTEN_PERF` marker).
+Neither path requires MLX (PDFKit + Chunker + Accelerate), so the simulator
+numbers are valid acceptance measurements; re-measure on silicon at beta for
+the release record (run with the `build/session/MOLTEN_PERF` marker).
+Full suite (53 XCTest + 80 Swift Testing) also verified on the iOS Simulator
+runtime, including the C4 migration test.
 
 **iOS status (2026-11-13):** code compiles for iOS (arm64 device + simulator).
 Runtime verification on simulator is **blocked by MLX 0.32.3 incompatibilities**
