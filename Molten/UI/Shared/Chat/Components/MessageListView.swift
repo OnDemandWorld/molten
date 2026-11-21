@@ -60,7 +60,7 @@ struct MessageListView: View {
                                     Label("Copy", systemImage: "doc.on.doc")
                                 }
                                 
-#if os(iOS) || os(visionOS)
+#if os(iOS)
                                 Button(action: { messageSelected = message }) {
                                     Label("Select Text", systemImage: "selection.pin.in.out")
                                 }
@@ -151,7 +151,7 @@ struct MessageListView: View {
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
-#if os(iOS) || os(visionOS)
+#if os(iOS)
                 .sheet(item: $messageSelected) { message in
                     SelectTextSheet(message: message)
                 }

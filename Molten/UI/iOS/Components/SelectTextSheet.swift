@@ -5,7 +5,7 @@
 //  Created by Augustinas Malinauskas on 01/05/2024.
 //
 
-#if os(iOS) || os(visionOS)
+#if os(iOS)
 import SwiftUI
 import UIKit
 
@@ -43,9 +43,6 @@ struct SelectTextSheet: View {
                         textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
                     }
                 }
-            #if os(visionOS)
-                .frame(width: 600, height: 600)
-            #endif
             
         }
         .textSelection(.enabled)

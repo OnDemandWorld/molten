@@ -129,7 +129,7 @@ struct Chat: View, Sendable {
     
     var body: some View {
         Group {
-#if os(macOS) || os(visionOS)
+#if os(macOS)
             ChatView(
                 selectedConversation: conversationStore.selectedConversation,
                 conversations: conversationStore.conversations,

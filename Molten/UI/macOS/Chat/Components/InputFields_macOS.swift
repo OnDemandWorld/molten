@@ -5,7 +5,7 @@
 //  Created by Augustinas Malinauskas on 10/02/2024.
 //
 
-#if os(macOS) || os(visionOS)
+#if os(macOS)
 import SwiftUI
 import OSLog
 

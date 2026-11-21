@@ -42,7 +42,7 @@ final class Clipboard: Sendable {
     }
     
     func getText() -> String? {
-#if os(iOS) || os(visionOS)
+#if os(iOS)
         return UIPasteboard.general.string
 #elseif os(macOS)
         return NSPasteboard.general.string(forType: .string)
