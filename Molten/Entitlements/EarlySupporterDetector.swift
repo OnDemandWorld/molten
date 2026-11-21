@@ -21,10 +21,10 @@ enum EarlySupporterDetector {
     static let macCutoffMarketingVersion = "2.0"
 
     /// M2: iOS/iPadOS report the original build number (CFBundleVersion).
-    /// OWNER ACTION (DEVIATIONS.md): set from App Store Connect 1.x build
-    /// history; every 2.0 build must be numerically greater. nil = fail-closed
-    /// (no iOS grants until confirmed).
-    static let iosCutoffBuild: Int? = nil
+    /// Set 2026-11-14 from ASC build history: highest shipped 1.x build = 6
+    /// (owner-confirmed). 2.0 ships as build 7+. Builds < 7 grant Early
+    /// Supporter; 2.0 builds do not.
+    static let iosCutoffBuild: Int? = 7
 
     enum Platform: String, Sendable { case macOS, iOS }
     enum Env: Sendable { case production, sandbox, xcode }

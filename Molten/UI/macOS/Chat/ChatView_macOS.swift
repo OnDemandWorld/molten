@@ -71,6 +71,10 @@ struct ChatView: View {
                     UnreachableAPIView()
                 }
 
+                // K-R1: show the attached knowledge base (with detach).
+                KnowledgeAttachmentBanner(conversation: selectedConversation)
+                    .frame(maxWidth: 800)
+
                 InputFieldsView(
                     message: $message,
                     conversationState: conversationState,

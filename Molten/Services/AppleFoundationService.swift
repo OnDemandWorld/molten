@@ -54,32 +54,23 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
             let task = Task {
                 #if canImport(FoundationModels)
                 do {
-                    let session = LanguageModelSession()
+                    // K-R4 on Apple models: system messages (user system prompt
+                    // + Knowledge grounding) become the session's instructions.
+                    // AFM follows instructions reliably; "System:" text pasted
+                    // into a flat user turn was ignored, so RAG answers didn't
+                    // use the sources.
+                    let (instructions, turns) = Self.splitMessages(messages)
+                    let session = LanguageModelSession(instructions: instructions)
 
-                        // Send the FULL conversation history so multi-turn context
-                        // and system prompts are preserved (F-26: previously only
-                        // the last user message was sent, making chat stateless).
-                        let prompt = Self.constructPrompt(from: messages)
+                    // Send the FULL conversation history so multi-turn context
+                    // is preserved (F-26: previously only the last user message
+                    // was sent, making chat stateless).
+                    let prompt = Self.constructPrompt(from: turns)
 
-                        // Stream response from FoundationModels
-                        // Note: FoundationModels may not support streaming directly
-                        // We'll simulate streaming by chunking the response
-                        let result = try await session.respond(to: prompt)
-                        
-                        // Split response into chunks to simulate streaming
-                        // LanguageModelSession.Response<String> - extract the string value
-                        // The Response type wraps the actual string value
-                        // Use reflection to find the actual string value
-                        let text: String
-                        let mirror = Mirror(reflecting: result)
-                        if let textProperty = mirror.children.first(where: { $0.label == "text" || $0.label == "content" || $0.label == "value" || $0.label == "result" })?.value as? String {
-                            text = textProperty
-                        } else if let firstChild = mirror.children.first?.value as? String {
-                            text = firstChild
-                        } else {
-                            // Last resort: convert to string representation
-                            text = String(describing: result)
-                        }
+                    // FoundationModels has no token streaming — simulate it by
+                    // chunking the response.
+                    let result = try await session.respond(to: prompt)
+                    let text = result.content
                     // 40 chars/chunk keeps the streaming feel while cutting
                     // per-chunk overhead (was 10, i.e. 4x more yields/tasks).
                     let chunkSize = 40 // Characters per chunk
@@ -123,6 +114,21 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
                     }
                     
                     continuation.finish()
+                } catch let error as LanguageModelSession.GenerationError {
+                    // The 4096-token window is shared by instructions, prompt
+                    // and output — long chats with Knowledge attached can
+                    // exceed it. Give an actionable message instead of the
+                    // framework's generic error.
+                    let message: String
+                    switch error {
+                    case .exceededContextWindowSize:
+                        message = "This chat is too long for Apple's on-device model. Start a new conversation or detach the knowledge base."
+                    default:
+                        message = error.localizedDescription
+                    }
+                    continuation.finish(throwing: NSError(
+                        domain: "AppleFoundationService", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: message]))
                 } catch {
                     continuation.finish(throwing: error)
                 }
@@ -159,6 +165,18 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
         #else
         return nil
         #endif
+    }
+
+    /// Splits system messages (user system prompt + Knowledge grounding)
+    /// from the conversation turns. Systems become session instructions;
+    /// the rest is the prompt transcript. Internal for unit tests.
+    static func splitMessages(_ messages: [ChatMessage]) -> (instructions: String?, turns: [ChatMessage]) {
+        let systems = messages
+            .filter { $0.role?.lowercased() == "system" }
+            .compactMap { $0.content?.textContent }
+            .filter { !$0.isEmpty }
+        let turns = messages.filter { $0.role?.lowercased() != "system" }
+        return (systems.isEmpty ? nil : systems.joined(separator: "\n\n"), turns)
     }
 
     /// Builds a single prompt string from the full message history, labeling

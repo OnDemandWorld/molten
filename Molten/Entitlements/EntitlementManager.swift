@@ -23,9 +23,13 @@ final class EntitlementUIModel {
     var showEarlySupporterThankYou = false
 
     func apply(tier: Tier, source: EntitlementSource, renewalDate: Date?) {
-        self.tier = tier
-        self.source = source
-        self.renewalDate = renewalDate
+        // Only notify on real changes: unconditional assignment fires
+        // @Observable on every refresh, re-rendering observers (e.g. the
+        // Settings subscription section) and tearing down sheets anchored
+        // to them — the paywall closed itself on first presentation.
+        if self.tier != tier { self.tier = tier }
+        if self.source != source { self.source = source }
+        if self.renewalDate != renewalDate { self.renewalDate = renewalDate }
     }
 }
 

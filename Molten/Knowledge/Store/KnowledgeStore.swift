@@ -129,6 +129,14 @@ actor KnowledgeStore {
         return result
     }
 
+    func hasDocument(hash: String) -> Bool {
+        var found = false
+        query("SELECT 1 FROM documents WHERE hash = ? LIMIT 1", bind: { stmt in
+            sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_TRANSIENT)
+        }) { _ in found = true }
+        return found
+    }
+
     func documentCount(base: BaseID) -> Int {
         var count = 0
         query("SELECT COUNT(*) FROM documents WHERE base = ?", bind: { stmt in
@@ -222,6 +230,19 @@ actor KnowledgeStore {
         run("DELETE FROM chunks WHERE hash = ?", bind: { sqlite3_bind_text($0, 1, hash, -1, SQLITE_TRANSIENT) })
         run("DELETE FROM vectors WHERE hash = ?", bind: { sqlite3_bind_text($0, 1, hash, -1, SQLITE_TRANSIENT) })
         run("DELETE FROM documents WHERE hash = ?", bind: { sqlite3_bind_text($0, 1, hash, -1, SQLITE_TRANSIENT) })
+    }
+
+    /// Remove by base + file name (used when the local path→hash mapping
+    /// has no entry for the file, e.g. it was never processed on this device).
+    func removeDocument(base: BaseID, name: String) {
+        var hashes: [String] = []
+        query("SELECT hash FROM documents WHERE base = ? AND name = ?", bind: { stmt in
+            sqlite3_bind_text(stmt, 1, base, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT)
+        }) { stmt in
+            hashes.append(String(cString: sqlite3_column_text(stmt, 0)))
+        }
+        for hash in hashes { removeDocument(hash: hash) }
     }
 
     // MARK: - Search (K-R2/K-R3)

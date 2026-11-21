@@ -29,13 +29,15 @@ enum BaseStatus {
 // MARK: - Sidebar (K-U1)
 
 struct KnowledgeSidebar: View {
+    /// iOS: closes the sliding sidebar after "Use in Chat" so the user
+    /// lands directly in the conversation.
+    var onUseInChat: (() -> Void)? = nil
     @State private var bases: [BaseID] = []
     @State private var counts: [BaseID: Int] = [:]
     @State private var showOnboarding = false
     @State private var showPaywall = false
     @State private var newBaseName = ""
     @State private var showNewBase = false
-    @State private var indexing = false
     @State private var selectedBase: BaseID?
 
     var body: some View {
@@ -80,7 +82,7 @@ struct KnowledgeSidebar: View {
         .sheet(isPresented: Binding(
             get: { selectedBase != nil },
             set: { if !$0 { selectedBase = nil } })) {
-            if let base = selectedBase { BaseDetailView(base: base) }
+            if let base = selectedBase { BaseDetailView(base: base, onUseInChat: onUseInChat) }
         }
         .alert("New knowledge base", isPresented: $showNewBase) {
             TextField("Name", text: $newBaseName)
@@ -126,50 +128,111 @@ struct KnowledgeSidebar: View {
 
 struct BaseDetailView: View {
     let base: BaseID
+    /// iOS: closes the sliding sidebar after "Use in Chat".
+    var onUseInChat: (() -> Void)? = nil
+    @Environment(\.dismiss) private var dismiss
     @State private var files: [URL] = []
     @State private var importing = false
     @State private var indexing = false
     @State private var status = ""
     @State private var showDownloadConsent = false
+    @State private var showPaywall = false
+    @State private var fileToRemove: URL?
 
     var body: some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Text(base).font(.title2.bold())
-                Spacer()
-                Button("Add files…") { importing = true }
-                Button(indexing ? "Indexing…" : "Process now") {
-                    process(force: true) // K-P3: overrides Waiting for Mac
-                }
-                .disabled(indexing)
-                // K-R1: attach this base to the open conversation.
-                Button("Attach to chat") {
-                    Task { @MainActor in
-                        ConversationStore.shared.selectedConversation?.attachedKnowledgeBase = base
-                        status = "Attached to the current chat"
+        NavigationStack {
+            List {
+                if files.isEmpty {
+                    Text("No files yet. Add PDFs, text, Markdown, RTF, HTML, DOCX or images.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(files, id: \.path) { file in
+                        HStack(spacing: 10) {
+                            Image(systemName: Self.isPlaceholder(file) ? "icloud" : "doc")
+                                .foregroundStyle(.secondary)
+                            Text(Self.displayName(file))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                fileToRemove = file
+                            } label: {
+                                Label("Remove from Base", systemImage: "trash")
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        if let first = offsets.first { fileToRemove = files[first] }
                     }
                 }
-                #if os(macOS)
-                Button("Open in Finder") {
-                    NSWorkspace.shared.open(KnowledgeContainer.baseDirectory(base))
-                }
-                #endif
             }
-            .padding()
-            if !status.isEmpty {
-                Text(status).font(.caption).foregroundStyle(.secondary).padding(.horizontal)
-            }
-            List(files, id: \.path) { file in
-                HStack {
-                    Image(systemName: "doc")
-                    Text(file.lastPathComponent)
-                    Spacer()
+            .navigationTitle(base)
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            process(force: true) // K-P3: overrides Waiting for Mac
+                        } label: {
+                            Label(indexing ? "Indexing…" : "Process Now",
+                                  systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(indexing)
+                        #if os(macOS)
+                        Button {
+                            NSWorkspace.shared.open(KnowledgeContainer.baseDirectory(base))
+                        } label: {
+                            Label("Open in Finder", systemImage: "folder")
+                        }
+                        #endif
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel("More actions")
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 8) {
+                    if !status.isEmpty {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    HStack(spacing: 10) {
+                        Button {
+                            importing = true
+                        } label: {
+                            Label("Add Files", systemImage: "plus")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        // K-R1: attach this base and go straight to the chat.
+                        Button {
+                            useInChat()
+                        } label: {
+                            Label("Use in Chat", systemImage: "bubble.left.and.text.bubble.right")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+                .background(.bar)
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.pdf, .plainText, .rtf, .html, .png, .jpeg, UTType("org.openxmlformats.wordprocessingml.document") ?? .data], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { addFiles(urls) }
         }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
         .alert("Download embedding model?", isPresented: $showDownloadConsent) {
             Button("Download (\(ModelDownloadConsent.estimatedSizeMB) MB)") {
                 ModelDownloadConsent.recordConsent()
@@ -179,12 +242,105 @@ struct BaseDetailView: View {
         } message: {
             Text("Semantic search needs a one-time \(ModelDownloadConsent.estimatedSizeMB) MB model download. You appear to be on cellular data. Keyword search works without it.")
         }
+        .confirmationDialog(
+            "Remove “\(fileToRemove.map(Self.displayName) ?? "")”?",
+            isPresented: Binding(
+                get: { fileToRemove != nil },
+                set: { if !$0 { fileToRemove = nil } }),
+            titleVisibility: .visible) {
+            Button("Remove File", role: .destructive) {
+                if let url = fileToRemove { removeFile(url) }
+                fileToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { fileToRemove = nil }
+        } message: {
+            Text("The file is deleted from this knowledge base on all your devices and removed from search.")
+        }
         .task { loadFiles() }
+    }
+
+    /// Evicted iCloud files appear as hidden ".name.icloud" placeholders;
+    /// show them under their real name with an iCloud badge.
+    static func isPlaceholder(_ url: URL) -> Bool {
+        let name = url.lastPathComponent
+        return name.hasPrefix(".") && name.hasSuffix(".icloud")
+    }
+
+    static func displayName(_ url: URL) -> String {
+        let name = url.lastPathComponent
+        guard isPlaceholder(url) else { return name }
+        return String(name.dropFirst().dropLast(".icloud".count))
     }
 
     private func loadFiles() {
         let dir = KnowledgeContainer.baseDirectory(base)
-        files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        let urls = (try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants])) ?? []
+        files = urls
+            .filter { $0.lastPathComponent != ".DS_Store" }
+            .sorted { Self.displayName($0).localizedStandardCompare(Self.displayName($1)) == .orderedAscending }
+    }
+
+    /// K-R1: attach the base to the open conversation (or start a new one),
+    /// then dismiss and return to the chat.
+    private func useInChat() {
+        Task { @MainActor in
+            let store = ConversationStore.shared
+            if let conversation = store.selectedConversation {
+                conversation.attachedKnowledgeBase = base
+            } else {
+                let conversation = ConversationSD(name: base)
+                conversation.attachedKnowledgeBase = base
+                // Carry the current model into the new chat so the selector
+                // doesn't end up empty.
+                conversation.model = LanguageModelStore.shared.selectedModel
+                store.selectedConversation = conversation
+                store.messages = []
+                try? await store.create(conversation)
+                try? await store.loadConversations()
+            }
+            dismiss()
+            onUseInChat?()
+        }
+    }
+
+    /// Delete the source file (coordinated for iCloud), drop its local
+    /// mapping and index rows. Shared .mkt/.mkv outputs are left for the
+    /// 7-day grace cleanup (K-P10) — other devices may still reference them.
+    private func removeFile(_ url: URL) {
+        Task {
+            let name = Self.displayName(url)
+            let realPath = KnowledgeContainer.baseDirectory(base)
+                .appendingPathComponent(name).path
+            let entry = await FileMapping.shared.entry(forPath: realPath)
+                ?? FileMapping.shared.entry(forPath: url.path)
+
+            var removed = false
+            var coordinatorError: NSError?
+            NSFileCoordinator().coordinate(
+                writingItemAt: url, options: .forDeleting, error: &coordinatorError) { newURL in
+                do {
+                    try FileManager.default.removeItem(at: newURL)
+                    removed = true
+                } catch {}
+            }
+            guard removed else {
+                status = "Could not remove \(name)"
+                return
+            }
+            await FileMapping.shared.remove(path: realPath)
+            await FileMapping.shared.remove(path: url.path)
+            if let hash = entry?.hash {
+                let stillReferenced = await FileMapping.shared.referencedHashes().contains(hash)
+                if !stillReferenced {
+                    await KnowledgeStore.shared.removeDocument(hash: hash)
+                }
+            } else {
+                await KnowledgeStore.shared.removeDocument(base: base, name: name)
+            }
+            loadFiles()
+            status = "Removed \(name)"
+        }
     }
 
     private func addFiles(_ urls: [URL]) {
@@ -193,12 +349,23 @@ struct BaseDetailView: View {
             let existing = await KnowledgeStore.shared.documentCount(base: base)
             var added = 0
             for url in urls {
-                guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else { break }
+                guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else {
+                    showPaywall = true // K-U5: over a limit opens the paywall
+                    break
+                }
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 let dest = KnowledgeContainer.baseDirectory(base).appendingPathComponent(url.lastPathComponent)
-                try? FileManager.default.copyItem(at: url, to: dest)
-                added += 1
+                do {
+                    // Re-adding an updated file replaces the old copy.
+                    if FileManager.default.fileExists(atPath: dest.path) {
+                        try FileManager.default.removeItem(at: dest)
+                    }
+                    try FileManager.default.copyItem(at: url, to: dest)
+                    added += 1 // count only successful copies against the limit
+                } catch {
+                    status = "Could not add \(url.lastPathComponent): \(error.localizedDescription)"
+                }
             }
             loadFiles()
             process()
@@ -238,6 +405,40 @@ struct BaseDetailView: View {
                 status = "Error: \(error.localizedDescription) — tap Process now to retry"
             }
             indexing = false
+        }
+    }
+}
+
+// MARK: - Chat attachment indicator (K-R1)
+
+/// Shows which knowledge base grounds the open conversation, with a
+/// one-tap detach. Without this, "Use in Chat" had no visible effect.
+struct KnowledgeAttachmentBanner: View {
+    let conversation: ConversationSD?
+
+    var body: some View {
+        if let base = conversation?.attachedKnowledgeBase {
+            HStack(spacing: 6) {
+                Image(systemName: "books.vertical.fill")
+                    .font(.caption)
+                Text("Knowledge: \(base)")
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Button {
+                    conversation?.attachedKnowledgeBase = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Detach knowledge base")
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.quaternary.opacity(0.5), in: Capsule())
         }
     }
 }
@@ -358,6 +559,9 @@ struct CitationRef: Codable, Sendable, Identifiable {
 
 struct CitationChips: View {
     let citations: [CitationRef]
+    #if os(iOS)
+    @State private var previewURL: URL?
+    #endif
 
     var body: some View {
         HStack(spacing: 6) {
@@ -373,6 +577,17 @@ struct CitationChips: View {
                 .accessibilityLabel("Open source \(citation.sourceName)")
             }
         }
+        #if os(iOS)
+        // K-R5: files in the app container can't be opened with
+        // UIApplication.open — use Quick Look.
+        .sheet(isPresented: Binding(
+            get: { previewURL != nil },
+            set: { if !$0 { previewURL = nil } })) {
+            if let url = previewURL {
+                QuickLookPreview(url: url)
+            }
+        }
+        #endif
     }
 
     private func open(_ citation: CitationRef) {
@@ -381,7 +596,34 @@ struct CitationChips: View {
         #if os(macOS)
         NSWorkspace.shared.open(file)
         #else
-        UIApplication.shared.open(file)
+        previewURL = file
         #endif
     }
 }
+
+#if os(iOS)
+import QuickLook
+
+struct QuickLookPreview: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeCoordinator() -> Coordinator { Coordinator(url: url) }
+
+    func makeUIViewController(context: Context) -> QLPreviewController {
+        let controller = QLPreviewController()
+        controller.dataSource = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ controller: QLPreviewController, context: Context) {}
+
+    final class Coordinator: NSObject, QLPreviewControllerDataSource {
+        let url: URL
+        init(url: URL) { self.url = url }
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { 1 }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            url as QLPreviewItem
+        }
+    }
+}
+#endif

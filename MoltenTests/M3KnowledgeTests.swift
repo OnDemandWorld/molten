@@ -351,6 +351,89 @@ struct EndToEndPipelineTests {
     }
 }
 
+@Suite("Review round 3 — document removal, AFM grounding, fp16 extremes")
+struct ReviewRound3Tests {
+    @Test func removeDocumentByBaseAndName() async throws {
+        let store = KnowledgeStore(directory: tempDir())
+        let dir = tempDir()
+        let mkt = dir.appendingPathComponent("doc.mkt")
+        try MKTCodec.encode(sampleDocument()).write(to: mkt)
+        try await store.ingest(mkt: mkt, base: "Base", name: "doc.txt")
+        #expect(await store.documentCount(base: "Base") == 1)
+        #expect(await store.search("tax", queryVector: nil, base: "Base", limit: 5).count == 1)
+
+        await store.removeDocument(base: "Base", name: "doc.txt")
+        #expect(await store.documentCount(base: "Base") == 0)
+        #expect(await store.search("tax", queryVector: nil, base: "Base", limit: 5).isEmpty)
+
+        // Removing again is a safe no-op.
+        await store.removeDocument(base: "Base", name: "doc.txt")
+        #expect(await store.documentCount(base: "Base") == 0)
+    }
+
+    @Test func removeDocumentLeavesOtherDocuments() async throws {
+        let store = KnowledgeStore(directory: tempDir())
+        let dir = tempDir()
+        let mktA = dir.appendingPathComponent("a.mkt")
+        let mktB = dir.appendingPathComponent("b.mkt")
+        try MKTCodec.encode(sampleDocument(hash: String(repeating: "aa", count: 32))).write(to: mktA)
+        try MKTCodec.encode(sampleDocument(hash: String(repeating: "bb", count: 32))).write(to: mktB)
+        try await store.ingest(mkt: mktA, base: "Base", name: "a.txt")
+        try await store.ingest(mkt: mktB, base: "Base", name: "b.txt")
+
+        await store.removeDocument(base: "Base", name: "a.txt")
+        #expect(await store.documentCount(base: "Base") == 1)
+        #expect(await store.search("marine", queryVector: nil, base: "Base", limit: 5).count == 1)
+    }
+
+    @Test func afmSystemMessagesBecomeInstructions() {
+        let messages = [
+            ChatMessage(role: "system", content: "Answer using the numbered sources.", image_url: nil),
+            ChatMessage(role: "user", content: "What is QFT?", image_url: nil),
+            ChatMessage(role: "assistant", content: "Quantum field theory.", image_url: nil),
+            ChatMessage(role: "system", content: "Second system block.", image_url: nil),
+            ChatMessage(role: "user", content: "Who developed it?", image_url: nil),
+        ]
+        let (instructions, turns) = AppleFoundationService.splitMessages(messages)
+        #expect(instructions == "Answer using the numbered sources.\n\nSecond system block.")
+        #expect(turns.count == 3)
+        #expect(turns.allSatisfy { $0.role != "system" })
+        // The transcript no longer contains the grounding text.
+        #expect(!AppleFoundationService.constructPrompt(from: turns).contains("numbered sources"))
+    }
+
+    @Test func afmSplitWithoutSystemMessages() {
+        let messages = [ChatMessage(role: "user", content: "Hi", image_url: nil)]
+        let (instructions, turns) = AppleFoundationService.splitMessages(messages)
+        #expect(instructions == nil)
+        #expect(turns.count == 1)
+        let (none, empty) = AppleFoundationService.splitMessages([])
+        #expect(none == nil)
+        #expect(empty.isEmpty)
+    }
+
+    @Test func mkvExtremeValuesRoundTrip() throws {
+        // Values around the fp16 range limits must survive the
+        // architecture-independent HalfFloat codec (Intel archives).
+        let values: [Float] = [0, -0, 1, -1, 65504, -65504, 0.1, -0.1, 0.3333, 5.96e-8, 1e-7]
+        let header = MKVHeader(
+            schema: 1, sourceHash: "h", profileID: "p", modelRevision: "r",
+            dims: values.count, count: 1, chunkerVersion: 1, encryption: nil,
+            createdBy: "t", createdAt: "t")
+        let encoded = try MKVCodec.encode(header: header, vectors: [values])
+        let (_, decoded) = try MKVCodec.decode(encoded)
+        for (a, b) in zip(values, decoded[0]) {
+            if a == 0 {
+                #expect(b == 0)
+            } else {
+                // fp16 relative precision, with an absolute floor of half a
+                // subnormal step (2^-25) — subnormals quantize coarsely.
+                #expect(abs(a - b) <= max(abs(a) * 0.001, 3e-8))
+            }
+        }
+    }
+}
+
 #if os(macOS)
 private typealias PlatformFont = NSFont
 #else

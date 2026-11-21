@@ -30,7 +30,12 @@ struct SettingsView: View {
     var voices: [AVSpeechSynthesisVoice]
     
     @State private var deleteConversationsDialog = false
-    
+    // Sheets are presented at the VStack level, NOT from the Form section:
+    // sheets anchored to Section rows get torn down by the Form's update
+    // cycle (paywall closed itself on first presentation).
+    @State private var showPaywall = false
+    @State private var showPlanDetail = false
+
     var body: some View {
         VStack {
             ZStack {
@@ -66,7 +71,7 @@ struct SettingsView: View {
             
             Form {
                 // Molten 2.0 — M13: Subscription (tier, source, restore, manage)
-                SubscriptionSettingsSection()
+                SubscriptionSettingsSection(showPaywall: $showPaywall, showPlanDetail: $showPlanDetail)
 
                 // Molten 2.0 — K-P3/K-P4: Knowledge processing roles.
                 KnowledgeSettingsSection()
@@ -255,6 +260,8 @@ struct SettingsView: View {
             .formStyle(.grouped)
         }
         .preferredColorScheme(colorScheme.toiOSFormat)
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPlanDetail) { PlanDetailView() }
         .confirmationDialog("Delete All Conversations?", isPresented: $deleteConversationsDialog) {
             Button("Delete", role: .destructive) { deleteAll() }
             Button("Cancel", role: .cancel) { }

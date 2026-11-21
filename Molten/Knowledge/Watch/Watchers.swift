@@ -225,6 +225,23 @@ final class KnowledgeSync {
                 }
             }
         }
+        // Prune mapping entries for files deleted on this or another device,
+        // and drop their index rows so deleted documents stop appearing in
+        // search. Evicted iCloud files still exist as ".name.icloud"
+        // placeholders — keep those entries.
+        let mapping = await FileMapping.shared.all()
+        for (path, entry) in mapping {
+            if fm.fileExists(atPath: path) { continue }
+            let url = URL(fileURLWithPath: path)
+            let placeholder = url.deletingLastPathComponent()
+                .appendingPathComponent(".\(url.lastPathComponent).icloud")
+            if fm.fileExists(atPath: placeholder.path) { continue }
+            await FileMapping.shared.remove(path: path)
+            let stillReferenced = await FileMapping.shared.referencedHashes().contains(entry.hash)
+            if !stillReferenced {
+                await KnowledgeStore.shared.removeDocument(hash: entry.hash)
+            }
+        }
     }
 }
 
@@ -235,9 +252,29 @@ enum KnowledgeCleanup {
 
     /// Delete outputs no document references, older than the grace window.
     static func run() async {
-        let referenced = await FileMapping.shared.referencedHashes()
-        let cutoff = Date().addingTimeInterval(-Double(graceDays) * 86400)
+        let mapping = await FileMapping.shared.all()
+        let referenced = Set(mapping.values.map(\.hash))
         let fm = FileManager.default
+        // Safety: the mapping only covers files this device has downloaded
+        // and hashed. If any source document is missing from it (cloud-only
+        // placeholders, a scan still in progress), "unreferenced" is not
+        // trustworthy — pruning would delete shared outputs that other
+        // devices still need. Skip cleanup until the mapping is complete.
+        let documents = KnowledgeContainer.documentsRoot()
+        if let enumerator = fm.enumerator(
+            at: documents,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: []) {
+            for case let file as URL in enumerator {
+                // Evicted iCloud documents appear as hidden ".name.icloud"
+                // placeholders and are never mapped — keep their outputs.
+                if file.lastPathComponent.hasSuffix(".icloud") { return }
+                guard (try? file.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
+                if CoordinatedIO.isPlaceholderOrConflict(file) { continue }
+                if mapping[file.path] == nil { return }
+            }
+        }
+        let cutoff = Date().addingTimeInterval(-Double(graceDays) * 86400)
         for dir in [KnowledgeContainer.textDirectory(),
                     KnowledgeContainer.vectorsDirectory(profile: EmbeddingProfile.e5sV1.id)] {
             guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { continue }

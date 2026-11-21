@@ -155,8 +155,13 @@ extension SwiftDataService {
         let startOfDay = calendar.startOfDay(for: date)
         guard let startOfNextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
         let predicate = #Predicate<ConversationSD> { $0.updatedAt >= startOfDay && $0.updatedAt < startOfNextDay }
+        // C1: capture IDs before deletion so the FTS sidecar stays in sync.
+        let doomed = try modelContext.fetch(FetchDescriptor<ConversationSD>(predicate: predicate))
         try modelContext.delete(model: ConversationSD.self, where: predicate)
         try modelContext.saveChanges()
+        for conversation in doomed {
+            ConversationSearch.shared.removeConversation(conversationID: conversation.id)
+        }
     }
 }
 
@@ -216,5 +221,6 @@ extension SwiftDataService {
         try modelContext.delete(model: MessageSD.self)
         try modelContext.delete(model: CompletionInstructionSD.self)
         try modelContext.saveChanges()
+        ConversationSearch.shared.removeAll()
     }
 }

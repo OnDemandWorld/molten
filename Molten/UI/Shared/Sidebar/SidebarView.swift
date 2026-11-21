@@ -14,6 +14,8 @@ struct SidebarView: View {
     var onConversationTap: (_ conversation: ConversationSD) -> ()
     var onConversationDelete: (_ conversation: ConversationSD) -> ()
     var onDeleteDailyConversations: (_ date: Date) -> ()
+    /// iOS: passed through to Knowledge so "Use in Chat" can close the sidebar.
+    var onKnowledgeUseInChat: (() -> Void)? = nil
     @State var showSettings = false
     @State var showCompletions = false
     @State var showKeyboardShortcutas = false
@@ -66,7 +68,7 @@ struct SidebarView: View {
             .scrollIndicators(.never)
 
             // Molten 2.0 — K-U1: Knowledge bases.
-            KnowledgeSidebar()
+            KnowledgeSidebar(onUseInChat: onKnowledgeUseInChat)
 
             Divider()
             

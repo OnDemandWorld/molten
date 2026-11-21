@@ -26,6 +26,10 @@ final class EntitlementKeychain: EarlySupporterStoring {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: Self.account,
+            // M4: match the synchronizable item — without this the update
+            // can miss it and create a local-only duplicate, breaking the
+            // cross-device grant.
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
         let attrs: [String: Any] = [
             kSecValueData as String: data,

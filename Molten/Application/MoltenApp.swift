@@ -31,6 +31,16 @@ struct MoltenApp: App {
     @NSApplicationDelegateAdaptor(PanelManager.self) var panelManager
 #endif
 
+    init() {
+        #if os(iOS)
+        // K-P6: BGTaskScheduler handlers must be registered before the end
+        // of application(_:didFinishLaunching…) — App.init is the SwiftUI
+        // equivalent. Registering later (e.g. in a view .task) misses
+        // background launches, so the system never runs the handler.
+        KnowledgeBackgroundTask.register()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             ApplicationEntry()

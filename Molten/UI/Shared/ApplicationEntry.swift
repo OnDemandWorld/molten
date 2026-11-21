@@ -42,10 +42,6 @@ struct ApplicationEntry: View {
             try? await KnowledgeContainer.migrateLocalToICloud()
             KnowledgeSync.shared.start()
 
-            #if os(iOS)
-            KnowledgeBackgroundTask.register() // K-P6
-            #endif
-
             // M5: heartbeat while active (K-P5); Mac auto-indexes (K-P3).
             await HeartbeatService.shared.start {
                 DeviceRoles.allowedStages(policy: DeviceRoles.policy, isCharging: DeviceRoles.isCharging).contains(.embed)
@@ -67,10 +63,16 @@ struct ApplicationEntry: View {
 
             do {
                 try await conversationStore.loadConversations()
+                // C1: backfill the search index for pre-2.0 conversations —
+                // incremental indexing only sees messages written from now on.
+                if ConversationSearch.shared.isEmpty() {
+                    let conversations = (try? await SwiftDataService.shared.fetchConversations()) ?? []
+                    ConversationSearch.shared.rebuild(conversations: conversations)
+                }
             } catch {
                 logger.error("Failed to load conversations: \(error.localizedDescription, privacy: .private)")
             }
-            
+
             completionsStore.load()
         }
         .preferredColorScheme(colorScheme.toiOSFormat)

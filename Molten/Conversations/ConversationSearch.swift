@@ -88,6 +88,15 @@ final class ConversationSearch: @unchecked Sendable {
             })
     }
 
+    /// True when the index holds no rows (first launch, or the sidecar was
+    /// deleted) — the signal for the one-time backfill.
+    func isEmpty() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        var empty = true
+        queryRows("SELECT 1 FROM messages_fts LIMIT 1", bind: { _ in }) { _ in empty = false }
+        return empty
+    }
+
     /// C1: backfill on first launch (idempotent — clears and rebuilds).
     func rebuild(conversations: [ConversationSD]) {
         lock.lock(); defer { lock.unlock() }

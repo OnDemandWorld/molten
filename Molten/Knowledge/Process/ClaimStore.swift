@@ -18,6 +18,10 @@ struct Claim: Codable, Sendable, Equatable {
 }
 
 actor ClaimStore {
+    /// Shared singleton (per the app's service pattern): the K-P11 attempt
+    /// counter lives in memory and must accumulate across files and scans.
+    static let shared = ClaimStore()
+
     static let leaseDuration: TimeInterval = 600   // 10 minutes
     static let renewInterval: TimeInterval = 60    // 60 seconds
     static let maxAttempts = 3
@@ -68,8 +72,8 @@ actor ClaimStore {
                           leaseExpiresAt: now().addingTimeInterval(Self.leaseDuration))
         guard let data = try? JSONEncoder().encode(claim) else { return false }
         do {
-            try CoordinatedIO.writeOnce(data, to: url)
-            // writeOnce skips existing files — overwrite our own takeover.
+            // Overwrite unconditionally: taking over an expired claim (or
+            // renewing our own) must replace the existing file.
             try data.write(to: url, options: .atomic)
             return true
         } catch {

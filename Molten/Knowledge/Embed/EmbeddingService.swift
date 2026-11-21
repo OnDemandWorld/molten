@@ -81,10 +81,16 @@ actor EmbeddingService {
             let padded = stacked(inputs.map { elem in
                 MLXArray(elem + Array(repeating: padId, count: maxLength - elem.count))
             })
-            let mask = (padded .!= padId)
+            // Mask by position, not token value: padId is the eos token, so a
+            // value comparison would also hide each sequence's real trailing
+            // [SEP]/EOS from attention and pooling.
+            let mask = stacked(inputs.map { elem in
+                MLXArray((0..<maxLength).map { $0 < elem.count ? 1 : 0 })
+            })
             let tokenTypes = MLXArray.zeros(like: padded)
             let output = model(padded, positionIds: nil, tokenTypeIds: tokenTypes, attentionMask: mask)
-            let pooled = pooling(output, normalize: true, applyLayerNorm: true)
+            // Mean pooling must exclude padding positions too.
+            let pooled = pooling(output, mask: mask, normalize: true, applyLayerNorm: true)
             pooled.eval()
             return pooled.map { $0.asArray(Float.self) }
         }

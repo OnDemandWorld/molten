@@ -87,6 +87,9 @@ struct PDFExtractor: Extractor {
         var full = ""
         var pages: [MKTPage] = []
         var ocrUsed = false
+        // Running UTF-16 offset: (full as NSString).length per page is O(n)
+        // on native Swift strings, making the loop O(n²) on long documents.
+        var offset = 0
         for i in 0..<document.pageCount {
             guard let page = document.page(at: i) else { continue }
             var pageText = page.string ?? ""
@@ -99,11 +102,11 @@ struct PDFExtractor: Extractor {
                     ocrUsed = true
                 }
             }
-            let start = (full as NSString).length
-            if !full.isEmpty { full += "\n\n" }
+            let start = offset
+            if !full.isEmpty { full += "\n\n"; offset += 2 }
             full += pageText
-            let end = (full as NSString).length
-            pages.append(MKTPage(index: i + 1, charStart: start, charEnd: end))
+            offset += (pageText as NSString).length
+            pages.append(MKTPage(index: i + 1, charStart: start, charEnd: offset))
         }
         return ExtractedDocument(text: full, pages: pages, ocrUsed: ocrUsed)
     }

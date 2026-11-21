@@ -9,9 +9,10 @@ docs/DEVIATIONS.md for the environment-blocked verifications).
       Let automatic signing register the iCloud container
       `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create profiles
       (unblocks macOS/iOS signed builds). — DONE 2026-11-14 (owner).
-- [ ] App Store Connect ▸ build history: confirm the highest shipped 1.x iOS
-      build; set `EarlySupporterDetector.iosCutoffBuild` above it (every 2.0
-      build must be greater; current 2.0 build = 6).
+- [x] App Store Connect ▸ build history: highest shipped 1.x iOS build = 6
+      (owner-confirmed 2026-11-14); `iosCutoffBuild = 7` set; 2.0 = build 7.
+- [x] ASC products created (owner, 2026-11-14): Molten Membership group,
+      Plus monthly/yearly + trial, lifetime.
 - [x] M1 spike on Mac + iPhone: **K-E5 PASSED — min cosine 0.99999833**
       (2026-11-14, signed device build; see docs/SPIKE.md).
 - [x] A1/A4 on iOS Simulator: 0.28s / 53.3ms (both pass); device

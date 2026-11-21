@@ -34,6 +34,12 @@ has no servers. For end-to-end encryption, turn on Advanced Data Protection."
 Privacy label stays **Data Not Collected** (P4/M14). New network use is
 limited to iCloud sync and the one-time embedding-model download (P1).
 
+**Standard ODW.ai notices** (in-app paywall footer; use these for the ASC
+listing's Privacy Policy URL and support/marketing links):
+- Terms & Conditions: https://odw.ai/terms-and-conditions/
+- Privacy Policy: https://odw.ai/privacy-policy/
+- House Rules: https://odw.ai/house-rules/
+
 ## App Review note (§11.3)
 
 Molten moves from paid-upfront to freemium. The price will be set to Free

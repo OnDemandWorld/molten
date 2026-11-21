@@ -229,7 +229,11 @@ struct ChatView: View {
             if !reachable {
                 UnreachableAPIView()
             }
-            
+
+            // K-R1: show the attached knowledge base (with detach).
+            KnowledgeAttachmentBanner(conversation: conversation)
+                .padding(.horizontal)
+
             inputFields
                 .padding(.horizontal)
             
