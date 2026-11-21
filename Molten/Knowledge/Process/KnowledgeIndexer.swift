@@ -46,8 +46,19 @@ actor KnowledgeIndexer {
         self.embeddings = embeddings
     }
 
+    /// K-P3: iOS defers to a fresh Mac unless forced ("Process now").
+    func shouldDefer() async -> Bool {
+        let devices = await HeartbeatService.shared.devices()
+        return DeviceRoles.shouldDeferToMac(devices: devices, letMacDoIt: DeviceRoles.letMacDoIt)
+    }
+
     /// Scan a base folder and process every supported file (K-P7, local).
-    func scan(base: BaseID) async throws {
+    func scan(base: BaseID, force: Bool = false) async throws {
+        let deferring = await shouldDefer()
+        if !force && deferring {
+            logger.info("Deferring to Mac (K-P3); use Process now to override")
+            return
+        }
         let directory = KnowledgeContainer.baseDirectory(base)
         guard let enumerator = FileManager.default.enumerator(
             at: directory,
@@ -75,7 +86,8 @@ actor KnowledgeIndexer {
     }
 
     /// Extract → chunk → .mkt, then embed → .mkv when the model is ready.
-    /// Existing outputs are never regenerated (K-D3, G4).
+    /// Existing outputs are never regenerated (K-D3, G4). Stages are claimed
+    /// per K-P2 and gated by the device's stage policy (K-P4).
     func process(file: URL, base: BaseID) async throws {
         let hash = try Self.sha256(of: file)
         let profile = EmbeddingProfile.e5sV1
@@ -83,31 +95,21 @@ actor KnowledgeIndexer {
             .appendingPathComponent("\(hash).mkt")
         let mkvURL = KnowledgeContainer.vectorsDirectory(profile: profile.id)
             .appendingPathComponent("\(hash).mkv")
+        let stages = DeviceRoles.allowedStages(policy: DeviceRoles.policy, isCharging: DeviceRoles.isCharging)
+        let claims = ClaimStore()
 
-        if !FileManager.default.fileExists(atPath: mktURL.path) {
-            let ocrAllowed = await EntitlementManager.shared.allows(.ocr)
-            guard let extractor = ExtractorFactory.extractor(for: file, ocrAllowed: ocrAllowed) else {
-                throw IndexingError.unsupportedFile(file.lastPathComponent)
+        if stages.contains(.extract), !FileManager.default.fileExists(atPath: mktURL.path) {
+            guard await claims.tryClaim(hash: hash, stage: .extract) else {
+                logger.info("Extract claimed by another device: \(hash, privacy: .public)")
+                return
             }
-            let extracted = try await extractor.extract(from: file)
-            let chunks = await Chunker.chunk(
-                text: extracted.text,
-                pages: extracted.pages,
-                prefix: profile.passagePrefix,
-                tokenCount: { [embeddings] text in await embeddings.countTokens(text) })
-            let document = MKTDocument(
-                schema: MKTDocument.currentSchema,
-                sourceHash: hash,
-                mime: Self.mimeType(for: file),
-                extractorVersion: MKTDocument.extractorVersion,
-                ocrUsed: extracted.ocrUsed,
-                chunkerVersion: Chunker.chunkerVersion,
-                pages: extracted.pages,
-                chunks: chunks,
-                encryption: nil,
-                createdBy: DeviceIdentity.id,
-                createdAt: ISO8601DateFormatter().string(from: Date()))
-            try CoordinatedIO.writeOnce(MKTCodec.encode(document), to: mktURL)
+            do {
+                try await extractStage(file: file, hash: hash, mktURL: mktURL)
+                await claims.release(hash: hash, stage: .extract, failed: nil)
+            } catch {
+                await claims.release(hash: hash, stage: .extract, failed: error.localizedDescription)
+                throw error
+            }
         }
         try await store.ingest(mkt: mktURL, base: base, name: file.lastPathComponent)
         let mtime = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
@@ -117,29 +119,63 @@ actor KnowledgeIndexer {
 
         // Embed stage: skipped entirely until the model is ready (K-R2
         // keyword-only fallback keeps the text searchable meanwhile, A11).
-        if await embeddings.isReady {
-            if !FileManager.default.fileExists(atPath: mkvURL.path) {
-                let document = try MKTCodec.decode(Data(contentsOf: mktURL))
-                let vectors = try await embeddings.embed(passages: document.chunks.map(\.text))
-                let header = MKVHeader(
-                    schema: 1,
-                    sourceHash: hash,
-                    profileID: profile.id,
-                    modelRevision: profile.modelRevision,
-                    dims: profile.dims,
-                    count: vectors.count,
-                    chunkerVersion: Chunker.chunkerVersion,
-                    encryption: nil,
-                    createdBy: DeviceIdentity.id,
-                    createdAt: ISO8601DateFormatter().string(from: Date()))
-                try CoordinatedIO.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
-            }
-            // K-E2/A6: only ingest vectors matching the active profile.
-            let (header, _) = try MKVCodec.decode(Data(contentsOf: mkvURL))
-            if ManifestStore.accepts(header: header, manifest: ManifestStore.loadOrCreate()) {
-                try await store.ingest(mkv: mkvURL)
+        if stages.contains(.embed), await embeddings.isReady {
+            guard await claims.tryClaim(hash: hash, stage: .embed) else { return }
+            do {
+                if !FileManager.default.fileExists(atPath: mkvURL.path) {
+                    let document = try MKTCodec.decode(Data(contentsOf: mktURL))
+                    let vectors = try await embeddings.embed(passages: document.chunks.map(\.text))
+                    let header = MKVHeader(
+                        schema: 1,
+                        sourceHash: hash,
+                        profileID: profile.id,
+                        modelRevision: profile.modelRevision,
+                        dims: profile.dims,
+                        count: vectors.count,
+                        chunkerVersion: Chunker.chunkerVersion,
+                        encryption: nil,
+                        createdBy: DeviceIdentity.id,
+                        createdAt: ISO8601DateFormatter().string(from: Date()))
+                    try CoordinatedIO.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
+                }
+                // K-E2/A6: only ingest vectors matching the active profile.
+                let (header, _) = try MKVCodec.decode(Data(contentsOf: mkvURL))
+                if ManifestStore.accepts(header: header, manifest: ManifestStore.loadOrCreate()) {
+                    try await store.ingest(mkv: mkvURL)
+                }
+                await claims.release(hash: hash, stage: .embed, failed: nil)
+            } catch {
+                await claims.release(hash: hash, stage: .embed, failed: error.localizedDescription)
+                throw error
             }
         }
+    }
+
+    private func extractStage(file: URL, hash: String, mktURL: URL) async throws {
+        let profile = EmbeddingProfile.e5sV1
+        let ocrAllowed = await EntitlementManager.shared.allows(.ocr)
+        guard let extractor = ExtractorFactory.extractor(for: file, ocrAllowed: ocrAllowed) else {
+            throw IndexingError.unsupportedFile(file.lastPathComponent)
+        }
+        let extracted = try await extractor.extract(from: file)
+        let chunks = await Chunker.chunk(
+            text: extracted.text,
+            pages: extracted.pages,
+            prefix: profile.passagePrefix,
+            tokenCount: { [embeddings] text in await embeddings.countTokens(text) })
+        let document = MKTDocument(
+            schema: MKTDocument.currentSchema,
+            sourceHash: hash,
+            mime: Self.mimeType(for: file),
+            extractorVersion: MKTDocument.extractorVersion,
+            ocrUsed: extracted.ocrUsed,
+            chunkerVersion: Chunker.chunkerVersion,
+            pages: extracted.pages,
+            chunks: chunks,
+            encryption: nil,
+            createdBy: DeviceIdentity.id,
+            createdAt: ISO8601DateFormatter().string(from: Date()))
+        try CoordinatedIO.writeOnce(MKTCodec.encode(document), to: mktURL)
     }
 
     // MARK: - Helpers

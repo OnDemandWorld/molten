@@ -121,7 +121,7 @@ struct BaseDetailView: View {
                 Spacer()
                 Button("Add files…") { importing = true }
                 Button(indexing ? "Indexing…" : "Process now") {
-                    process()
+                    process(force: true) // K-P3: overrides Waiting for Mac
                 }
                 .disabled(indexing)
                 // K-R1: attach this base to the open conversation.
@@ -178,15 +178,29 @@ struct BaseDetailView: View {
         }
     }
 
-    private func process() {
+    private func process(force: Bool = false) {
         indexing = true
-        status = "Processing…"
         Task {
+            // K-P3: defer to a fresh Mac unless the user forces processing.
+            let deferring = await KnowledgeIndexer.shared.shouldDefer()
+            if !force && deferring {
+                status = "Waiting for Mac" // knowledge.status.waitingForMac
+                indexing = false
+                return
+            }
+            status = "Processing…"
+            #if os(iOS)
+            KnowledgeBackgroundTask.schedule() // K-P6: user-action long job
+            #endif
             // Model download happens once on first Knowledge use (K-E3).
             try? await EmbeddingService.shared.ensureModel { _ in }
-            try? await KnowledgeIndexer.shared.scan(base: base)
-            let count = await KnowledgeStore.shared.documentCount(base: base)
-            status = "\(count) documents indexed"
+            do {
+                try await KnowledgeIndexer.shared.scan(base: base, force: force)
+                let count = await KnowledgeStore.shared.documentCount(base: base)
+                status = "\(count) documents indexed"
+            } catch {
+                status = "Error: \(error.localizedDescription) — tap Process now to retry"
+            }
             indexing = false
         }
     }
@@ -212,6 +226,28 @@ struct KnowledgeOnboarding: View {
         }
         .padding(24)
         .frame(maxWidth: 480)
+    }
+}
+
+// MARK: - Processing settings (K-P3/K-P4)
+
+struct KnowledgeSettingsSection: View {
+    @AppStorage("knowledgeKeepIndexing") private var keepIndexing = true
+    @AppStorage("knowledgeLetMacDoIt") private var letMacDoIt = true
+    @AppStorage("knowledgeProcessingPolicy") private var policy = ProcessingPolicy.bothWhileCharging.rawValue
+
+    var body: some View {
+        Section("Knowledge") {
+            #if os(macOS)
+            Toggle("Keep indexing while Molten is open", isOn: $keepIndexing)
+            #else
+            Toggle("Let my Mac do the heavy lifting", isOn: $letMacDoIt)
+            Picker("Processing on this device", selection: $policy) {
+                Text("Both stages while charging").tag(ProcessingPolicy.bothWhileCharging.rawValue)
+                Text("Always both stages").tag(ProcessingPolicy.alwaysBoth.rawValue)
+            }
+            #endif
+        }
     }
 }
 

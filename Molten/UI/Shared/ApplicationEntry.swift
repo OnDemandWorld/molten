@@ -42,6 +42,22 @@ struct ApplicationEntry: View {
             try? await KnowledgeContainer.migrateLocalToICloud()
             KnowledgeSync.shared.start()
 
+            #if os(iOS)
+            KnowledgeBackgroundTask.register() // K-P6
+            #endif
+
+            // M5: heartbeat while active (K-P5); Mac auto-indexes (K-P3).
+            await HeartbeatService.shared.start {
+                DeviceRoles.allowedStages(policy: DeviceRoles.policy, isCharging: DeviceRoles.isCharging).contains(.embed)
+            }
+            #if os(macOS)
+            if UserDefaults.standard.object(forKey: "knowledgeKeepIndexing") as? Bool ?? true {
+                for base in await KnowledgeStore.shared.bases() {
+                    try? await KnowledgeIndexer.shared.scan(base: base)
+                }
+            }
+            #endif
+
             // Load models and conversations on app start
             do {
                 try await languageModelStore.loadModels()
