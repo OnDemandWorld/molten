@@ -18,11 +18,10 @@ final class AppleFoundationService: @unchecked Sendable, ModelProviderProtocol {
     
     func reachable() async -> Bool {
         #if canImport(FoundationModels)
-        // FoundationModels is available on supported devices
-        // Check if we can create a session
-        _ = LanguageModelSession()
-        // If we can create a session, it's available
-        return true
+        // Reflect real availability (Apple Intelligence enabled + model ready)
+        // instead of always returning true. Also avoids allocating a session
+        // on every reachability poll. Same check `respond(prompt:)` uses.
+        return SystemLanguageModel.default.isAvailable
         #else
         return false
         #endif
