@@ -36,6 +36,12 @@ struct ApplicationEntry: View {
             // M8: entitlements listener + evaluation from launch.
             await EntitlementManager.shared.start()
 
+            // M4: resolve the Knowledge root (Plus → iCloud), migrate local
+            // bases on upgrade, start sync watchers.
+            await KnowledgeContainer.resolveRoot()
+            try? await KnowledgeContainer.migrateLocalToICloud()
+            KnowledgeSync.shared.start()
+
             // Load models and conversations on app start
             do {
                 try await languageModelStore.loadModels()

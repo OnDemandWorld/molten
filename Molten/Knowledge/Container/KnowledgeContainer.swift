@@ -27,9 +27,49 @@ enum KnowledgeContainer {
         return base.appendingPathComponent("Molten/LocalKnowledge", isDirectory: true)
     }
 
-    /// M3 uses the local layout; M4 switches Plus users to the iCloud root.
+    // M4: resolved root cache. Plus + iCloud available → the shared iCloud
+    // container; otherwise the identical local layout (K-S5). Refreshed at
+    // launch and after entitlement changes via resolveRoot().
+    private static let rootLock = NSLock()
+    private static var cachedRoot: URL?
+
     static func activeRoot() -> URL {
-        localRoot()
+        rootLock.lock()
+        defer { rootLock.unlock() }
+        return cachedRoot ?? localRoot()
+    }
+
+    static func resolveRoot() async {
+        let plus = await EntitlementManager.shared.allows(.iCloudKnowledge)
+        let root = plus ? (iCloudRoot() ?? localRoot()) : localRoot()
+        setCachedRoot(root)
+    }
+
+    private static func setCachedRoot(_ root: URL) {
+        rootLock.lock()
+        cachedRoot = root
+        rootLock.unlock()
+    }
+
+    /// K-S5/A14: upgrading to Plus moves base folders and Index files into
+    /// the iCloud container. Files are content-hash named, so nothing is
+    /// reprocessed.
+    static func migrateLocalToICloud() async throws {
+        guard await EntitlementManager.shared.allows(.iCloudKnowledge),
+              let iCloud = iCloudRoot() else { return }
+        let local = localRoot()
+        guard FileManager.default.fileExists(atPath: local.path) else { return }
+        for area in ["Documents", "Index"] {
+            let source = local.appendingPathComponent(area, isDirectory: true)
+            guard let entries = try? FileManager.default.contentsOfDirectory(atPath: source.path) else { continue }
+            for entry in entries {
+                let from = source.appendingPathComponent(entry)
+                let to = iCloud.appendingPathComponent(area).appendingPathComponent(entry)
+                if FileManager.default.fileExists(atPath: to.path) { continue }
+                try CoordinatedIO.move(from: from, to: to)
+            }
+        }
+        await resolveRoot()
     }
 
     /// K-S3: each top-level folder under Documents/ is one knowledge base.
