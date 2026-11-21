@@ -139,6 +139,39 @@ struct DeviceRoleTests {
     }
 }
 
+@Suite("M5 — Resume durability (A3/A5)", .serialized)
+struct ResumeDurabilityTests {
+    @Test func reprocessingNeverRewritesCompletedOutputs() async throws {
+        // A3's durability guarantee: work is saved per file/per stage, so a
+        // killed-and-resumed run skips completed stages instead of redoing
+        // them. Simulate: write outputs, then verify writeOnce + hash-skip
+        // leave them byte-identical on the second pass.
+        let dir = tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("doc.txt")
+        try "durable content".write(to: source, atomically: true, encoding: .utf8)
+        let hash = try KnowledgeIndexer.sha256(of: source)
+        let output = dir.appendingPathComponent("\(hash).mkt")
+        let document = MKTDocument(
+            schema: 1, sourceHash: hash, mime: "text/plain", extractorVersion: 1,
+            ocrUsed: false, chunkerVersion: 1, pages: [], chunks: [],
+            encryption: nil, createdBy: "t", createdAt: "t")
+        let bytes = try MKTCodec.encode(document)
+        try CoordinatedIO.writeOnce(bytes, to: output)
+        let mtime1 = try FileManager.default.attributesOfItem(atPath: output.path)[.modificationDate] as? Date
+
+        // "Resume": a fresh pass must skip the completed output entirely.
+        try CoordinatedIO.writeOnce(Data("different".utf8), to: output)
+        let mtime2 = try FileManager.default.attributesOfItem(atPath: output.path)[.modificationDate] as? Date
+        #expect(try Data(contentsOf: output) == bytes)
+        #expect(mtime1 == mtime2)
+        // Same content under a new name → same hash → same output path (A5).
+        let renamed = dir.appendingPathComponent("renamed.txt")
+        try FileManager.default.copyItem(at: source, to: renamed)
+        #expect(try KnowledgeIndexer.sha256(of: renamed) == hash)
+    }
+}
+
 @Suite("M5 — Heartbeats (K-P5)", .serialized)
 struct HeartbeatTests {
     @Test func beatWritesDecodableHeartbeat() async throws {

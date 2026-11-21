@@ -14,8 +14,6 @@ import OSLog
 
 private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "knowledge.store")
 
-typealias BaseID = String
-
 struct Passage: Sendable, Identifiable {
     let id: String
     let text: String
