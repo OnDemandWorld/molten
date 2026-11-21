@@ -388,13 +388,17 @@ struct BaseDetailView: View {
             }
             await FileMapping.shared.remove(path: realPath)
             await FileMapping.shared.remove(path: url.path)
+            // Always drop this base's index row for the removed file. The
+            // hash + "still referenced" gate alone left stale rows whenever
+            // the mapping held duplicate path keys for the same content
+            // (path/Unicode normalization) or another entry shared the hash —
+            // the document count then never decreased.
+            await KnowledgeStore.shared.removeDocument(base: base, name: name)
             if let hash = entry?.hash {
                 let stillReferenced = await FileMapping.shared.referencedHashes().contains(hash)
                 if !stillReferenced {
                     await KnowledgeStore.shared.removeDocument(hash: hash)
                 }
-            } else {
-                await KnowledgeStore.shared.removeDocument(base: base, name: name)
             }
             loadFiles()
             status = "Removed \(name)"

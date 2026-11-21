@@ -71,3 +71,8 @@ ANALYTICS_REVIEW.md
 REFACTOR_OPENAI_API_PLAN.md
 IMPLEMENTATION_SUMMARY.md
 UI_UX_OVERVIEW.md
+
+# Secrets — App Store Connect API keys must never be committed
+*.p8
+private_keys/
+asc-env.sh
