@@ -47,6 +47,16 @@ PRD §10 M1 exit criteria: cosine > 0.999 between Mac and iPhone vectors on
 
 **Pass criterion:** min cosine > 0.999 (K-E5).
 
+## Performance acceptance (M7, 2026-11-14, Mac)
+
+| Criterion | Limit | Measured (Mac) | Status |
+|-----------|-------|----------------|--------|
+| A1: 100-page text PDF extract + chunk | < 60 s | **0.21 s** (215 chunks) | ✅ pass |
+| A4: hybrid search, 20,000 chunks | < 200 ms | **50.8 ms** (8 hits) | ✅ pass |
+
+iPhone measurements pending the provisioned-device run (same owner action;
+run with the `build/session/MOLTEN_PERF` marker).
+
 **iOS status (2026-11-13):** code compiles for iOS (arm64 device + simulator).
 Runtime verification on simulator is **blocked by MLX 0.32.3 incompatibilities**
 (nil GPU architecture name → std::string abort; then MTLSimDevice heap
