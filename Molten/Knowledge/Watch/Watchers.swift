@@ -29,8 +29,8 @@ actor FileMapping {
     private var entries: [String: FileMapEntry] = [:]
     private let url: URL
 
-    init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    init(directory: URL? = nil) {
+        let base = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Molten", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         url = base.appendingPathComponent("filemap.json")
@@ -237,6 +237,9 @@ final class KnowledgeSync {
                 .appendingPathComponent(".\(url.lastPathComponent).icloud")
             if fm.fileExists(atPath: placeholder.path) { continue }
             await FileMapping.shared.remove(path: path)
+            // Drop the row by base+name unconditionally (see removeFile): the
+            // hash gate alone can leave stale rows when path keys duplicate.
+            await KnowledgeStore.shared.removeDocument(base: entry.base, name: entry.name)
             let stillReferenced = await FileMapping.shared.referencedHashes().contains(entry.hash)
             if !stillReferenced {
                 await KnowledgeStore.shared.removeDocument(hash: entry.hash)

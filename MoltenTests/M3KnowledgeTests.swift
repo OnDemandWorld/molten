@@ -472,6 +472,86 @@ struct KnowledgeFileIOTests {
     }
 }
 
+@Suite("2.0.1 — document removal drops the index count (repro)")
+struct DocumentRemovalTests {
+    /// Mirrors BaseDetailView.removeFile's store/mapping sequence.
+    private func removeLikeUI(url: URL, baseDir: URL, base: String,
+                              store: KnowledgeStore, mapping: FileMapping) async throws {
+        let name = url.lastPathComponent
+        let realPath = baseDir.appendingPathComponent(name).path
+        var entry = await mapping.entry(forPath: realPath)
+        if entry == nil { entry = await mapping.entry(forPath: url.path) }
+        try? FileManager.default.removeItem(at: url) // stand-in for coordinatedDelete
+        await mapping.remove(path: realPath)
+        await mapping.remove(path: url.path)
+        await store.removeDocument(base: base, name: name)
+        if let hash = entry?.hash {
+            let still = await mapping.referencedHashes().contains(hash)
+            if !still { await store.removeDocument(hash: hash) }
+        }
+    }
+
+    private func seed(_ names: [String], base: String, baseDir: URL,
+                      store: KnowledgeStore, mapping: FileMapping) async throws {
+        for (i, name) in names.enumerated() {
+            let file = baseDir.appendingPathComponent(name)
+            try Data("content \(i)".utf8).write(to: file)
+            let hash = try KnowledgeIndexer.sha256(of: file)
+            let mkt = tempDir().appendingPathComponent("\(hash).mkt")
+            try MKTCodec.encode(sampleDocument(hash: hash)).write(to: mkt)
+            try await store.ingest(mkt: mkt, base: base, name: name)
+            await mapping.update(path: file.path, entry: FileMapEntry(hash: hash, base: base, name: name, mtime: 0))
+        }
+    }
+
+    @Test func removingOneOfThreeDropsCountToTwo() async throws {
+        let store = KnowledgeStore(directory: tempDir())
+        let mapping = FileMapping(directory: tempDir())
+        let baseDir = tempDir()
+        try await seed(["a.txt", "b.txt", "c.txt"], base: "B", baseDir: baseDir, store: store, mapping: mapping)
+        #expect(await store.documentCount(base: "B") == 3)
+        try await removeLikeUI(url: baseDir.appendingPathComponent("b.txt"), baseDir: baseDir, base: "B", store: store, mapping: mapping)
+        #expect(await store.documentCount(base: "B") == 2)
+    }
+
+    @Test func removalWhenMappingEntryMissing() async throws {
+        // Device ingested via synced .mkt but never mapped the source path.
+        let store = KnowledgeStore(directory: tempDir())
+        let mapping = FileMapping(directory: tempDir())
+        let baseDir = tempDir()
+        let file = baseDir.appendingPathComponent("a.txt")
+        try Data("a".utf8).write(to: file)
+        let hash = try KnowledgeIndexer.sha256(of: file)
+        let mkt = tempDir().appendingPathComponent("\(hash).mkt")
+        try MKTCodec.encode(sampleDocument(hash: hash)).write(to: mkt)
+        try await store.ingest(mkt: mkt, base: "B", name: "a.txt")
+        // no mapping.update — entry is nil
+        #expect(await store.documentCount(base: "B") == 1)
+        try await removeLikeUI(url: file, baseDir: baseDir, base: "B", store: store, mapping: mapping)
+        #expect(await store.documentCount(base: "B") == 0)
+    }
+
+    @Test func removalDropsCountEvenWhenHashStillReferenced() async throws {
+        // Regression: a duplicate mapping key for the same content (path /
+        // Unicode normalization artifact) kept "still referenced" true, so the
+        // old hash-only gate skipped removal and the count never decreased.
+        let store = KnowledgeStore(directory: tempDir())
+        let mapping = FileMapping(directory: tempDir())
+        let baseDir = tempDir()
+        let file = baseDir.appendingPathComponent("a.txt")
+        try Data("a".utf8).write(to: file)
+        let hash = try KnowledgeIndexer.sha256(of: file)
+        let mkt = tempDir().appendingPathComponent("\(hash).mkt")
+        try MKTCodec.encode(sampleDocument(hash: hash)).write(to: mkt)
+        try await store.ingest(mkt: mkt, base: "B", name: "a.txt")
+        await mapping.update(path: file.path, entry: FileMapEntry(hash: hash, base: "B", name: "a.txt", mtime: 0))
+        await mapping.update(path: file.path + "#dup", entry: FileMapEntry(hash: hash, base: "B", name: "a.txt", mtime: 0))
+        #expect(await store.documentCount(base: "B") == 1)
+        try await removeLikeUI(url: file, baseDir: baseDir, base: "B", store: store, mapping: mapping)
+        #expect(await store.documentCount(base: "B") == 0)
+    }
+}
+
 #if os(macOS)
 private typealias PlatformFont = NSFont
 #else
