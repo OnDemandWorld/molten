@@ -139,6 +139,9 @@
 		200000000000000000000413 /* M4KnowledgeSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000412 /* M4KnowledgeSyncTests.swift */; };
 		200000000000000000000415 /* KnowledgeBackgroundTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000414 /* KnowledgeBackgroundTask.swift */; };
 		200000000000000000000417 /* M5ProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000416 /* M5ProcessingTests.swift */; };
+		200000000000000000000419 /* ContextWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000418 /* ContextWindow.swift */; };
+		20000000000000000000041B /* MoltenMigrationPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000041A /* MoltenMigrationPlan.swift */; };
+		20000000000000000000041D /* M6ConversationsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000041C /* M6ConversationsTests.swift */; };
 		AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0F400000000000000000D1 /* AnalyticsTests.swift */; };
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
@@ -293,6 +296,9 @@
 		200000000000000000000412 /* M4KnowledgeSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M4KnowledgeSyncTests.swift; sourceTree = "<group>"; };
 		200000000000000000000414 /* KnowledgeBackgroundTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeBackgroundTask.swift; sourceTree = "<group>"; };
 		200000000000000000000416 /* M5ProcessingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M5ProcessingTests.swift; sourceTree = "<group>"; };
+		200000000000000000000418 /* ContextWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextWindow.swift; sourceTree = "<group>"; };
+		20000000000000000000041A /* MoltenMigrationPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoltenMigrationPlan.swift; sourceTree = "<group>"; };
+		20000000000000000000041C /* M6ConversationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = M6ConversationsTests.swift; sourceTree = "<group>"; };
 		AD0F400000000000000000D1 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
@@ -361,6 +367,7 @@
 			isa = PBXGroup;
 			children = (
 				FF1002482B25BE580011A4DC /* Models */,
+				20000000000000000000041A /* MoltenMigrationPlan.swift */,
 			);
 			path = SwiftData;
 			sourceTree = "<group>";
@@ -696,6 +703,7 @@
 				20000000000000000000040E /* M3KnowledgeTests.swift */,
 				200000000000000000000412 /* M4KnowledgeSyncTests.swift */,
 				200000000000000000000416 /* M5ProcessingTests.swift */,
+				20000000000000000000041C /* M6ConversationsTests.swift */,
 				AD0F400000000000000000D1 /* AnalyticsTests.swift */,
 				AE5A000000000000000000A3 /* PromptSuggestionTests.swift */,
 			);
@@ -724,6 +732,7 @@
 				200000000000000000000034 /* ContextBudget.swift */,
 				200000000000000000000036 /* TokenEstimator.swift */,
 				200000000000000000000038 /* ContextRing.swift */,
+				200000000000000000000418 /* ContextWindow.swift */,
 			);
 			path = Context;
 			sourceTree = "<group>";
@@ -1078,6 +1087,8 @@
 				20000000000000000000040D /* DeviceIdentity.swift in Sources */,
 				200000000000000000000411 /* CoordinatedIO.swift in Sources */,
 				200000000000000000000415 /* KnowledgeBackgroundTask.swift in Sources */,
+				200000000000000000000419 /* ContextWindow.swift in Sources */,
+				20000000000000000000041B /* MoltenMigrationPlan.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1095,6 +1106,7 @@
 				20000000000000000000040F /* M3KnowledgeTests.swift in Sources */,
 				200000000000000000000413 /* M4KnowledgeSyncTests.swift in Sources */,
 				200000000000000000000417 /* M5ProcessingTests.swift in Sources */,
+				20000000000000000000041D /* M6ConversationsTests.swift in Sources */,
 				AD0F400000000000000000D2 /* AnalyticsTests.swift in Sources */,
 				AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */,
 			);

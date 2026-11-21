@@ -337,6 +337,19 @@ final class ConversationStore: @unchecked Sendable {
                 }
             }
 
+            // X2: budget the context window — history newest-first with a
+            // reply reserve; system messages (incl. Knowledge grounding) kept.
+            let window = await ContextWindow.window(for: model)
+            let systemMessages = requestHistory.filter { $0.role == "system" }
+            let systemTokens = systemMessages.reduce(0) { $0 + TokenEstimator.estimate($1.content?.textContent ?? "") }
+            let allocation = ContextBudget().allocate(
+                window: window,
+                system: systemTokens,
+                reserve: ContextBudget.defaultReserve(window: window),
+                chunks: [],
+                history: requestHistory.filter { $0.role != "system" })
+            requestHistory = systemMessages + allocation.history
+
             // Get the appropriate provider based on model
             guard let provider = getProvider(for: model) else {
                 await MainActor.run {
@@ -526,6 +539,19 @@ final class ConversationStore: @unchecked Sendable {
 
         // Finalize message and reset state
         finalizeMessage()
+
+        // C3: auto-title after the first exchange (AFM first, active model
+        // fallback; only while the conversation keeps its default name).
+        if let conversation = selectedConversation {
+            let fallbackModel = conversation.model
+            let fallbackProvider = fallbackModel.flatMap { getProvider(for: $0) }
+            Task {
+                await AutoTitler.shared.titleIfNeeded(
+                    conversation: conversation,
+                    fallbackProvider: fallbackProvider,
+                    fallbackModel: fallbackModel?.name)
+            }
+        }
     }
 
     @MainActor

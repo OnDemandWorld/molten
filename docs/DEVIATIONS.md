@@ -18,6 +18,13 @@ requirement ID and reason.
 | §0.9 | Existing v1.1 tests are XCTest; new milestone tests use Swift Testing. Both frameworks coexist in the `MoltenTests` target. | PRD mandates Swift Testing for new tests; rewriting the existing suite is out of scope (§0.7: do not change existing behavior). |
 | K-S1 (signing) | macOS compile + tests verified with `CODE_SIGNING_ALLOWED=NO`. The iCloud capability requires a Mac App Development provisioning profile; `xcodebuild -allowProvisioningUpdates` cannot authenticate the developer account from the agent environment ("login details rejected"). iOS Simulator builds succeed (no provisioning required). | **Owner action:** open the project in Xcode once, signed in as edward@ondemandworld.com, and let automatic signing register the iCloud container `iCloud.DVGF44TKAX.com.ondemandworld.molten` and create the profile. After that, normal signed builds work. Entitlements themselves are complete and identical across targets as required. |
 
+## M6 — Conversations and context (2026-11-14)
+
+| ID | Deviation | Reason |
+|----|-----------|--------|
+| C4/A10 | Migration test verifies the versioned plan reopens an existing store with zero data loss, 2.0-only fields nil on legacy rows, and search/export working on that data. A synthetic "drop the new columns" fixture proved unreliable in-process (SwiftData container caching + WAL semantics), so the physical v1.1→2.0 upgrade is verified by the PRD §11 beta step "upgrade a production 1.1 install to the beta" (owner action, M7). | v1.1→2.0 adds only optional properties — SwiftData lightweight migration; the plan is versioned for future custom stages. |
+| X1 | Context ring estimates usage from the composer text; full-history usage accounting uses the X2 allocator at send time. Per-message historical usage display is a polish item. | Keeps the composer lightweight; the send-time budget is the functional guarantee. |
+
 ## M5 — Processing on the best device (2026-11-14)
 
 | ID | Deviation | Reason |
