@@ -9,7 +9,12 @@ Molten is a privacy-first macOS, iOS, and iPadOS app that runs local LLMs — Ol
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000000?logo=apple&logoColor=white)
 ![iPadOS](https://img.shields.io/badge/iPadOS-26.0+-000000?logo=apple&logoColor=white)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
-[![App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/hk/app/molten-local-ai-chat/id6758496039)
+[![App Store](https://img.shields.io/badge/Download_on_the-App_Store-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/hk/app/molten-local-ai-doc-chat/id6758496039)
+
+> **Latest release: 2.0** (November 2026) — "Your documents join the
+> conversation." Full shipped feature spec:
+> [docs/PRD_v2.0.md](docs/PRD_v2.0.md) · release notes:
+> [RELEASE_NOTES_v2.0.md](RELEASE_NOTES_v2.0.md)
 
 ## 🌟 Key Differentiators
 
@@ -47,7 +52,8 @@ Protection.
 ### Knowledge (Molten 2.0, Plus)
 - **Private knowledge bases**: drop PDFs, text, Markdown, RTF, HTML, DOCX or images into the shared **Molten** folder in iCloud Drive — one folder per base
 - **Process once, reuse everywhere**: your Mac extracts, OCRs (scanned PDFs/images) and embeds each document once; iPhone and iPad reuse the finished index — no reprocessing on rename, move, duplicate, or second device
-- **Cited answers**: attach a base to any chat (or type `@Base name …`); answers cite numbered sources, and citation chips open the original file
+- **Cited answers**: tap **Use in Chat** on a base (or type `@Base name …`); answers cite numbered sources, and citation chips open the original file
+- **Share into Knowledge**: on iPhone/iPad, the "Add to Molten Knowledge" share extension ingests files straight into a base from any app
 - **Hybrid search**: semantic (on-device e5-small embeddings via MLX) + keyword (FTS5), merged with reciprocal rank fusion; keyword search works before the model downloads and offline
 - **Smart processing**: your Mac does the heavy lifting while iPhone defers (or processes while charging); background processing survives app switches; per-file status, retry on failure
 - **Free tier**: 1 base, up to 10 documents, on-device; "use a document once in this chat" is free for everyone
@@ -132,7 +138,7 @@ Molten follows a clean architecture pattern with clear separation of concerns:
 ### Installation
 
 #### Option 1: App Store (recommended)
-Download [Molten on the App Store](https://apps.apple.com/hk/app/molten-local-ai-chat/id6758496039) — one purchase, macOS, iPhone, and iPad.
+Download [Molten on the App Store](https://apps.apple.com/hk/app/molten-local-ai-doc-chat/id6758496039) — one purchase, macOS, iPhone, and iPad.
 
 #### Option 2: Download Pre-built App
 Download the latest release from the [Releases](https://github.com/OnDemandWorld/molten/releases) page.
@@ -447,10 +453,10 @@ Molten is based on the excellent work of the [Enchanted](https://github.com/gluo
 
 - [x] iOS/iPadOS support
 - [x] OpenAI-compatible server support (oMLX, Swama, …)
-- [x] Knowledge bases (RAG) with iCloud sharing and cited answers (2.0)
-- [x] Conversation search, export/import, auto-titles (2.0)
-- [x] Context meter and budgeting (2.0)
-- [x] Free/Plus tiers with Early Supporter lifetime Plus (2.0)
+- [x] **2.0 — shipped Nov 2026**: Knowledge bases (RAG) with iCloud sharing and cited answers; share extension
+- [x] 2.0: Conversation search, export/import, auto-titles
+- [x] 2.0: Context meter and budgeting
+- [x] 2.0: Free/Plus tiers with Early Supporter lifetime Plus
 - [ ] 2.1: iCloud chat-history sync, personas, auto-compact, index encryption
 - [ ] 2.2: tool calling + MCP, Pro tier
 - [ ] 2.3: multi-model compare, message branching, artifacts/LaTeX/Mermaid
