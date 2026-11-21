@@ -81,7 +81,12 @@ struct KnowledgeSidebar: View {
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .sheet(isPresented: Binding(
             get: { selectedBase != nil },
-            set: { if !$0 { selectedBase = nil } })) {
+            set: { if !$0 { selectedBase = nil } }),
+            onDismiss: {
+                // Adding/removing documents in the detail sheet mutates the
+                // store; re-query so the sidebar count doesn't stay stale.
+                Task { await refresh() }
+            }) {
             if let base = selectedBase { BaseDetailView(base: base, onUseInChat: onUseInChat) }
         }
         .alert("New knowledge base", isPresented: $showNewBase) {
@@ -93,10 +98,14 @@ struct KnowledgeSidebar: View {
     }
 
     private func refresh() async {
-        bases = await KnowledgeStore.shared.bases()
-        for base in bases {
-            counts[base] = await KnowledgeStore.shared.documentCount(base: base)
+        let currentBases = await KnowledgeStore.shared.bases()
+        var newCounts: [BaseID: Int] = [:]
+        for base in currentBases {
+            newCounts[base] = await KnowledgeStore.shared.documentCount(base: base)
         }
+        // Assign together and drop counts for bases that no longer exist.
+        bases = currentBases
+        counts = newCounts
     }
 
     private func attemptNewBase() {
@@ -272,13 +281,68 @@ struct BaseDetailView: View {
         return String(name.dropFirst().dropLast(".icloud".count))
     }
 
-    private func loadFiles() {
-        let dir = KnowledgeContainer.baseDirectory(base)
+    // Blocking file I/O runs off the main actor (via Task.detached) so adding
+    // a large PDF or a coordinated iCloud delete can't freeze the UI. These
+    // helpers are nonisolated and capture only Sendable values; the calling
+    // view methods marshal the results back to @State on the main actor.
+
+    nonisolated static func enumerateFiles(in dir: URL) -> [URL] {
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: dir, includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants])) ?? []
-        files = urls
+        return urls
             .filter { $0.lastPathComponent != ".DS_Store" }
-            .sorted { Self.displayName($0).localizedStandardCompare(Self.displayName($1)) == .orderedAscending }
+            .sorted { displayName($0).localizedStandardCompare(displayName($1)) == .orderedAscending }
+    }
+
+    nonisolated static func copyImportedFiles(
+        _ urls: [URL], into dir: URL, existing: Int, unlimited: Bool
+    ) -> (added: Int, hitLimit: Bool, error: String?) {
+        var added = 0
+        var hitLimit = false
+        var lastError: String?
+        for url in urls {
+            guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else {
+                hitLimit = true
+                break
+            }
+            let secured = url.startAccessingSecurityScopedResource()
+            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+            let dest = dir.appendingPathComponent(url.lastPathComponent)
+            do {
+                // Re-adding an updated file replaces the old copy.
+                if FileManager.default.fileExists(atPath: dest.path) {
+                    try FileManager.default.removeItem(at: dest)
+                }
+                try FileManager.default.copyItem(at: url, to: dest)
+                added += 1 // count only successful copies against the limit
+            } catch let copyError {
+                lastError = "Could not add \(url.lastPathComponent): \(copyError.localizedDescription)"
+            }
+        }
+        return (added, hitLimit, lastError)
+    }
+
+    nonisolated static func coordinatedDelete(_ url: URL) -> Bool {
+        var removed = false
+        var coordinatorError: NSError?
+        NSFileCoordinator().coordinate(
+            writingItemAt: url, options: .forDeleting, error: &coordinatorError) { newURL in
+            do {
+                try FileManager.default.removeItem(at: newURL)
+                removed = true
+            } catch {}
+        }
+        return removed
+    }
+
+    private func loadFiles() {
+        let dir = KnowledgeContainer.baseDirectory(base)
+        Task {
+            let sorted = await Task.detached(priority: .userInitiated) {
+                Self.enumerateFiles(in: dir)
+            }.value
+            files = sorted
+        }
     }
 
     /// K-R1: attach the base to the open conversation (or start a new one),
@@ -315,15 +379,9 @@ struct BaseDetailView: View {
             let entry = await FileMapping.shared.entry(forPath: realPath)
                 ?? FileMapping.shared.entry(forPath: url.path)
 
-            var removed = false
-            var coordinatorError: NSError?
-            NSFileCoordinator().coordinate(
-                writingItemAt: url, options: .forDeleting, error: &coordinatorError) { newURL in
-                do {
-                    try FileManager.default.removeItem(at: newURL)
-                    removed = true
-                } catch {}
-            }
+            let removed = await Task.detached(priority: .userInitiated) {
+                Self.coordinatedDelete(url)
+            }.value
             guard removed else {
                 status = "Could not remove \(name)"
                 return
@@ -347,26 +405,12 @@ struct BaseDetailView: View {
         Task {
             let unlimited = await EntitlementManager.shared.allows(.unlimitedKnowledge)
             let existing = await KnowledgeStore.shared.documentCount(base: base)
-            var added = 0
-            for url in urls {
-                guard KnowledgeLimits.canAddDocument(existing: existing + added, unlimited: unlimited) else {
-                    showPaywall = true // K-U5: over a limit opens the paywall
-                    break
-                }
-                let secured = url.startAccessingSecurityScopedResource()
-                defer { if secured { url.stopAccessingSecurityScopedResource() } }
-                let dest = KnowledgeContainer.baseDirectory(base).appendingPathComponent(url.lastPathComponent)
-                do {
-                    // Re-adding an updated file replaces the old copy.
-                    if FileManager.default.fileExists(atPath: dest.path) {
-                        try FileManager.default.removeItem(at: dest)
-                    }
-                    try FileManager.default.copyItem(at: url, to: dest)
-                    added += 1 // count only successful copies against the limit
-                } catch {
-                    status = "Could not add \(url.lastPathComponent): \(error.localizedDescription)"
-                }
-            }
+            let dir = KnowledgeContainer.baseDirectory(base)
+            let result = await Task.detached(priority: .userInitiated) {
+                Self.copyImportedFiles(urls, into: dir, existing: existing, unlimited: unlimited)
+            }.value
+            if result.hitLimit { showPaywall = true } // K-U5: over a limit opens the paywall
+            if let error = result.error { status = error }
             loadFiles()
             process()
         }

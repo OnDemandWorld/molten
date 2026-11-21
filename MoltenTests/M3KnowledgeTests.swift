@@ -434,6 +434,44 @@ struct ReviewRound3Tests {
     }
 }
 
+@Suite("2.0.1 — Knowledge file I/O helpers (off-main refactor)")
+struct KnowledgeFileIOTests {
+    @Test func enumerateFilesFiltersAndSorts() throws {
+        let dir = tempDir()
+        for name in ["zebra.txt", "apple.txt", ".DS_Store"] {
+            try Data("x".utf8).write(to: dir.appendingPathComponent(name))
+        }
+        let result = BaseDetailView.enumerateFiles(in: dir)
+        #expect(result.map(\.lastPathComponent) == ["apple.txt", "zebra.txt"])
+    }
+
+    @Test func copyImportedFilesEnforcesFreeLimit() throws {
+        let src = tempDir()
+        let dest = tempDir()
+        let a = src.appendingPathComponent("a.txt")
+        let b = src.appendingPathComponent("b.txt")
+        try Data("a".utf8).write(to: a)
+        try Data("b".utf8).write(to: b)
+        // Free limit is 10; with 9 already present only one more fits.
+        let result = BaseDetailView.copyImportedFiles([a, b], into: dest, existing: 9, unlimited: false)
+        #expect(result.added == 1)
+        #expect(result.hitLimit == true)
+        #expect(result.error == nil)
+        #expect(FileManager.default.fileExists(atPath: dest.appendingPathComponent("a.txt").path))
+        #expect(!FileManager.default.fileExists(atPath: dest.appendingPathComponent("b.txt").path))
+    }
+
+    @Test func copyImportedFilesUnlimitedCopiesAll() throws {
+        let src = tempDir()
+        let dest = tempDir()
+        let a = src.appendingPathComponent("a.txt")
+        try Data("a".utf8).write(to: a)
+        let result = BaseDetailView.copyImportedFiles([a], into: dest, existing: 100, unlimited: true)
+        #expect(result.added == 1)
+        #expect(result.hitLimit == false)
+    }
+}
+
 #if os(macOS)
 private typealias PlatformFont = NSFont
 #else
