@@ -34,6 +34,7 @@ struct ChatView: View {
     /// Image selection
     @State private var pickerSelectorActive: PhotosPickerItem?
     @State private var selectedImage: Image?
+    @State private var docSelectingActive: Bool = false
     
     init(
         conversation: ConversationSD? = nil,
@@ -162,6 +163,18 @@ struct ChatView: View {
                 RecordingView(speechRecognizer: speechRecognizer, isRecording: $isRecording.animation()) { transcription in
                     self.message = transcription
                 }
+
+                // K-U4: use a document once in this chat (Free, not indexed).
+                SimpleFloatingButton(systemImage: "doc.text", onClick: { docSelectingActive.toggle() }, accessibilityTitle: "Use document once")
+                    .fileImporter(isPresented: $docSelectingActive, allowedContentTypes: [.pdf, .plainText, .rtf, .html], allowsMultipleSelection: false) { result in
+                        if case .success(let urls) = result, let url = urls.first {
+                            Task {
+                                if let text = await UseOnce.extractText(from: url) {
+                                    message += "\n\n[Document: \(url.lastPathComponent)]\n" + text
+                                }
+                            }
+                        }
+                    }
             }
             .padding(.horizontal)
             .overlay(

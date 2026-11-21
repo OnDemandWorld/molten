@@ -27,6 +27,33 @@ enum KnowledgeContainer {
         return base.appendingPathComponent("Molten/LocalKnowledge", isDirectory: true)
     }
 
+    /// M3 uses the local layout; M4 switches Plus users to the iCloud root.
+    static func activeRoot() -> URL {
+        localRoot()
+    }
+
+    /// K-S3: each top-level folder under Documents/ is one knowledge base.
+    static func documentsRoot() -> URL {
+        activeRoot().appendingPathComponent("Documents", isDirectory: true)
+    }
+
+    /// K-D layout: hidden, synced index area.
+    static func indexRoot() -> URL {
+        activeRoot().appendingPathComponent("Index", isDirectory: true)
+    }
+
+    static func textDirectory() -> URL {
+        indexRoot().appendingPathComponent("text", isDirectory: true)
+    }
+
+    static func vectorsDirectory(profile: String) -> URL {
+        indexRoot().appendingPathComponent("vectors/\(profile)", isDirectory: true)
+    }
+
+    static func baseDirectory(_ base: BaseID) -> URL {
+        documentsRoot().appendingPathComponent(base, isDirectory: true)
+    }
+
     /// K-S6: DEBUG launch check — warn when the container does not resolve
     /// to the expected identifier. Called from ApplicationEntry.task.
     #if DEBUG

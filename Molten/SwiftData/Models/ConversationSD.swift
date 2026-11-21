@@ -16,6 +16,10 @@ final class ConversationSD: Identifiable {
     var createdAt: Date
     var updatedAt: Date
 
+    /// K-R1: attached knowledge base (per conversation). Optional addition —
+    /// SwiftData lightweight migration; nil for all v1.1 conversations.
+    var attachedKnowledgeBase: String?
+
     @Relationship(deleteRule: .nullify)
     var model: LanguageModelSD?
 

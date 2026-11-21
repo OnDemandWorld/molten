@@ -37,7 +37,10 @@ struct SidebarView: View {
                 )
             }
             .scrollIndicators(.never)
-            
+
+            // Molten 2.0 — K-U1: Knowledge bases.
+            KnowledgeSidebar()
+
             Divider()
             
 #if os(macOS)
