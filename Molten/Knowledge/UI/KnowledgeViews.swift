@@ -40,6 +40,7 @@ struct KnowledgeSidebar: View {
     @State private var showNewBase = false
     @State private var selectedBase: BaseID?
     @State private var baseError: String?
+    @State private var ui = EntitlementUIModel.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -50,7 +51,9 @@ struct KnowledgeSidebar: View {
                 Button {
                     attemptNewBase()
                 } label: {
-                    Image(systemName: "plus")
+                    // Lock once the Free base limit is reached, so the limit
+                    // is visible before the tap ("without ads" doc).
+                    Image(systemName: ui.tier == .free && !bases.isEmpty ? "lock.fill" : "plus")
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("New knowledge base")
@@ -63,9 +66,17 @@ struct KnowledgeSidebar: View {
                         Image(systemName: "books.vertical")
                         VStack(alignment: .leading) {
                             Text(base).font(.body)
-                            Text("\(counts[base] ?? 0) documents")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            // Free users see the limit coming: "7 of 10
+                            // documents" (files present, not indexed count).
+                            if ui.tier == .free {
+                                Text("\(counts[base] ?? 0) of \(KnowledgeLimits.freeDocumentCount) documents")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(counts[base] ?? 0) documents")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -80,6 +91,18 @@ struct KnowledgeSidebar: View {
                 Text(baseError)
                     .font(.caption)
                     .foregroundStyle(.red)
+            }
+            // Permanent, non-interrupting sync disclosure for Free users
+            // ("without ads" doc): the gate was invisible before.
+            if ui.tier == .free {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Label("On this device only · Sync with Plus", systemImage: "icloud")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 8)
@@ -105,9 +128,17 @@ struct KnowledgeSidebar: View {
 
     private func refresh() async {
         let currentBases = await KnowledgeStore.shared.bases()
+        let unlimited = await EntitlementManager.shared.allows(.unlimitedKnowledge)
         var newCounts: [BaseID: Int] = [:]
         for base in currentBases {
-            newCounts[base] = await KnowledgeStore.shared.documentCount(base: base)
+            if unlimited {
+                newCounts[base] = await KnowledgeStore.shared.documentCount(base: base)
+            } else {
+                // Free: count files present (matches the add-files gate),
+                // off-main — the indexed count lags on iOS (G1).
+                let dir = KnowledgeContainer.baseDirectory(base)
+                newCounts[base] = await Task.detached { BaseDetailView.countFiles(in: dir) }.value
+            }
         }
         // Assign together and drop counts for bases that no longer exist.
         bases = currentBases
@@ -163,6 +194,9 @@ struct BaseDetailView: View {
     @State private var showDownloadConsent = false
     @State private var showPaywall = false
     @State private var fileToRemove: URL?
+    /// Upsell visibility: scanned pages the Free tier can't read, per file.
+    @State private var ocrNeeded: [URL: Int] = [:]
+    @State private var ocrAllowed = true
 
     var body: some View {
         NavigationStack {
@@ -176,9 +210,24 @@ struct BaseDetailView: View {
                         HStack(spacing: 10) {
                             Image(systemName: Self.isPlaceholder(file) ? "icloud" : "doc")
                                 .foregroundStyle(.secondary)
-                            Text(Self.displayName(file))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(Self.displayName(file))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                // Make the OCR gate visible at the moment it
+                                // matters ("without ads" doc): the file looks
+                                // inert to Free users otherwise.
+                                if let pages = ocrNeeded[file], pages > 0 {
+                                    Button {
+                                        showPaywall = true
+                                    } label: {
+                                        Text("Needs text recognition · Plus — \(pages) scanned page\(pages == 1 ? "" : "s") unread")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                         .contextMenu {
                             Button(role: .destructive) {
@@ -358,7 +407,33 @@ struct BaseDetailView: View {
                 Self.enumerateFiles(in: dir)
             }.value
             files = sorted
+            await refreshOCRState()
         }
+    }
+
+    /// Which files have unread scanned pages for the current tier.
+    private func refreshOCRState() async {
+        ocrAllowed = await EntitlementManager.shared.allows(.ocr)
+        guard !ocrAllowed else {
+            ocrNeeded = [:]
+            return
+        }
+        let currentFiles = files
+        let needed = await Task.detached(priority: .utility) { () -> [URL: Int] in
+            var result: [URL: Int] = [:]
+            for file in currentFiles {
+                if Self.isPlaceholder(file) { continue }
+                let ext = file.pathExtension.lowercased()
+                if ExtractorFactory.imageExtensions.contains(ext) {
+                    result[file] = 1 // images always need OCR
+                } else if ext == "pdf" {
+                    let pages = PDFExtractor.pagesNeedingOCR(in: file)
+                    if pages > 0 { result[file] = pages }
+                }
+            }
+            return result
+        }.value
+        ocrNeeded = needed
     }
 
     /// K-R1: attach the base to the open conversation (or start a new one),
@@ -527,6 +602,7 @@ struct KnowledgeAttachmentBanner: View {
 
 struct KnowledgeOnboarding: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showPaywall = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -538,11 +614,25 @@ struct KnowledgeOnboarding: View {
             Text("Your files sync with your own iCloud account. Molten has no servers. For end-to-end encryption, turn on Advanced Data Protection.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Got it") { dismiss() }
-                .buttonStyle(.borderedProminent)
+            // Non-blocking trial line after the privacy disclosure
+            // ("without ads" doc, step: end of first-base onboarding).
+            if EntitlementUIModel.shared.tier == .free {
+                Text("Plus adds unlimited bases, scanned-PDF reading and sync across devices. Try it free for a week.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Try free for a week") { showPaywall = true }
+                        .buttonStyle(.borderedProminent)
+                    Button("Not now") { dismiss() }
+                }
+            } else {
+                Button("Got it") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+            }
         }
         .padding(24)
         .frame(maxWidth: 480)
+        .sheet(isPresented: $showPaywall) { PaywallView() }
     }
 }
 

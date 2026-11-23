@@ -80,6 +80,21 @@ struct PDFExtractor: Extractor {
     let ocrAllowed: Bool
     static let ocrThreshold = 50 // K-P8
 
+    /// Upsell visibility ("without ads" doc): count pages whose text layer
+    /// is below the OCR threshold — the pages a Free user's scan-skip
+    /// leaves unread. Text-layer check only; no rendering or OCR.
+    static func pagesNeedingOCR(in url: URL) -> Int {
+        guard let document = PDFDocument(url: url) else { return 0 }
+        var count = 0
+        for i in 0..<document.pageCount {
+            let text = document.page(at: i)?.string ?? ""
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).count < ocrThreshold {
+                count += 1
+            }
+        }
+        return count
+    }
+
     func extract(from url: URL) async throws -> ExtractedDocument {
         guard let document = PDFDocument(url: url) else {
             throw ExtractionError.unreadable(url.lastPathComponent)

@@ -77,9 +77,12 @@ struct PaywallView: View {
                 .foregroundStyle(Color.accentColor)
             Text("Molten Plus")
                 .font(.title2.bold())
-            Text("Your documents, on all your devices") // paywall.headline
+            // Trial-first: the 1-week trial (Yearly) is the lowest-commitment
+            // entry point ("without ads" doc).
+            Text("Try Plus free for a week — your documents, on all your devices")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 24)
@@ -101,9 +104,14 @@ struct PaywallView: View {
     }
 
     private var bestValueNote: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "sparkles")
-            Text("Best value: **Yearly** includes a **1-week free trial**.")
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                Text("Best value: **Yearly** includes a **1-week free trial**.")
+            }
+            // Supporter framing for the open-source, no-server audience
+            // ("without ads" doc).
+            Text("Molten has no ads, no tracking, no investors. Plus keeps it that way.")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

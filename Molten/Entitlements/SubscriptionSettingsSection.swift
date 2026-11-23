@@ -80,7 +80,7 @@ struct SubscriptionSettingsSection: View {
     private var planText: String {
         switch (ui.tier, ui.source) {
         case (.plus, .earlySupporter):
-            return "Molten Plus — Early Supporter (lifetime)" // M5
+            return "Molten Plus — Early Supporter ❤︎" // M5
         case (.plus, .subscription):
             return "Molten Plus"
         case (.plus, .lifetime):
@@ -88,7 +88,7 @@ struct SubscriptionSettingsSection: View {
         case (.pro, _):
             return "Molten Pro"
         default:
-            return "Free"
+            return "Free · See what Plus adds"
         }
     }
 }
