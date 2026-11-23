@@ -120,6 +120,62 @@ struct InflateCapTests {
     }
 }
 
+// MARK: - Knowledge integrity (MKV validation, claim ownership, chunk caps)
+
+@Suite("Review fixes — Knowledge integrity")
+struct KnowledgeIntegrityTests {
+    private func mkvData(dims: Int, count: Int) throws -> Data {
+        let header = MKVHeader(
+            schema: 1, sourceHash: String(repeating: "ab", count: 32),
+            profileID: "e5-small-v2", modelRevision: "r", dims: dims, count: count,
+            chunkerVersion: 1, encryption: nil, createdBy: "t", createdAt: "2026-11-24T00:00:00Z")
+        var data = Data("MKV1".utf8)
+        let json = try JSONEncoder().encode(header)
+        var length = UInt32(json.count).littleEndian
+        withUnsafeBytes(of: &length) { data.append(contentsOf: $0) }
+        data.append(json)
+        return data
+    }
+
+    @Test func mkvRejectsZeroDimsAndNegativeCount() throws {
+        #expect(throws: (any Error).self) { try MKVCodec.decode(mkvData(dims: 0, count: 0)) }
+        #expect(throws: (any Error).self) { try MKVCodec.decode(mkvData(dims: 384, count: -1)) }
+    }
+
+    @Test func staleDeviceCannotReleaseSuccessorClaim() async throws {
+        final class Clock: @unchecked Sendable { var now = Date() }
+        let clock = Clock()
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("molten-claims-\(UUID().uuidString)", isDirectory: true)
+        let a = ClaimStore(directory: dir, deviceID: "A", now: { clock.now })
+        let b = ClaimStore(directory: dir, deviceID: "B", now: { clock.now })
+
+        #expect(await a.tryClaim(hash: "h", stage: .extract))
+        clock.now = Date().addingTimeInterval(700) // A's 10-minute lease expired
+        #expect(await b.tryClaim(hash: "h", stage: .extract)) // takeover
+
+        // A finishes late and releases: must NOT delete B's live claim.
+        await a.release(hash: "h", stage: .extract, failed: nil)
+        #expect(await a.tryClaim(hash: "h", stage: .extract) == false)
+    }
+
+    @Test func chunkerSplitsUnbrokenLongRunUnderTheCap() async {
+        let run = String(repeating: "x", count: 4000) // ~1000 tokens, one "word"
+        let chunks = await Chunker.chunk(
+            text: run, pages: [], prefix: "passage: ",
+            tokenCount: { max(1, $0.count / 4) })
+        #expect(!chunks.isEmpty)
+        for chunk in chunks {
+            #expect(chunk.tokens <= Chunker.maxTokens)
+        }
+    }
+
+    @Test func tokenEstimatorCountsCJKPerCharacter() {
+        #expect(TokenEstimator.estimate("你好世界") == 4)
+        #expect(TokenEstimator.estimate("hello world") == 2)
+    }
+}
+
 // MARK: - Model catalog survives provider failures
 
 @Suite("Review fixes — model catalog durability")

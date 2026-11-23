@@ -98,6 +98,11 @@ final class DocumentWatcher: NSObject, @unchecked Sendable {
 final class IndexWatcher: NSObject, @unchecked Sendable {
     private let query = NSMetadataQuery()
     private let store: KnowledgeStore
+    /// Outputs are write-once and content-hash named, so a name seen once
+    /// never needs re-ingesting — every metadata update used to re-read
+    /// and DELETE+re-INSERT every synced file (review 2026-11-24).
+    private let ingestedLock = NSLock()
+    private var ingestedNames: Set<String> = []
 
     init(store: KnowledgeStore = .shared) {
         self.store = store
@@ -154,9 +159,21 @@ final class IndexWatcher: NSObject, @unchecked Sendable {
 
     /// Copy synced outputs into the local cache and ingest them. A2: the
     /// iPhone does zero extraction/embedding — it only reads finished files.
+    private func markIngested(_ key: String) {
+        ingestedLock.lock()
+        ingestedNames.insert(key)
+        ingestedLock.unlock()
+    }
+
     func ingestNewOutputs(_ urls: [URL]) async {
         let manifest = ManifestStore.loadOrCreate()
         for url in urls {
+            // Key by full path: profile directories can hold same-named
+            // outputs for different embedding profiles.
+            ingestedLock.lock()
+            let seen = ingestedNames.contains(url.path)
+            ingestedLock.unlock()
+            if seen { continue }
             if CoordinatedIO.isPlaceholderOrConflict(url) { continue }
             CoordinatedIO.downloadIfNeeded(url)
             guard let data = CoordinatedIO.read(url) else { continue }
@@ -173,12 +190,19 @@ final class IndexWatcher: NSObject, @unchecked Sendable {
                     let mapping = await FileMapping.shared.all()
                     if let entry = mapping.values.first(where: { $0.hash == document.sourceHash }) {
                         try await store.ingest(mkt: cached, base: entry.base, name: entry.name)
+                        markIngested(url.path)
                     }
+                    // No mapping entry yet: leave unmarked so a later
+                    // update retries once the source is mapped.
                 } else if url.pathExtension == "mkv" {
                     let (header, _) = try MKVCodec.decode(data)
                     // K-E2/A6: never mix profiles or revisions.
-                    guard ManifestStore.accepts(header: header, manifest: manifest) else { continue }
+                    guard ManifestStore.accepts(header: header, manifest: manifest) else {
+                        markIngested(url.path) // permanent for this profile
+                        continue
+                    }
                     try await store.ingest(mkv: cached)
+                    markIngested(url.path)
                 }
             } catch {
                 logger.error("Index ingest failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -238,7 +262,10 @@ final class KnowledgeSync {
 
     /// K-D5: local path→hash mapping. Renames/moves only update the mapping;
     /// content-hash outputs are never regenerated (A5).
-    static func refreshMapping() async {
+    /// nonisolated: directory enumeration, per-file resource values, and
+    /// SHA-256 of changed files must not run on the main actor
+    /// (review 2026-11-24: this stalled the UI on every watcher update).
+    nonisolated static func refreshMapping() async {
         let fm = FileManager.default
         let documents = KnowledgeContainer.documentsRoot()
         guard let bases = try? fm.contentsOfDirectory(at: documents, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
@@ -285,7 +312,7 @@ final class KnowledgeSync {
     /// the loss would be permanent. When the last path for a base+name
     /// goes, the row still goes unconditionally, preserving the K-D5
     /// stale-count fix (review 2026-11-24).
-    static func pruneMapping(
+    nonisolated static func pruneMapping(
         mapping: FileMapping,
         store: KnowledgeStore,
         fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }

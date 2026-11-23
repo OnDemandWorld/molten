@@ -59,17 +59,30 @@ struct HFSnapshotDownloader: Downloader {
         for entry in wanted {
             let target = dest.appendingPathComponent(entry.path)
             if FileManager.default.fileExists(atPath: target.path),
-               try Self.verify(file: target, expectedSHA256: entry.sha256) {
+               try Self.verify(file: target, expectedSHA256: entry.sha256, expectedSize: entry.size) {
                 progress.completedUnitCount += 1
                 continue // cached and verified — never re-download (K-E3)
             }
             try FileManager.default.createDirectory(
                 at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
             let url = URL(string: "https://huggingface.co/\(id)/resolve/\(rev)/\(entry.path)")!
-            let (tmp, _) = try await URLSession.shared.download(from: url)
+            let (tmp, response) = try await URLSession.shared.download(from: url)
+            // A captive-portal/error-page 200 must not be cached as a model
+            // file (review 2026-11-24).
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                try? FileManager.default.removeItem(at: tmp)
+                throw KnowledgeError.notImplemented("Download failed for \(entry.path) (HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1))")
+            }
+            // Replace any existing (possibly corrupt) target: moveItem
+            // refuses to overwrite, which used to brick retries forever.
+            if FileManager.default.fileExists(atPath: target.path) {
+                try FileManager.default.removeItem(at: target)
+            }
             try FileManager.default.moveItem(at: tmp, to: target)
-            guard try Self.verify(file: target, expectedSHA256: entry.sha256) else {
-                throw KnowledgeError.notImplemented("Hash mismatch for \(entry.path) (K-E3)")
+            guard try Self.verify(file: target, expectedSHA256: entry.sha256, expectedSize: entry.size) else {
+                // Don't leave the bad file at the target.
+                try? FileManager.default.removeItem(at: target)
+                throw KnowledgeError.notImplemented("Integrity check failed for \(entry.path) (K-E3)")
             }
             progress.completedUnitCount += 1
             logger.info("Downloaded \(entry.path, privacy: .public) (\(entry.size) bytes)")
@@ -121,8 +134,13 @@ struct HFSnapshotDownloader: Downloader {
         return out.filter { $0.size > 0 || $0.lfs != nil }
     }
 
-    static func verify(file: URL, expectedSHA256: String?) throws -> Bool {
-        guard let expected = expectedSHA256 else { return true } // non-LFS: size-only trust
+    static func verify(file: URL, expectedSHA256: String?, expectedSize: Int) throws -> Bool {
+        // Non-LFS files (tokenizer/config JSON) have no hash — the declared
+        // size is the available integrity check (review 2026-11-24: they
+        // used to get zero validation).
+        let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+        if let size = attributes[.size] as? Int, size != expectedSize { return false }
+        guard let expected = expectedSHA256 else { return true }
         let data = try Data(contentsOf: file, options: .mappedIfSafe)
         let digest = SHA256.hash(data: data)
         return digest.compactMap { String(format: "%02x", $0) }.joined() == expected.lowercased()

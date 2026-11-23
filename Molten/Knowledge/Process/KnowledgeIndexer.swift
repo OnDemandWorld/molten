@@ -118,7 +118,9 @@ actor KnowledgeIndexer {
                 return false
             }
             do {
-                try await extractStage(file: file, hash: hash, mktURL: mktURL)
+                try await withClaimRenewal(hash: hash, stage: .extract, claims: claims) {
+                    try await extractStage(file: file, hash: hash, mktURL: mktURL)
+                }
                 await claims.release(hash: hash, stage: .extract, failed: nil)
             } catch {
                 await claims.release(hash: hash, stage: .extract, failed: error.localizedDescription)
@@ -139,26 +141,28 @@ actor KnowledgeIndexer {
         if stages.contains(.embed), await embeddings.isReady {
             guard await claims.tryClaim(hash: hash, stage: .embed) else { return isNew }
             do {
-                if !FileManager.default.fileExists(atPath: mkvURL.path) {
-                    let document = try MKTCodec.decode(Data(contentsOf: mktURL))
-                    let vectors = try await embeddings.embed(passages: document.chunks.map(\.text))
-                    let header = MKVHeader(
-                        schema: 1,
-                        sourceHash: hash,
-                        profileID: profile.id,
-                        modelRevision: profile.modelRevision,
-                        dims: profile.dims,
-                        count: vectors.count,
-                        chunkerVersion: Chunker.chunkerVersion,
-                        encryption: nil,
-                        createdBy: DeviceIdentity.id,
-                        createdAt: ISO8601DateFormatter().string(from: Date()))
-                    try CoordinatedIO.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
-                }
-                // K-E2/A6: only ingest vectors matching the active profile.
-                let (header, _) = try MKVCodec.decode(Data(contentsOf: mkvURL))
-                if ManifestStore.accepts(header: header, manifest: ManifestStore.loadOrCreate()) {
-                    try await store.ingest(mkv: mkvURL)
+                try await withClaimRenewal(hash: hash, stage: .embed, claims: claims) {
+                    if !FileManager.default.fileExists(atPath: mkvURL.path) {
+                        let document = try MKTCodec.decode(Data(contentsOf: mktURL))
+                        let vectors = try await embeddings.embed(passages: document.chunks.map(\.text))
+                        let header = MKVHeader(
+                            schema: 1,
+                            sourceHash: hash,
+                            profileID: profile.id,
+                            modelRevision: profile.modelRevision,
+                            dims: profile.dims,
+                            count: vectors.count,
+                            chunkerVersion: Chunker.chunkerVersion,
+                            encryption: nil,
+                            createdBy: DeviceIdentity.id,
+                            createdAt: ISO8601DateFormatter().string(from: Date()))
+                        try CoordinatedIO.writeOnce(MKVCodec.encode(header: header, vectors: vectors), to: mkvURL)
+                    }
+                    // K-E2/A6: only ingest vectors matching the active profile.
+                    let (header, _) = try MKVCodec.decode(Data(contentsOf: mkvURL))
+                    if ManifestStore.accepts(header: header, manifest: ManifestStore.loadOrCreate()) {
+                        try await store.ingest(mkv: mkvURL)
+                    }
                 }
                 await claims.release(hash: hash, stage: .embed, failed: nil)
             } catch {
@@ -167,6 +171,24 @@ actor KnowledgeIndexer {
             }
         }
         return isNew
+    }
+
+    /// K-P2: leases last 10 minutes; renew every 60s while a stage runs so
+    /// long documents aren't taken over mid-processing (review 2026-11-24:
+    /// ClaimStore.renew had no production callers).
+    private func withClaimRenewal<T>(
+        hash: String, stage: Stage, claims: ClaimStore,
+        _ work: () async throws -> T
+    ) async rethrows -> T {
+        let renewer = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                if Task.isCancelled { break }
+                await claims.renew(hash: hash, stage: stage)
+            }
+        }
+        defer { renewer.cancel() }
+        return try await work()
     }
 
     private func extractStage(file: URL, hash: String, mktURL: URL) async throws {

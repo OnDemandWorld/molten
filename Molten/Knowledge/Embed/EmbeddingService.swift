@@ -66,6 +66,20 @@ actor EmbeddingService {
     private func embed(texts: [String], prefix: String) async throws -> [[Float]] {
         guard let container else { throw KnowledgeError.modelNotReady }
         guard !texts.isEmpty else { return [] }
+        // Batch to bound MLX memory: one unbounded batch for a whole
+        // document risks OOM on large PDFs (review 2026-11-24).
+        let batchSize = 32
+        var vectors: [[Float]] = []
+        vectors.reserveCapacity(texts.count)
+        for start in stride(from: 0, to: texts.count, by: batchSize) {
+            try Task.checkCancellation()
+            let batch = Array(texts[start..<min(start + batchSize, texts.count)])
+            vectors.append(contentsOf: try await embedBatch(batch, prefix: prefix, container: container))
+        }
+        return vectors
+    }
+
+    private func embedBatch(_ texts: [String], prefix: String, container: EmbedderModelContainer) async throws -> [[Float]] {
         let maxTokens = profile.maxTokens
         return await container.perform { context in
             let model = context.model

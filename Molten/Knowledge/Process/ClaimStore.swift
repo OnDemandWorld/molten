@@ -97,6 +97,14 @@ actor ClaimStore {
     /// Release on finish; on failure count attempts and mark .failed at 3.
     func release(hash: String, stage: Stage, failed: String?) {
         let url = claimURL(hash, stage)
+        // Ownership check: a stale device whose lease expired must not
+        // delete the successor's live claim (or write a shared .failed
+        // marker) after takeover (review 2026-11-24).
+        if let data = try? Data(contentsOf: url),
+           let existing = try? JSONDecoder().decode(Claim.self, from: data),
+           existing.deviceID != deviceID {
+            return
+        }
         try? FileManager.default.removeItem(at: url)
         guard let reason = failed else {
             attempts["\(hash).\(stage.rawValue)"] = 0
