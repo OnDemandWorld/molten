@@ -114,6 +114,7 @@ class PanelManager: NSObject, NSApplicationDelegate {
     
     @MainActor
     @objc func onSubmitMessage() {
+        UpsellCoordinator.shared.noteEvent(.panelUse)
         allowPrinting = true
         hidePanel()
         
@@ -131,6 +132,7 @@ class PanelManager: NSObject, NSApplicationDelegate {
     
     @MainActor
     @objc func onSubmitCompletion(scheduledTyping: Bool) {
+        UpsellCoordinator.shared.noteEvent(.panelUse)
         allowPrinting = true
         
         if scheduledTyping {

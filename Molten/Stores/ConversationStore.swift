@@ -288,6 +288,9 @@ final class ConversationStore: @unchecked Sendable {
     func sendPrompt(userPrompt: String, model: LanguageModelSD, image: Image? = nil, systemPrompt: String = "", trimmingMessageId: String? = nil) {
         guard userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 else { return }
 
+        // Upsell counters (local-only suite; tier-gated inside).
+        UpsellCoordinator.shared.noteEvent(.messageSent)
+
         // K-R1: "@Base name …" attaches a knowledge base for this conversation.
         var userPrompt = userPrompt
         if userPrompt.hasPrefix("@") {
@@ -612,6 +615,11 @@ final class ConversationStore: @unchecked Sendable {
 
         lastMessage.error = false
         lastMessage.done = true
+
+        // First cited answer → inline Plus card (soft, frequency-ruled).
+        if lastMessage.knowledgeCitationsData != nil {
+            UpsellCoordinator.shared.noteGroundedAnswer(messageID: lastMessage.id)
+        }
 
         Task(priority: .background) {
             // try?: an unobserved throwing Task silently loses the final

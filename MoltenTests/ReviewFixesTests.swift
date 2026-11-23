@@ -120,6 +120,123 @@ struct InflateCapTests {
     }
 }
 
+// MARK: - Upsell coordinator rules ("without ads" doc)
+
+@MainActor
+@Suite("Upsell coordinator rules")
+struct UpsellCoordinatorTests {
+    private func make() -> (UpsellCoordinator, UserDefaults, String) {
+        let name = "upsell-test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        let coordinator = UpsellCoordinator(defaults: defaults)
+        coordinator.currentTier = { .free }
+        coordinator.isStreaming = { false }
+        coordinator.isPanelActive = { false }
+        return (coordinator, defaults, name)
+    }
+
+    @Test func payingTierNeverPrompts() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        c.currentTier = { .plus }
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+
+    @Test func firstGroundedAnswerShowsCardOnce() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let first = UUID()
+        c.noteGroundedAnswer(messageID: first)
+        #expect(c.groundedCardMessageID == first)
+        c.dismissPrompt()
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+
+    @Test func cooldownSuppressesPrompts() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        c.noteGroundedAnswer(messageID: UUID())   // records lastPrompt = now
+        c.dismissPrompt()
+        // Settled conditions met, but within the 14-day cooldown.
+        d.set(Date().addingTimeInterval(-6 * 86400), forKey: "installDate")
+        d.set(["a", "b", "c"], forKey: "activeDays")
+        d.set(30, forKey: "messages")
+        c.noteEvent(.messageSent)
+        #expect(c.activeSheet == nil)
+    }
+
+    @Test func maxFourPromptsEver() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        d.set(4, forKey: "promptCount")
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+
+    @Test func optOutSuppressesEverything() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        c.optOut()
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+        #expect(c.isOptedOut)
+    }
+
+    @Test func settledInNeedsDaysMessagesAndInstallAge() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        d.set(Date().addingTimeInterval(-6 * 86400), forKey: "installDate")
+        d.set(["a", "b", "c"], forKey: "activeDays")
+        d.set(29, forKey: "messages")
+        c.noteEvent(.messageSent)                  // 30th message
+        #expect(c.activeSheet == .settledIn)
+    }
+
+    @Test func settledInNotBeforeThresholds() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        d.set(Date(), forKey: "installDate")       // too recent
+        d.set(["a", "b", "c"], forKey: "activeDays")
+        d.set(100, forKey: "messages")
+        c.noteEvent(.messageSent)
+        #expect(c.activeSheet == nil)
+    }
+
+    @Test func lapseAcknowledgedOnce() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        d.set(true, forKey: "wasSubscriptionPlus")
+        c.noteEvent(.appLaunch)
+        #expect(c.activeSheet == .subscriptionLapsed)
+        c.dismissPrompt()
+        c.noteEvent(.appLaunch)
+        #expect(c.activeSheet == nil)
+    }
+
+    @Test func hardPaywallSessionSuppressesSoftPrompts() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        c.noteHardPaywall()
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+
+    @Test func streamingSuppressesPrompts() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        c.isStreaming = { true }
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+
+    @Test func panelThanksAtTwentyUses() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        for _ in 0..<20 { c.noteEvent(.panelUse) }
+        #expect(c.activeSheet == .panelThanks)
+    }
+
+    @Test func disabledTriggerNeverPrompts() {
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let saved = UpsellCoordinator.enabledTriggers
+        UpsellCoordinator.enabledTriggers = []
+        defer { UpsellCoordinator.enabledTriggers = saved }
+        c.noteGroundedAnswer(messageID: UUID())
+        #expect(c.groundedCardMessageID == nil)
+    }
+}
+
 // MARK: - Endpoint URL resolution (scheme heuristic fix)
 
 @Suite("Review fixes — endpoint URL resolution")

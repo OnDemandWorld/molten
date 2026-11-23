@@ -84,6 +84,8 @@
 		AE5A000000000000000000A2 /* PromptSuggestionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */; };
 		AE5A000000000000000000A4 /* PromptSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5A000000000000000000A3 /* PromptSuggestionTests.swift */; };
 		AE5B000000000000000000F2 /* ReviewFixesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5B000000000000000000F1 /* ReviewFixesTests.swift */; };
+		AE5C000000000000000000A2 /* UpsellCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5C000000000000000000A1 /* UpsellCoordinator.swift */; };
+		AE5C000000000000000000A4 /* UpsellViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5C000000000000000000A3 /* UpsellViews.swift */; };
 		FF0146CB2B3DA1DF00A2A9F6 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0146CA2B3DA1DF00A2A9F6 /* Settings.swift */; };
 		FF0146CD2B3DADCA00A2A9F6 /* HapticsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0146CC2B3DADCA00A2A9F6 /* HapticsService.swift */; };
 		FF0611EA2C04A11800443B33 /* Magnet in Frameworks */ = {isa = PBXBuildFile; platformFilters = (macos, ); productRef = FF0611E92C04A11800443B33 /* Magnet */; };
@@ -272,6 +274,8 @@
 		AE5A000000000000000000A1 /* PromptSuggestionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionsStore.swift; sourceTree = "<group>"; };
 		AE5A000000000000000000A3 /* PromptSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptSuggestionTests.swift; sourceTree = "<group>"; };
 		AE5B000000000000000000F1 /* ReviewFixesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewFixesTests.swift; sourceTree = "<group>"; };
+		AE5C000000000000000000A1 /* UpsellCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpsellCoordinator.swift; sourceTree = "<group>"; };
+		AE5C000000000000000000A3 /* UpsellViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpsellViews.swift; sourceTree = "<group>"; };
 		FF0146CA2B3DA1DF00A2A9F6 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		FF0146CC2B3DADCA00A2A9F6 /* HapticsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsService.swift; sourceTree = "<group>"; };
 		FF0611F22C04BEFD00443B33 /* AVSpeechSynthesisVoice+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AVSpeechSynthesisVoice+Extension.swift"; sourceTree = "<group>"; };
@@ -416,6 +420,8 @@
 				200000000000000000000405 /* EarlySupporterThankYouView.swift */,
 				200000000000000000000407 /* SubscriptionSettingsSection.swift */,
 				200000000000000000000424 /* ODWLegal.swift */,
+				AE5C000000000000000000A1 /* UpsellCoordinator.swift */,
+				AE5C000000000000000000A3 /* UpsellViews.swift */,
 				200000000000000000000409 /* Molten.storekit */,
 			);
 			path = Entitlements;
@@ -1114,6 +1120,8 @@
 			files = (
 				20000000000000000000000D /* Entitlements.swift in Sources */,
 				20000000000000000000000F /* EntitlementManager.swift in Sources */,
+				AE5C000000000000000000A2 /* UpsellCoordinator.swift in Sources */,
+				AE5C000000000000000000A4 /* UpsellViews.swift in Sources */,
 				200000000000000000000011 /* EarlySupporterDetector.swift in Sources */,
 				200000000000000000000013 /* PaywallView.swift in Sources */,
 				200000000000000000000015 /* KnowledgeContainer.swift in Sources */,

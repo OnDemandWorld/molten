@@ -64,6 +64,11 @@ struct PaywallView: View {
         .task {
             lifetimeProduct = try? await Product.products(for: [Self.lifetimeProductID]).first
         }
+        .onAppear {
+            // Hard paywall this session → suppress soft prompts ("without
+            // ads" doc rule).
+            UpsellCoordinator.shared.noteHardPaywall()
+        }
     }
 
     // MARK: - Sections

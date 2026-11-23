@@ -133,6 +133,17 @@ Availability: **All** = free for everyone · **Plus** = gated today ·
 | D6 | Day-grouped sidebar, delete-a-day, delete-all | All | `SidebarView.swift`, `SwiftDataService` |
 | D7 | Knowledge export/import (zip) | All | `KnowledgeViews.swift:539+` |
 
+### D2. Upsell surfaces (added 2026-11-24, "without ads" strategy)
+
+| ID | Feature | Avail | Hook / notes |
+|---|---|---|---|
+| U1 | OCR gate visible on file rows + tap-to-paywall | Free sees it | `KnowledgeViews.BaseDetailView.refreshOCRState`, `PDFExtractor.pagesNeedingOCR` |
+| U2 | "On this device only · Sync with Plus" line | Free sees it | `KnowledgeSidebar` |
+| U3 | Usage "N of 10 documents" + New Base lock | Free sees it | `KnowledgeSidebar.refresh` (files present) |
+| U4 | Trial-first paywall + supporter copy | All | `PaywallView` |
+| U5 | Soft prompts: first grounded answer card, settled-in sheet, lapse sheet, panel thank-you | Free only, ruled | `UpsellCoordinator` (14-day cooldown, max 4, opt-out, never during streaming/panel/hard-paywall session); counters local in `molten.upsell` suite — no telemetry |
+| U6 | Second-device trigger | **deferred** | needs `ubiquity-kvstore-identifier` entitlement (owner task) |
+
 ### E. Settings & personalization — all free today
 
 Provider URLs + bearer/API keys · default model · system prompt ·

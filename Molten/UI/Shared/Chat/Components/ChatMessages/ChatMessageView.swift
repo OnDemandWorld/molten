@@ -115,6 +115,16 @@ struct ChatMessageView: View {
                        let citations = try? JSONDecoder().decode([CitationRef].self, from: data),
                        !citations.isEmpty {
                         CitationChips(citations: citations)
+                        // First grounded answer: inline Plus card (soft,
+                        // dismissible; "without ads" doc).
+                        if UpsellCoordinator.shared.groundedCardMessageID == message.id {
+                            GroundedAnswerCard(
+                                onSeePlus: {
+                                    UpsellCoordinator.shared.dismissPrompt()
+                                    UpsellCoordinator.shared.showPaywall = true
+                                },
+                                onDismiss: { UpsellCoordinator.shared.dismissPrompt() })
+                        }
                     }
 
                     // Analytics footer for assistant messages
