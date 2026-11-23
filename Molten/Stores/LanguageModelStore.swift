@@ -60,38 +60,46 @@ final class LanguageModelStore: Sendable {
     
     func loadModels() async throws {
         var allModels: [LanguageModel] = []
-        
+        // Providers that actually answered. Only their models may be
+        // deleted from the store — a provider that is down or threw keeps
+        // its stored rows, so a transient failure can't nullify every
+        // conversation.model (review 2026-11-24).
+        var respondedProviders: Set<ModelProvider> = []
+
         // Check and load from Swama
         if await SwamaService.shared.reachable() {
             do {
                 let swamaModels = try await SwamaService.shared.getModels()
                 allModels.append(contentsOf: swamaModels)
+                respondedProviders.insert(.swama)
             } catch {
                 // Log error but continue with other providers
                 logger.error("Failed to load Swama models: \(error.localizedDescription, privacy: .private)")
             }
         }
-        
+
         // Check and load from Ollama
         if await OllamaService.shared.reachable() {
             do {
                 let ollamaModels = try await OllamaService.shared.getModels()
                 allModels.append(contentsOf: ollamaModels)
+                respondedProviders.insert(.ollama)
             } catch {
                 logger.error("Failed to load Ollama models: \(error.localizedDescription, privacy: .private)")
             }
         }
-        
+
         // Check and load from Apple Foundation
         if await AppleFoundationService.shared.reachable() {
             do {
                 let appleModels = try await AppleFoundationService.shared.getModels()
                 allModels.append(contentsOf: appleModels)
+                respondedProviders.insert(.appleFoundation)
             } catch {
                 logger.error("Failed to load Apple Foundation models: \(error.localizedDescription, privacy: .private)")
             }
         }
-        
+
         // Save all models to SwiftData
         let modelsToSave = allModels.map { model in
             LanguageModelSD(
@@ -104,13 +112,17 @@ final class LanguageModelStore: Sendable {
         // provider is deleted by saveModels, which would invalidate the
         // instance currently held by selectedModel.
         let selectedName = self.selectedModel?.name
-        try await swiftDataService.saveModels(models: modelsToSave)
+        try await swiftDataService.saveModels(models: modelsToSave, respondedProviders: respondedProviders)
 
-        // Load stored models and filter to only available ones
+        // Load stored models; keep rows from providers that didn't answer.
         let storedModels = (try? await swiftDataService.fetchModels()) ?? []
 
-        let availableModelNames = allModels.map { $0.name }
-        self.models = storedModels.filter { availableModelNames.contains($0.name) }
+        let availableModelNames = Set(allModels.map { $0.name })
+        self.models = storedModels.filter { model in
+            if availableModelNames.contains(model.name) { return true }
+            guard let provider = model.modelProvider else { return false }
+            return !respondedProviders.contains(provider)
+        }
 
         // Re-anchor the selection to the refreshed instances; drop it if the
         // selected model is gone so the UI can fall back to the default.

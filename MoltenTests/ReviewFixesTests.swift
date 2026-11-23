@@ -120,6 +120,80 @@ struct InflateCapTests {
     }
 }
 
+// MARK: - Model catalog survives provider failures
+
+@Suite("Review fixes — model catalog durability")
+struct ModelCatalogTests {
+    @Test func failedProviderKeepsStoredModels() async throws {
+        let service = SwiftDataService(inMemory: true)
+        let swama = LanguageModelSD(name: "s-model", modelProvider: .swama)
+        let ollama = LanguageModelSD(name: "o-model", modelProvider: .ollama)
+        try await service.saveModels(models: [swama, ollama], respondedProviders: [.swama, .ollama])
+
+        // Swama answered with an empty list; Ollama is down (no response).
+        try await service.saveModels(models: [], respondedProviders: [.swama])
+
+        let stored = try await service.fetchModels()
+        #expect(stored.contains { $0.name == "o-model" })   // kept: provider down
+        #expect(!stored.contains { $0.name == "s-model" })  // gone: provider answered
+    }
+}
+
+// MARK: - Day delete cascades + FTS removal + image round-trip
+
+@Suite("Review fixes — persistence integrity")
+struct PersistenceIntegrityTests {
+    @Test func deletingDayRemovesItsMessages() async throws {
+        let service = SwiftDataService(inMemory: true)
+        let conversation = ConversationSD(name: "c")
+        try await service.createConversation(conversation)
+        let id = conversation.id
+        let message = MessageSD(content: "hello", role: "user")
+        message.conversation = conversation
+        try await service.createMessage(message)
+
+        try await service.deleteConversations(Date(), calendar: .current)
+
+        // Batch delete used to bypass .cascade and orphan these rows.
+        let remaining = try await service.fetchMessages(id)
+        #expect(remaining.isEmpty)
+    }
+
+    @Test func removeMessageDropsSearchHit() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("molten-fts-\(UUID().uuidString)", isDirectory: true)
+        let search = ConversationSearch(directory: dir)
+        let conversation = ConversationSD(name: "conv")
+        let message = MessageSD(content: "zebra quotation", role: "user")
+        search.indexMessage(message, conversation: conversation)
+        #expect(search.search("zebra").count == 1)
+
+        search.removeMessage(messageID: message.id)
+        #expect(search.search("zebra").isEmpty)
+    }
+
+    @Test func exportImportRoundTripsImages() async throws {
+        let service = SwiftDataService(inMemory: true)
+        let conversation = ConversationSD(name: "img")
+        try await service.createConversation(conversation)
+        let originalID = conversation.id
+        let message = MessageSD(content: "look", role: "user", image: Data([1, 2, 3]))
+        message.conversation = conversation
+        try await service.createMessage(message)
+
+        let exported = Exporter.exported(conversation, includeAnalytics: false)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let count = try await Importer.importJSON(try encoder.encode(exported), service: service)
+        #expect(count == 1)
+
+        let conversations = try await service.fetchConversations()
+        let imported = try #require(conversations.first { $0.id != originalID && $0.name == "img" })
+        let messages = try await service.fetchMessages(imported.id)
+        #expect(messages.first?.image == Data([1, 2, 3]))
+    }
+}
+
 // MARK: - Base-name validation (G3 traversal fix)
 
 @Suite("Review fixes — base name validation")

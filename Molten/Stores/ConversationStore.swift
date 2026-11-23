@@ -212,6 +212,9 @@ final class ConversationStore: @unchecked Sendable {
         let fetchedConversations = try await swiftDataService.fetchConversations()
         DispatchQueue.main.async {
             self.selectedConversation = nil
+            // The old messages array holds cascade-deleted instances; an
+            // ungated Copy chat would read them (review 2026-11-24).
+            self.messages = []
             self.conversations = fetchedConversations
         }
     }
@@ -308,9 +311,20 @@ final class ConversationStore: @unchecked Sendable {
 
         /// trim conversation if on edit mode
         if let trimmingMessageId = trimmingMessageId {
-            conversation.messages = conversation.messages
-                .sorted{$0.createdAt < $1.createdAt}
-                .prefix(while: {$0.id.uuidString != trimmingMessageId})
+            let sorted = conversation.messages.sorted { $0.createdAt < $1.createdAt }
+            let kept = sorted.prefix(while: { $0.id.uuidString != trimmingMessageId })
+            let removed = Array(sorted.dropFirst(kept.count))
+            conversation.messages = Array(kept)
+            // Delete the trimmed messages and their FTS rows — reassigning
+            // the relationship only orphans them, leaving ghost search hits
+            // and growing the store (review 2026-11-24).
+            if !removed.isEmpty {
+                Task(priority: .background) { [swiftDataService] in
+                    for message in removed {
+                        try? await swiftDataService.deleteMessage(message)
+                    }
+                }
+            }
         }
 
         /// add system prompt to very first message in the conversation
@@ -600,7 +614,10 @@ final class ConversationStore: @unchecked Sendable {
         lastMessage.done = true
 
         Task(priority: .background) {
-            try await swiftDataService.updateMessage(lastMessage)
+            // try?: an unobserved throwing Task silently loses the final
+            // message state on persistence failure (review 2026-11-24);
+            // match the other save paths instead of trapping the task.
+            try? await swiftDataService.updateMessage(lastMessage)
         }
 
         // Finalize message and reset state
@@ -611,9 +628,10 @@ final class ConversationStore: @unchecked Sendable {
         if let conversation = selectedConversation {
             let fallbackModel = conversation.model
             let fallbackProvider = fallbackModel.flatMap { getProvider(for: $0) }
+            let conversationID = conversation.id
             Task {
                 await AutoTitler.shared.titleIfNeeded(
-                    conversation: conversation,
+                    conversationID: conversationID,
                     fallbackProvider: fallbackProvider,
                     fallbackModel: fallbackModel?.name)
             }
