@@ -76,8 +76,12 @@ final class MessageSD: Identifiable {
 
         if thinkComplete {
             // Extract think content between <think> and </think>
-            guard let endRange = content.range(of: thinkEnd) else {
-                return (hasThink, nil, false, content)
+            // The closing tag must come after the opening one: user-typed
+            // text or malformed model output can contain "</think>" first,
+            // which would trap on the Range precondition (review 2026-11-24).
+            guard let endRange = content.range(of: thinkEnd),
+                  endRange.lowerBound >= startRange.upperBound else {
+                return (false, nil, false, content)
             }
             let thinkContent = String(content[startRange.upperBound..<endRange.lowerBound])
             let realContent = String(content[endRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)

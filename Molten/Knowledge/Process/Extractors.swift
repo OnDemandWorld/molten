@@ -248,7 +248,12 @@ enum MiniZip {
 }
 
 func inflateRawDeflate(_ input: Data) -> Data? {
-    var capacity = max(input.count * 4, 65536)
+    // Hard cap on decompressed output: DOCX parts are untrusted input, and
+    // an unbounded x4 growth loop lets a deflate bomb allocate many GB and
+    // OOM/jetsam the app (review 2026-11-24). 64 MiB is far above any
+    // legitimate document.xml; extraction truncates to a token budget anyway.
+    let maxOutput = 64 * 1024 * 1024
+    var capacity = min(max(input.count * 4, 65536), maxOutput)
     for _ in 0..<10 {
         var output = Data(count: capacity)
         let written = input.withUnsafeBytes { src in
@@ -261,7 +266,10 @@ func inflateRawDeflate(_ input: Data) -> Data? {
         }
         if written == 0 { return nil }
         if written < capacity { return output.prefix(written) }
-        capacity *= 4
+        // Buffer completely filled: either the part exceeds the cap or the
+        // input is a bomb — refuse rather than grow without bound.
+        if capacity >= maxOutput { return nil }
+        capacity = min(capacity * 4, maxOutput)
     }
     return nil
 }

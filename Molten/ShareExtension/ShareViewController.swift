@@ -34,6 +34,11 @@ import UIKit
 import Social
 
 class ShareViewController: SLComposeServiceViewController {
+    /// Share extensions run under a tight memory budget (~120 MB); reading
+    /// a large shared file wholesale gets the extension jetsam-killed.
+    /// Cap the in-memory payload well below that (review 2026-11-24).
+    private static let maxShareBytes = 50 * 1024 * 1024
+
     private var bases: [String] = []
     private var selectedBase: String?
     private var sharedFile: (data: Data, name: String)?
@@ -53,19 +58,39 @@ class ShareViewController: SLComposeServiceViewController {
             ? UTType.fileURL.identifier : UTType.data.identifier
         provider.loadItem(forTypeIdentifier: type, options: nil) { [weak self] item, _ in
             DispatchQueue.main.async {
+                guard let self else { return }
                 if let url = item as? URL {
                     let secured = url.startAccessingSecurityScopedResource()
-                    let data = try? Data(contentsOf: url)
-                    if secured { url.stopAccessingSecurityScopedResource() }
-                    if let data {
-                        self?.sharedFile = (data, url.lastPathComponent)
+                    defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                    // Check the size before reading: an oversized file must
+                    // never be loaded into extension memory.
+                    let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+                    guard size <= Self.maxShareBytes else {
+                        self.showLoadError("This file is too large to share into Knowledge (limit 50 MB). Add it from the Files app instead.")
+                        return
+                    }
+                    if let data = try? Data(contentsOf: url) {
+                        self.sharedFile = (data, url.lastPathComponent)
+                    } else {
+                        self.showLoadError("Couldn't read the shared file.")
                     }
                 } else if let data = item as? Data {
-                    self?.sharedFile = (data, "Shared file")
+                    guard data.count <= Self.maxShareBytes else {
+                        self.showLoadError("This item is too large to share into Knowledge (limit 50 MB).")
+                        return
+                    }
+                    self.sharedFile = (data, "Shared file")
                 }
-                self?.isContentValid()
+                self.isContentValid()
             }
         }
+    }
+
+    /// Surface a load failure in the compose area and keep Post disabled.
+    private func showLoadError(_ message: String) {
+        sharedFile = nil
+        placeholder = message
+        isContentValid()
     }
 
     override func isContentValid() -> Bool {

@@ -127,18 +127,36 @@ final class IndexWatcher: NSObject, @unchecked Sendable {
     }
 
     @objc private func queryUpdated() {
-        Task { await ingestNewOutputs() }
+        // NSMetadataQuery is bound to the run loop that started it (main —
+        // KnowledgeSync.start is @MainActor) and is not thread-safe. Snapshot
+        // the results on the main actor, then do the file/DB work off-main
+        // (review 2026-11-24: this used to read the query from the
+        // cooperative pool, racing its main-run-loop mutations).
+        Task { @MainActor in
+            let urls = self.snapshotResults()
+            await self.ingestNewOutputs(urls)
+        }
+    }
+
+    @MainActor
+    private func snapshotResults() -> [URL] {
+        query.disableUpdates()
+        defer { query.enableUpdates() }
+        var urls: [URL] = []
+        for i in 0..<query.resultCount {
+            if let item = query.result(at: i) as? NSMetadataItem,
+               let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL {
+                urls.append(url)
+            }
+        }
+        return urls
     }
 
     /// Copy synced outputs into the local cache and ingest them. A2: the
     /// iPhone does zero extraction/embedding — it only reads finished files.
-    func ingestNewOutputs() async {
+    func ingestNewOutputs(_ urls: [URL]) async {
         let manifest = ManifestStore.loadOrCreate()
-        query.disableUpdates()
-        defer { query.enableUpdates() }
-        for i in 0..<query.resultCount {
-            guard let item = query.result(at: i) as? NSMetadataItem,
-                  let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { continue }
+        for url in urls {
             if CoordinatedIO.isPlaceholderOrConflict(url) { continue }
             CoordinatedIO.downloadIfNeeded(url)
             guard let data = CoordinatedIO.read(url) else { continue }
@@ -225,24 +243,45 @@ final class KnowledgeSync {
                 }
             }
         }
-        // Prune mapping entries for files deleted on this or another device,
-        // and drop their index rows so deleted documents stop appearing in
-        // search. Evicted iCloud files still exist as ".name.icloud"
-        // placeholders — keep those entries.
-        let mapping = await FileMapping.shared.all()
-        for (path, entry) in mapping {
-            if fm.fileExists(atPath: path) { continue }
+        // Drop mapping entries and index rows for files deleted on this or
+        // another device (see pruneMapping for the collision/K-D5 rules).
+        await pruneMapping(mapping: .shared, store: .shared)
+    }
+
+    /// Prune mapping entries whose files vanished (here or on another
+    /// device) and drop their index rows. Evicted iCloud files still exist
+    /// as ".name.icloud" placeholders — keep those entries.
+    ///
+    /// The base+name row goes only when no remaining mapping entry shares
+    /// it: two live files can share one base+name (same filename in
+    /// different subfolders), and deleting one must not drop the survivor's
+    /// row — the survivor is never re-ingested (mtime-unchanged skip), so
+    /// the loss would be permanent. When the last path for a base+name
+    /// goes, the row still goes unconditionally, preserving the K-D5
+    /// stale-count fix (review 2026-11-24).
+    static func pruneMapping(
+        mapping: FileMapping,
+        store: KnowledgeStore,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) async {
+        let entries = await mapping.all()
+        for (path, entry) in entries {
+            if fileExists(path) { continue }
             let url = URL(fileURLWithPath: path)
             let placeholder = url.deletingLastPathComponent()
                 .appendingPathComponent(".\(url.lastPathComponent).icloud")
-            if fm.fileExists(atPath: placeholder.path) { continue }
-            await FileMapping.shared.remove(path: path)
-            // Drop the row by base+name unconditionally (see removeFile): the
-            // hash gate alone can leave stale rows when path keys duplicate.
-            await KnowledgeStore.shared.removeDocument(base: entry.base, name: entry.name)
-            let stillReferenced = await FileMapping.shared.referencedHashes().contains(entry.hash)
+            if fileExists(placeholder.path) { continue }
+            await mapping.remove(path: path)
+            let remaining = await mapping.all()
+            let nameStillReferenced = remaining.values.contains {
+                $0.base == entry.base && $0.name == entry.name
+            }
+            if !nameStillReferenced {
+                await store.removeDocument(base: entry.base, name: entry.name)
+            }
+            let stillReferenced = await mapping.referencedHashes().contains(entry.hash)
             if !stillReferenced {
-                await KnowledgeStore.shared.removeDocument(hash: entry.hash)
+                await store.removeDocument(hash: entry.hash)
             }
         }
     }

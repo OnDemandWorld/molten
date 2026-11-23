@@ -72,6 +72,9 @@ actor KnowledgeIndexer {
         var processed = await store.documentCount(base: base)
 
         for case let url as URL in enumerator {
+            // Observe cancellation (e.g. BGTask expiration) between files so
+            // an expired background task stops doing work (review 2026-11-24).
+            if Task.isCancelled { break }
             let values = try? url.resourceValues(forKeys: [.isRegularFileKey])
             guard values?.isRegularFile == true else { continue }
             guard ExtractorFactory.extractor(for: url, ocrAllowed: ocrAllowed) != nil else { continue }

@@ -8,6 +8,7 @@
 //#if os(iOS)
 import Foundation
 import Speech
+import AVFoundation
 
 @MainActor final class SpeechRecognizer: ObservableObject {
     enum RecognizerError: Error {
@@ -15,13 +16,15 @@ import Speech
         case notAuthorizedToRecognize
         case notPermittedToRecord
         case recognizerIsUnavailable
-        
+        case noAudioInput
+
         var message: String {
             switch self {
             case .nilRecognizer: return "Can't initialize speech recognizer"
             case .notAuthorizedToRecognize: return "Not authorized to recognize speech"
             case .notPermittedToRecord: return "Not permitted to record audio"
             case .recognizerIsUnavailable: return "Recognizer is unavailable"
+            case .noAudioInput: return "No audio input available"
             }
         }
     }
@@ -96,12 +99,23 @@ import Speech
      Creates a `SFSpeechRecognitionTask` that transcribes speech to text until you call `stopTranscribing()`.
      The resulting transcription is continuously written to the published `transcript` property.
      */
-    private func transcribe() {
+    private func transcribe() async {
         guard let recognizer, recognizer.isAvailable else {
             self.transcribe(RecognizerError.recognizerIsUnavailable)
             return
         }
-        
+
+#if os(macOS)
+        // macOS mic (TCC) permission must be resolved before the engine
+        // starts: with access denied or no input device, the input node's
+        // format is 0 Hz / 0 channels and installTap raises an NSException
+        // that Swift do/catch cannot catch (review 2026-11-24).
+        guard await AVCaptureDevice.hasAudioPermission() else {
+            self.transcribe(RecognizerError.notPermittedToRecord)
+            return
+        }
+#endif
+
         do {
             let (audioEngine, request) = try Self.prepareEngine()
             self.audioEngine = audioEngine
@@ -136,8 +150,14 @@ import Speech
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 #endif
         let inputNode = audioEngine.inputNode
-        
+
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+        // installTap with a 0 Hz / 0-channel format (mic denied, no input
+        // device) raises an uncatchable NSException — validate first and
+        // fail as a typed error instead (review 2026-11-24).
+        guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
+            throw RecognizerError.noAudioInput
+        }
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
             request.append(buffer)
         }
@@ -202,6 +222,20 @@ extension AVAudioSession {
             requestRecordPermission { authorized in
                 continuation.resume(returning: authorized)
             }
+        }
+    }
+}
+#elseif os(macOS)
+extension AVCaptureDevice {
+    /// macOS microphone (TCC) authorization, prompting on first use.
+    static func hasAudioPermission() async -> Bool {
+        switch authorizationStatus(for: .audio) {
+        case .authorized:
+            return true
+        case .notDetermined:
+            return await requestAccess(for: .audio)
+        default:
+            return false
         }
     }
 }

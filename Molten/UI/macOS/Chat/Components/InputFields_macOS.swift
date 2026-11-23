@@ -55,6 +55,12 @@ struct InputFieldsView: View {
                 if let nsImage = Clipboard.shared.getImage() {
                     let image = Image(nsImage: nsImage)
                     updateSelectedImage(image)
+                } else if let text = Clipboard.shared.getText() {
+                    // This interceptor consumes the ⌘V key equivalent even
+                    // when the clipboard holds no image, so it must also
+                    // handle plain text or paste is swallowed (review
+                    // 2026-11-24). Mirrors PromptPanelView's handler.
+                    message += text
                 }
             }
         ]
