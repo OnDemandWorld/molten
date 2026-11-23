@@ -24,28 +24,39 @@ enum Importer {
         } else {
             throw ImportError.invalidFormat
         }
+        // Per-conversation error accounting (review 2026-11-24): a failure
+        // mid-file used to abort everything while the caller's `try?`
+        // reported "Imported 0". Count successes; only throw when nothing
+        // could be imported.
         var count = 0
+        var firstError: Error?
         for exported in conversations {
-            let conversation = ConversationSD(name: exported.name, updatedAt: exported.updatedAt)
-            conversation.createdAt = exported.createdAt
-            try await service.createConversation(conversation)
-            for message in exported.messages {
-                let sd = MessageSD(content: message.content, role: message.role)
-                sd.createdAt = message.createdAt
-                sd.done = true
-                if let analytics = message.analytics {
-                    sd.promptTokens = analytics.promptTokens
-                    sd.completionTokens = analytics.completionTokens
-                    sd.totalTokens = analytics.totalTokens
-                    sd.totalTime = analytics.totalTime
-                    sd.promptEvalTime = analytics.promptEvalTime
-                    sd.evalTime = analytics.evalTime
+            do {
+                let conversation = ConversationSD(name: exported.name, updatedAt: exported.updatedAt)
+                conversation.createdAt = exported.createdAt
+                try await service.createConversation(conversation)
+                for message in exported.messages {
+                    let sd = MessageSD(content: message.content, role: message.role)
+                    sd.createdAt = message.createdAt
+                    sd.done = true
+                    sd.image = message.image
+                    if let analytics = message.analytics {
+                        sd.promptTokens = analytics.promptTokens
+                        sd.completionTokens = analytics.completionTokens
+                        sd.totalTokens = analytics.totalTokens
+                        sd.totalTime = analytics.totalTime
+                        sd.promptEvalTime = analytics.promptEvalTime
+                        sd.evalTime = analytics.evalTime
+                    }
+                    sd.conversation = conversation
+                    try await service.createMessage(sd)
                 }
-                sd.conversation = conversation
-                try await service.createMessage(sd)
+                count += 1
+            } catch {
+                if firstError == nil { firstError = error }
             }
-            count += 1
         }
+        if count == 0, let firstError { throw firstError }
         return count
     }
 }

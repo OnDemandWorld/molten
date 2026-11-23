@@ -51,6 +51,12 @@ actor EntitlementManager {
         self.ui = ui
     }
 
+    /// Posted after refresh() when the tier actually changes. The app
+    /// observes it to re-resolve the Knowledge root / sync watchers
+    /// (G2, review 2026-11-24). A notification keeps this actor free of
+    /// Knowledge-module dependencies (unit tests construct it standalone).
+    static let tierDidChangeNotification = Notification.Name("molten.tierDidChange")
+
     /// M8: start listening at launch, then evaluate once.
     func start() async {
         if updatesTask == nil {
@@ -67,6 +73,7 @@ actor EntitlementManager {
 
     /// M1/M4/M11: AppTransaction first, Keychain fallback when offline.
     func refresh() async {
+        let previousTier = currentTier
         if let detection = await EarlySupporterDetector.detect() {
             earlySupporter = true
             _ = store.save(detection)
@@ -117,6 +124,9 @@ actor EntitlementManager {
         if showThankYou {
             await MainActor.run { ui.showEarlySupporterThankYou = true }
         }
+        if tier != previousTier {
+            NotificationCenter.default.post(name: Self.tierDidChangeNotification, object: nil)
+        }
     }
 
     /// M8 tier math, pure for unit testing (M6).
@@ -141,9 +151,11 @@ actor EntitlementManager {
     }
 
     /// M12: Restore. (StoreKit.AppStore qualified — Molten has its own AppStore.)
-    func restore() async {
-        try? await AppTransaction.refresh()
-        try? await StoreKit.AppStore.sync()
+    /// Throws so callers can tell the user apart "restored" from "offline /
+    /// failed" (G5, review 2026-11-24: errors used to be swallowed).
+    func restore() async throws {
+        try await AppTransaction.refresh()
+        try await StoreKit.AppStore.sync()
         await refresh()
     }
 

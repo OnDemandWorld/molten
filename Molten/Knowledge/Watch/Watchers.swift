@@ -210,6 +210,32 @@ final class KnowledgeSync {
         Task { await Self.refreshMapping() }
     }
 
+    /// Stop watchers (Plus lapse). Nothing is deleted — existing knowledge
+    /// stays searchable on each device (T6).
+    func stop() {
+        guard started else { return }
+        documentWatcher.stop()
+        indexWatcher.stop()
+        started = false
+    }
+
+    /// G2/G4 (review 2026-11-24): react to a mid-session tier change.
+    /// Upgrade: resolve the iCloud root, migrate local bases, start sync.
+    /// Downgrade: stop sync and fall back to the local root. Previously
+    /// this only happened at launch, so a Plus bought mid-session left
+    /// iCloud Knowledge inert until relaunch.
+    func refreshForEntitlementChange() async {
+        let plus = await EntitlementManager.shared.allows(.iCloudKnowledge)
+        if plus {
+            await KnowledgeContainer.resolveRoot()
+            try? await KnowledgeContainer.migrateLocalToICloud()
+            start()
+        } else {
+            stop()
+            await KnowledgeContainer.resolveRoot()
+        }
+    }
+
     /// K-D5: local path→hash mapping. Renames/moves only update the mapping;
     /// content-hash outputs are never regenerated (A5).
     static func refreshMapping() async {

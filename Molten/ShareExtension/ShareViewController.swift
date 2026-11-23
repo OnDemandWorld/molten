@@ -56,9 +56,13 @@ class ShareViewController: SLComposeServiceViewController {
               let provider = item.attachments?.first else { return }
         let type = provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
             ? UTType.fileURL.identifier : UTType.data.identifier
-        provider.loadItem(forTypeIdentifier: type, options: nil) { [weak self] item, _ in
+        provider.loadItem(forTypeIdentifier: type, options: nil) { [weak self] item, error in
             DispatchQueue.main.async {
                 guard let self else { return }
+                if let error {
+                    self.showLoadError("Couldn't load the shared item: \(error.localizedDescription)")
+                    return
+                }
                 if let url = item as? URL {
                     let secured = url.startAccessingSecurityScopedResource()
                     defer { if secured { url.stopAccessingSecurityScopedResource() } }
@@ -127,9 +131,16 @@ class ShareViewController: SLComposeServiceViewController {
         let alert = UIAlertController(title: "New knowledge base", message: nil, preferredStyle: .alert)
         alert.addTextField { $0.placeholder = "Name" }
         alert.addAction(UIAlertAction(title: "Create", style: .default) { [weak self, weak alert] _ in
-            guard let name = alert?.textFields?.first?.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return }
-            try? ShareImport.createBase(name)
+            // G3 (review 2026-11-24): validate the name and only select the
+            // base when it was actually created.
+            guard let raw = alert?.textFields?.first?.text,
+                  let name = ShareImport.sanitizedBaseName(raw) else { return }
+            do {
+                try ShareImport.createBase(name)
+            } catch {
+                self?.showLoadError("Couldn't create “\(name)”: \(error.localizedDescription)")
+                return
+            }
             self?.bases = ShareImport.availableBases()
             self?.selectedBase = name
             self?.reloadConfigurationItems()
@@ -140,10 +151,23 @@ class ShareViewController: SLComposeServiceViewController {
     }
 
     override func didSelectPost() {
-        if let file = sharedFile, let base = selectedBase {
-            try? ShareImport.importFile(file.data, fileName: file.name, intoBase: base)
+        guard let file = sharedFile, let base = selectedBase else {
+            extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+            return
         }
-        extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        do {
+            try ShareImport.importFile(file.data, fileName: file.name, intoBase: base)
+            extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+        } catch {
+            // Review 2026-11-24: a failed import used to complete as success
+            // and silently lose the shared file. Keep the sheet open instead.
+            let alert = UIAlertController(
+                title: "Couldn't add the file",
+                message: error.localizedDescription,
+                preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
+        }
     }
 }
 #endif

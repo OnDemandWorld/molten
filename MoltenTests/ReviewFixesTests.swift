@@ -120,6 +120,44 @@ struct InflateCapTests {
     }
 }
 
+// MARK: - Base-name validation (G3 traversal fix)
+
+@Suite("Review fixes — base name validation")
+struct BaseNameValidationTests {
+    @Test func rejectsTraversalSeparatorsAndHiddenNames() {
+        let bad = ["..", ".", "../escape", "a/b", "a\\b", ".hidden", "", "   ",
+                   "a:b", String(repeating: "x", count: 65)]
+        for name in bad {
+            #expect(ShareImport.sanitizedBaseName(name) == nil, "accepted \(name)")
+        }
+    }
+
+    @Test func acceptsAndTrimsOrdinaryNames() {
+        #expect(ShareImport.sanitizedBaseName("  My Base ") == "My Base")
+        #expect(ShareImport.sanitizedBaseName("Contracts 2026") == "Contracts 2026")
+    }
+}
+
+// MARK: - Free-limit file counting (G1 iOS bypass fix)
+
+@Suite("Review fixes — free limit counts files present")
+struct CountFilesTests {
+    @Test func countsRegularFilesRecursivelyAndSkipsHidden() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("molten-count-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: dir.appendingPathComponent("sub"), withIntermediateDirectories: true)
+        try Data("a".utf8).write(to: dir.appendingPathComponent("a.txt"))
+        try Data("b".utf8).write(to: dir.appendingPathComponent("sub/b.txt"))
+        try Data("h".utf8).write(to: dir.appendingPathComponent(".hidden"))
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Indexed count would be 0 here (nothing processed) — the gate must
+        // still see the two real files.
+        #expect(BaseDetailView.countFiles(in: dir) == 2)
+    }
+}
+
 // MARK: - Watcher prune (name-collision + K-D5 preservation)
 
 @MainActor
