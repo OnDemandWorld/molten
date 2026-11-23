@@ -27,6 +27,9 @@ final class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate, @u
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didReceiveError error: Error, for utterance: AVSpeechUtterance, at characterIndex: UInt) {
         logger.error("Speech synthesis error: \(error.localizedDescription, privacy: .private)")
+        // An errored utterance may never deliver didFinish — release the
+        // UI's speaking state (review 2026-11-24). Idempotent for callers.
+        onSpeechFinished?()
     }
 }
 

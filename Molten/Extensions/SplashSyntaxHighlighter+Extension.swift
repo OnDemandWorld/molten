@@ -17,8 +17,14 @@ struct SplashCodeSyntaxHighlighter: CodeSyntaxHighlighter {
     self.syntaxHighlighter = SyntaxHighlighter(format: TextOutputFormat(theme: theme))
   }
 
+  /// Splash tokenizes synchronously on the main thread and combines
+  /// per-token Texts with repeated `+` (quadratic). Huge LLM-emitted code
+  /// blocks froze the UI on every ~0.15s streaming flush — above the cap,
+  /// render plain monospaced text instead (review 2026-11-24).
+  static let highlightCharacterLimit = 20_000
+
   func highlightCode(_ content: String, language: String?) -> Text {
-      guard language != nil else {
+    guard language != nil, content.count <= Self.highlightCharacterLimit else {
       return Text(content)
     }
 

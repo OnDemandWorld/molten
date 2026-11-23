@@ -120,6 +120,54 @@ struct InflateCapTests {
     }
 }
 
+// MARK: - Endpoint URL resolution (scheme heuristic fix)
+
+@Suite("Review fixes — endpoint URL resolution")
+struct EndpointResolutionTests {
+    private func resolve(_ url: String) -> ProviderEndpoint {
+        ProviderEndpointResolver.resolve(
+            url: url, token: nil,
+            urlKey: "reviewTestUri-\(UUID().uuidString)",
+            tokenKey: "reviewTestToken-\(UUID().uuidString)",
+            defaultLocalhost: URL(string: "http://localhost:11434")!)
+    }
+
+    @Test func uppercaseSchemeIsPreserved() {
+        let endpoint = resolve("HTTP://example.com:11434")
+        #expect(endpoint.baseURL.host == "example.com")
+        #expect(!endpoint.disabled)
+    }
+
+    @Test func hostContainingHttpGetsAScheme() {
+        let endpoint = resolve("myhttpserver.local:11434")
+        #expect(endpoint.baseURL.scheme == "http")
+        #expect(endpoint.baseURL.host == "myhttpserver.local")
+    }
+
+    @Test func bareLocalhostGetsAScheme() {
+        let endpoint = resolve("localhost:11434")
+        #expect(endpoint.baseURL.scheme == "http")
+        #expect(endpoint.baseURL.host == "localhost")
+    }
+
+    @Test func storedEmptyDisables() {
+        // Present-but-empty stored key = user explicitly cleared the field.
+        let name = "review-endpoint-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: name)!
+        suite.set("", forKey: "uri")
+        defer { suite.removePersistentDomain(forName: name) }
+        let endpoint = ProviderEndpointResolver.resolve(
+            url: nil, token: nil, urlKey: "uri", tokenKey: "tok",
+            defaultLocalhost: URL(string: "http://localhost:11434")!, defaults: suite)
+        #expect(endpoint.disabled)
+    }
+
+    @Test func explicitEmptyWithoutStoredKeyDoesNotDisable() {
+        // First launch / default @AppStorage value must not disable polling.
+        #expect(!resolve("").disabled)
+    }
+}
+
 // MARK: - Knowledge integrity (MKV validation, claim ownership, chunk caps)
 
 @Suite("Review fixes — Knowledge integrity")
