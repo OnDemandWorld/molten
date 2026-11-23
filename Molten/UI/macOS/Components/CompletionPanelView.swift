@@ -166,7 +166,11 @@ struct PanelCompletionsView: View {
                                 submitCompletion(completion)
                             }
                         )
-                        .keyboardShortcut(KeyEquivalent(completion.keyboardCharacter), modifiers: [])
+                        // Bare-letter shortcuts must not intercept typing in
+                        // the custom-command text field (review 2026-11-24).
+                        .modifier(CompletionShortcut(
+                            enabled: !showCustomCompletionInstructionTextField,
+                            character: completion.keyboardCharacter))
                     }
                     
                     customCompletionButton
@@ -231,5 +235,20 @@ struct PanelCompletionsView: View {
         completionInWindow: {_,_  in},
         completionInApp: {_ in}
     )
+}
+
+/// Applies a bare-letter completion shortcut only while the custom-command
+/// text field is not being edited (review 2026-11-24).
+private struct CompletionShortcut: ViewModifier {
+    let enabled: Bool
+    let character: Character
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.keyboardShortcut(KeyEquivalent(character), modifiers: [])
+        } else {
+            content
+        }
+    }
 }
 #endif

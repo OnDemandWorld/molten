@@ -28,7 +28,9 @@ struct PromptPanelView: View {
                 }
                 
                 if let clipboardText = Clipboard.shared.getText() {
-                    prompt = clipboardText
+                    // Append, don't replace: ⌘V used to wipe whatever the
+                    // user had already typed (review 2026-11-24).
+                    prompt += clipboardText
                 }
             }
         ]

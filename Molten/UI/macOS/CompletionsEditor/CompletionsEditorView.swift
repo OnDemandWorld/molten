@@ -13,6 +13,7 @@ struct CompletionsEditorView: View {
     @Environment(\.presentationMode) var presentationMode
     @Binding var completions: [CompletionInstructionSD]
     @State var selectedCompletion: CompletionInstructionSD?
+    @State private var sheetDidSave = false
     var onSave: () -> ()
     var onDelete: (CompletionInstructionSD) -> ()
     var accessibilityAccess: Bool
@@ -126,11 +127,18 @@ struct CompletionsEditorView: View {
         .padding()
         .frame(width: 800, height: 600)
         .sheet(item: $selectedCompletion) { selectedCompletion in
-            UpsertCompletionView(completion: selectedCompletion, onSave: onSave)
+            UpsertCompletionView(completion: selectedCompletion, onSave: {
+                sheetDidSave = true
+                onSave()
+            })
                 .onDisappear {
-                    if selectedCompletion.name == "New Completion" {
+                    // Only discard an UNSAVED default-named draft: saving
+                    // without renaming used to persist the row and then
+                    // drop it from the UI (review 2026-11-24).
+                    if !sheetDidSave && selectedCompletion.name == "New Completion" {
                         discard(for: selectedCompletion)
                     }
+                    sheetDidSave = false
                 }
         }
     }

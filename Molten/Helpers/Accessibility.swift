@@ -30,12 +30,14 @@ final class Accessibility {
         }
     }
     
-    func getSelectedText() -> String? {
+    /// Async so the copy fallback's wait never blocks the main actor
+    /// (review 2026-11-24: togglePanel called this synchronously on main).
+    func getSelectedText() async -> String? {
         if let text = getSelectedTextAX(), text.count > 1  {
             return text
         }
 
-        return getSelectedTextViaCopy()
+        return await getSelectedTextViaCopy()
     }
     
     func getSelectedTextAX() -> String? {
@@ -57,18 +59,27 @@ final class Accessibility {
     }
     
     
-    func getSelectedTextViaCopy(retryAttempts: Int = 1) -> String? {
-        
+    func getSelectedTextViaCopy(retryAttempts: Int = 1) async -> String? {
         let pasteboard = NSPasteboard.general
-        let originalContents = pasteboard.pasteboardItems?.compactMap { $0.string(forType: .string) } ?? []
+        // Snapshot ALL types of every item — restoring only .string values
+        // destroyed image/file/multi-item clipboards (review 2026-11-24).
+        let originalItems: [NSPasteboardItem] = (pasteboard.pasteboardItems ?? []).map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        }
         pasteboard.clearContents()
         var attempts = 0
         var newContent: String?
-        
+
         while attempts < retryAttempts && newContent == nil {
             simulateCopyKeyPress()
-            usleep(100000)
-            
+            try? await Task.sleep(nanoseconds: 100_000_000)
+
             newContent = pasteboard.string(forType: .string)
             if let newContent = newContent, !newContent.isEmpty {
                 break
@@ -77,14 +88,14 @@ final class Accessibility {
             }
             attempts += 1
         }
-        
-        if newContent == nil {
-            pasteboard.clearContents()
-            for item in originalContents {
-                pasteboard.setString(item, forType: .string)
-            }
+
+        // Always restore the user's clipboard — the copied selection must
+        // not clobber it, even on success.
+        pasteboard.clearContents()
+        if !originalItems.isEmpty {
+            pasteboard.writeObjects(originalItems)
         }
-        
+
         return newContent
     }
     
