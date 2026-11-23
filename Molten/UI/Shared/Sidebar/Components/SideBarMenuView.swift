@@ -37,14 +37,19 @@ struct SideBarStack<SidebarContent: View, Content: View>: View {
                     }
                 }).onEnded({ gesture in
                     withAnimation(.spring) {
-                        if -offset < 100 {
-                            offset = 0
-                        } else {
+                        // Decide by drag distance: the old `-offset < 100`
+                        // was always true, so the snap-back branch was dead
+                        // and any leftward drag closed the sidebar
+                        // (review 2026-11-24).
+                        if -gesture.translation.width < 100 {
                             offset = sidebarWidth
+                            showSidebar = true
+                        } else {
+                            offset = 0
+                            showSidebar = false
                         }
-                        showSidebar = false
                     }
-                    
+
                 }))
             mainContent
                 .overlay(

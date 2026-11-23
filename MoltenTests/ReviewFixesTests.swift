@@ -222,6 +222,53 @@ struct KnowledgeIntegrityTests {
         #expect(TokenEstimator.estimate("你好世界") == 4)
         #expect(TokenEstimator.estimate("hello world") == 2)
     }
+
+    @Test func miniZipReadsStreamedZipWithDataDescriptors() throws {
+        // Entry A: deflate with a data descriptor (compSize 0 in the local
+        // header — Java ZipOutputStream style). Entry B: stored target.
+        // Skipping A used to advance by 0 bytes and abort the scan.
+        let payload = Data(String(repeating: "hello ", count: 100).utf8)
+        let capacity = payload.count + 4096
+        var deflated = Data(count: capacity)
+        let n = payload.withUnsafeBytes { src in
+            deflated.withUnsafeMutableBytes { dst in
+                compression_encode_buffer(
+                    dst.bindMemory(to: UInt8.self).baseAddress!, capacity,
+                    src.bindMemory(to: UInt8.self).baseAddress!, payload.count,
+                    nil, COMPRESSION_ZLIB)
+            }
+        }
+        deflated = deflated.prefix(n)
+        let target = Data("<document>text</document>".utf8)
+
+        func le16(_ v: UInt16) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
+        func le32(_ v: UInt32) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
+        func localHeader(name: String, method: UInt16, flags: UInt16, compSize: UInt32, uncompSize: UInt32) -> Data {
+            var d = le32(0x04034b50)
+            d += le16(20) + le16(flags) + le16(method)
+            d += le16(0) + le16(0)               // time, date
+            d += le32(0)                        // crc (unchecked by MiniZip)
+            d += le32(compSize) + le32(uncompSize)
+            d += le16(UInt16(name.utf8.count)) + le16(0)
+            d += Data(name.utf8)
+            return d
+        }
+
+        var zip = localHeader(name: "other.txt", method: 8, flags: 0x0008, compSize: 0, uncompSize: 0)
+        zip += deflated
+        zip += le32(0x08074b50) + le32(0) + le32(UInt32(deflated.count)) + le32(UInt32(payload.count))
+        zip += localHeader(name: "word/document.xml", method: 0, flags: 0,
+                           compSize: UInt32(target.count), uncompSize: UInt32(target.count))
+        zip += target
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("molten-zip-\(UUID().uuidString).docx")
+        try zip.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let found = try MiniZip.fileData(named: "word/document.xml", in: url)
+        #expect(found == target)
+    }
 }
 
 // MARK: - Model catalog survives provider failures

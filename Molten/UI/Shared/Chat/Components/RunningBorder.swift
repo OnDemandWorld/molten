@@ -26,6 +26,10 @@ struct RunningBorder: ViewModifier {
                     // Reduce Motion (F-32): keep the highlight border but skip
                     // the infinite rotation.
                     guard !reduceMotion else { return }
+                    // Reset first: rotation stays at 360 from the previous
+                    // run, so re-enabling never restarted the animation
+                    // (review 2026-11-24).
+                    rotation = 0
                     withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
                         rotation = 360
                     }

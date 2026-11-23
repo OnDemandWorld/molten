@@ -209,15 +209,19 @@ enum MiniZip {
             guard nameStart + nameLen <= data.count else { break }
             let fileName = String(decoding: data.subdata(in: nameStart..<nameStart + nameLen), as: UTF8.self)
             let bodyStart = nameStart + nameLen + extraLen
-            if fileName == name {
-                if compSize == 0 {
-                    // Data-descriptor archives: find the next header boundary.
-                    if let next = nextHeaderOffset(data, from: bodyStart) {
-                        compSize = next - bodyStart
-                    } else {
-                        compSize = data.count - bodyStart
-                    }
+            // Data-descriptor entries (streamed zips, e.g. Java
+            // ZipOutputStream) carry compSize 0 in the local header.
+            // Resolve the real extent for SKIPPED entries too — advancing
+            // by 0 landed inside compressed bytes and aborted the scan
+            // before the wanted file (review 2026-11-24).
+            if compSize == 0 {
+                if let next = nextHeaderOffset(data, from: bodyStart) {
+                    compSize = next - bodyStart
+                } else {
+                    compSize = data.count - bodyStart
                 }
+            }
+            if fileName == name {
                 guard bodyStart + compSize <= data.count else { return nil }
                 let body = data.subdata(in: bodyStart..<bodyStart + compSize)
                 if method == 0 { return body }

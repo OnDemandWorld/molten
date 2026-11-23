@@ -24,7 +24,12 @@ struct ApplicationEntry: View {
             Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
         }
         // M5: one-time Early Supporter thank-you sheet.
-        .sheet(isPresented: Bindable(entitlementUI).showEarlySupporterThankYou) {
+        .sheet(isPresented: Bindable(entitlementUI).showEarlySupporterThankYou, onDismiss: {
+            // Acknowledge on ANY dismissal (incl. interactive): only the
+            // Continue button used to set the flag, so the "one-time" sheet
+            // re-presented on every refresh (review 2026-11-24).
+            Task { await EntitlementManager.shared.acknowledgeThankYou() }
+        }) {
             EarlySupporterThankYouView()
         }
         .task {

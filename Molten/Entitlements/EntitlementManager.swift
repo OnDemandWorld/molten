@@ -11,6 +11,7 @@
 import Foundation
 import Observation
 import StoreKit
+import OSLog
 
 @MainActor @Observable
 final class EntitlementUIModel {
@@ -76,7 +77,13 @@ actor EntitlementManager {
         let previousTier = currentTier
         if let detection = await EarlySupporterDetector.detect() {
             earlySupporter = true
-            _ = store.save(detection)
+            if !store.save(detection) {
+                // Losing the offline fallback grant silently would strand
+                // Early Supporters on a fresh offline install (review
+                // 2026-11-24). The in-memory grant still holds this session.
+                Logger(subsystem: "com.ondemandworld.molten", category: "entitlements")
+                    .error("Early Supporter Keychain mirror failed to save")
+            }
         } else {
             earlySupporter = store.load() != nil
         }

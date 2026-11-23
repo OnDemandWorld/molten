@@ -58,11 +58,20 @@ struct Chat: View, Sendable {
 
     func onConversationTap(_ conversation: ConversationSD) {
         Task {
-            try await conversationStore.selectConversation(conversation)
-            if let model = conversation.model {
-                languageModelStore.setModel(model: model)
+            do {
+                try await conversationStore.selectConversation(conversation)
+                if let model = conversation.model {
+                    languageModelStore.setModel(model: model)
+                }
+                Haptics.shared.mediumTap()
+            } catch {
+                // Surface fetch failures instead of silently leaving stale
+                // messages after the sidebar closes (review 2026-11-24).
+                await MainActor.run {
+                    conversationStore.conversationState = .error(
+                        message: "Failed to open conversation: \(error.localizedDescription)")
+                }
             }
-            Haptics.shared.mediumTap()
         }
         withAnimation {
             showMenu.toggle()

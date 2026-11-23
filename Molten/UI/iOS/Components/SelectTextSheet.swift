@@ -38,7 +38,9 @@ struct SelectTextSheet: View {
             TextEditor(text: .constant(message.content))
                 .focusable()
                 .focused($isTextEditorFocused)
-                .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { obj in
+                // TextEditor is UITextView-backed: the UITextField
+                // notification never fired (review 2026-11-24).
+                .onReceive(NotificationCenter.default.publisher(for: UITextView.textDidBeginEditingNotification)) { obj in
                     if let textField = obj.object as? UITextView {
                         textField.selectedTextRange = textField.textRange(from: textField.beginningOfDocument, to: textField.endOfDocument)
                     }
