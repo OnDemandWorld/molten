@@ -387,4 +387,40 @@ All 11 high findings fixed and verified:
 
 Verification: macOS + iOS Simulator builds succeed (strict concurrency, no new warnings in edited files); full suite passes — 53 XCTest + 102 Swift Testing, 0 failures, including 11 new regression tests in `MoltenTests/ReviewFixesTests.swift` (think-tag ordering, stale-epoch completion, deflate cap + bomb refusal, prune collision / K-D5 / evicted-placeholder).
 
-Medium and low findings remain open — see the sections above.
+### Medium/low follow-up (same branch, 2026-11-24)
+
+All 54 medium and 13 of 15 low findings are now fixed, each batch verified
+by the full suite (final: 53 XCTest + 119 Swift Testing, 0 failures; macOS
+and iOS Simulator builds clean). Highlights:
+
+- **Data integrity:** day-delete cascades messages; model catalog survives
+  provider outages (per-provider deletion); edit-trim removes messages +
+  FTS rows; transactional Knowledge ingest with throwing SQL and nil-db
+  guards; MKV header validation; import per-conversation accounting;
+  export/import image round-trip.
+- **Privacy:** speech recognition forced on-device when supported; audio
+  session released after voice input; authorization awaited before capture.
+- **Knowledge pipeline:** claim leases renewed during long stages and
+  release ownership-checked; downloader integrity (HTTP status, size,
+  corrupt-file replacement); batched embeddings; chunk-cap enforcement
+  incl. long-run bisection; CJK-aware token estimate; watcher mapping
+  off-main; synced-output ingest dedup; streamed-zip (data descriptor)
+  DOCX support.
+- **Monetization enforcement:** G1–G5 all fixed (see docs/FEATURES_CURRENT.md).
+- **Chat/UI:** Ollama vision images forwarded; endpoint config locked;
+  read-aloud state machine fixed; highlighting capped; settings drafts
+  (Cancel really cancels), picker tag, delete-all scope, live ping
+  interval; backoff reschedule; panel VM ordering/cancellation; clipboard
+  preserved by the copy fallback; panel reuse + weak captures; and the
+  remaining low-severity UI fixes.
+
+**Intentionally left open (2 low):**
+- `bgCustom.colorset` XR-scoped dark variant — needs a design decision
+  (is the white completion-panel background intentional in dark mode?).
+- `scripts/release.sh` version-baked one-shot — release tooling; retire or
+  parameterize per docs/BUILD_AUTOMATION.md (owner's call).
+
+**Partial mitigation:** `ConversationSearch.rebuild` now runs in a single
+transaction (the multi-second fsync hang is gone) but still executes on
+the calling actor; moving it fully off-main needs a Sendable redesign of
+the SwiftData hand-off.

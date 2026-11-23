@@ -217,28 +217,30 @@ are included, Pro-gated ones would not be).
 
 ## 5. Enforcement gaps that affect any limit line
 
-From `CODE_REVIEW_2026_11_24.md` (medium findings, still open):
+From `CODE_REVIEW_2026_11_24.md`. **All five gaps (G1–G5) were fixed on
+branch `fix/review-2026-11-24-highs` (2026-11-24)**; descriptions below
+are kept for context:
 
-- **G1 — Free document gate is bypassable on iOS:** the limit counts
+- **G1 (FIXED) — Free document gate was bypassable on iOS:** the limit counts
   *indexed* documents, which stay 0 while iOS defers processing to Mac
   (`KnowledgeViews.swift:408`). Unlimited files can be added on iOS
   without the paywall ever firing. Fix before relying on the 10-doc line.
-- **G2 — Mid-session purchase doesn't activate sync:** Knowledge root
+- **G2 (FIXED) — Mid-session purchase didn't activate sync:** Knowledge root
   is resolved only at launch; a Plus bought mid-session leaves iCloud
   inert until relaunch (`EntitlementManager.swift:102`,
   `KnowledgeContainer.swift:33`). Paywall promises immediate value.
-- **G3 — Base-name traversal:** `createBase` accepts `..`/`/` names
+- **G3 (FIXED) — Base-name traversal:** `createBase` accepts `..`/`/` names
   (`KnowledgeViews.swift:122`, `ShareViewController.swift:101`) — a
   `..` base exposes the Index folder as removable "files".
-- **G4 — Lapse behavior:** downgrade keeps everything searchable
+- **G4 (FIXED) — Lapse behavior:** downgrade keeps everything searchable
   (by design, T6) but stale iCloud root/watchers persist until relaunch
   (same root cause as G2).
-- **G5 — Restore gives no feedback** (`EntitlementManager.restore`
+- **G5 (FIXED) — Restore gave no feedback** (`EntitlementManager.restore`
   swallows errors) — offline restore looks like "nothing to restore".
 
-High-severity defects (crash/data-loss) were fixed on branch
-`fix/review-2026-11-24-highs`; the medium list above is the part that
-touches monetization reliability.
+All high-severity defects and the medium findings touching monetization
+reliability were fixed on branch `fix/review-2026-11-24-highs`; the full
+suite (53 XCTest + 119 Swift Testing) passes.
 
 ---
 
