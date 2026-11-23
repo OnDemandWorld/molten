@@ -30,7 +30,11 @@ import AVFoundation
     }
     
     @Published var transcript: String = ""
-    
+    /// True while a recognition task is running. Views bind their recording
+    /// state to this so a failure or natural end resets the UI
+    /// (review 2026-11-24: isRecording used to stay stuck on).
+    @Published private(set) var isActive = false
+
     private var audioEngine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -105,6 +109,14 @@ import AVFoundation
             return
         }
 
+        // Await authorization here, not only in userInit's fire-and-forget
+        // Task: recording must not start before speech/mic permission
+        // resolves (first-use race, review 2026-11-24). Both calls are
+        // idempotent once the user has answered.
+        guard await SFSpeechRecognizer.hasAuthorizationToRecognize() else {
+            self.transcribe(RecognizerError.notAuthorizedToRecognize)
+            return
+        }
 #if os(macOS)
         // macOS mic (TCC) permission must be resolved before the engine
         // starts: with access denied or no input device, the input node's
@@ -114,21 +126,32 @@ import AVFoundation
             self.transcribe(RecognizerError.notPermittedToRecord)
             return
         }
+#else
+        guard await AVAudioSession.sharedInstance().hasPermissionToRecord() else {
+            self.transcribe(RecognizerError.notPermittedToRecord)
+            return
+        }
 #endif
 
         do {
             let (audioEngine, request) = try Self.prepareEngine()
+            // Privacy: keep audio on-device whenever the recognizer supports
+            // it — Molten is a local-first app (review 2026-11-24).
+            if recognizer.supportsOnDeviceRecognition {
+                request.requiresOnDeviceRecognition = true
+            }
             self.audioEngine = audioEngine
             self.request = request
             self.task = recognizer.recognitionTask(with: request, resultHandler: { [weak self] result, error in
                 self?.recognitionHandler(audioEngine: audioEngine, result: result, error: error)
             })
+            isActive = true
         } catch {
             self.reset()
             self.transcribe(error)
         }
     }
-    
+
     /// Reset the speech recognizer.
     private func reset() {
         task?.cancel()
@@ -136,6 +159,12 @@ import AVFoundation
         audioEngine = nil
         request = nil
         task = nil
+        isActive = false
+#if os(iOS)
+        // Release the .playAndRecord + duckOthers session so other apps'
+        // audio stops being ducked after voice input ends (review 2026-11-24).
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+#endif
     }
     
     private static func prepareEngine() throws -> (AVAudioEngine, SFSpeechAudioBufferRecognitionRequest) {
@@ -174,6 +203,9 @@ import AVFoundation
         if receivedFinalResult || receivedError {
             audioEngine.stop()
             audioEngine.inputNode.removeTap(onBus: 0)
+            Task { @MainActor [weak self] in
+                self?.isActive = false
+            }
         }
         
         if let result {
