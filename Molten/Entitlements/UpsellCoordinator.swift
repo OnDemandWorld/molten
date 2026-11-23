@@ -48,7 +48,9 @@ final class UpsellCoordinator {
     /// Release dial ("without ads" doc: ship one trigger per version to
     /// measure which helped via App Store Connect). Trim this set per
     /// release; the rules engine is unchanged.
-    static var enabledTriggers: Set<Prompt> = [.groundedAnswer, .settledIn, .subscriptionLapsed, .panelThanks]
+    /// 2.0.1 (build 13): first grounded answer only. Re-enable .settledIn,
+    /// .subscriptionLapsed, .panelThanks in later builds to measure each.
+    static var enabledTriggers: Set<Prompt> = [.groundedAnswer]
 
     static let cooldownDays = 14
     static let maxPrompts = 4

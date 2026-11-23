@@ -123,12 +123,15 @@ struct InflateCapTests {
 // MARK: - Upsell coordinator rules ("without ads" doc)
 
 @MainActor
-@Suite("Upsell coordinator rules")
+@Suite("Upsell coordinator rules", .serialized)
 struct UpsellCoordinatorTests {
     private func make() -> (UpsellCoordinator, UserDefaults, String) {
         let name = "upsell-test-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let coordinator = UpsellCoordinator(defaults: defaults)
+        // Rules-engine tests exercise every trigger regardless of the
+        // per-release dial; each test restores the shipping default.
+        UpsellCoordinator.enabledTriggers = [.groundedAnswer, .settledIn, .subscriptionLapsed, .panelThanks]
         coordinator.currentTier = { .free }
         coordinator.isStreaming = { false }
         coordinator.isPanelActive = { false }
@@ -136,14 +139,14 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func payingTierNeverPrompts() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         c.currentTier = { .plus }
         c.noteGroundedAnswer(messageID: UUID())
         #expect(c.groundedCardMessageID == nil)
     }
 
     @Test func firstGroundedAnswerShowsCardOnce() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         let first = UUID()
         c.noteGroundedAnswer(messageID: first)
         #expect(c.groundedCardMessageID == first)
@@ -153,7 +156,7 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func cooldownSuppressesPrompts() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         c.noteGroundedAnswer(messageID: UUID())   // records lastPrompt = now
         c.dismissPrompt()
         // Settled conditions met, but within the 14-day cooldown.
@@ -165,14 +168,14 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func maxFourPromptsEver() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         d.set(4, forKey: "promptCount")
         c.noteGroundedAnswer(messageID: UUID())
         #expect(c.groundedCardMessageID == nil)
     }
 
     @Test func optOutSuppressesEverything() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         c.optOut()
         c.noteGroundedAnswer(messageID: UUID())
         #expect(c.groundedCardMessageID == nil)
@@ -180,7 +183,7 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func settledInNeedsDaysMessagesAndInstallAge() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         d.set(Date().addingTimeInterval(-6 * 86400), forKey: "installDate")
         d.set(["a", "b", "c"], forKey: "activeDays")
         d.set(29, forKey: "messages")
@@ -189,7 +192,7 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func settledInNotBeforeThresholds() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         d.set(Date(), forKey: "installDate")       // too recent
         d.set(["a", "b", "c"], forKey: "activeDays")
         d.set(100, forKey: "messages")
@@ -198,7 +201,7 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func lapseAcknowledgedOnce() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         d.set(true, forKey: "wasSubscriptionPlus")
         c.noteEvent(.appLaunch)
         #expect(c.activeSheet == .subscriptionLapsed)
@@ -208,27 +211,27 @@ struct UpsellCoordinatorTests {
     }
 
     @Test func hardPaywallSessionSuppressesSoftPrompts() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         c.noteHardPaywall()
         c.noteGroundedAnswer(messageID: UUID())
         #expect(c.groundedCardMessageID == nil)
     }
 
     @Test func streamingSuppressesPrompts() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         c.isStreaming = { true }
         c.noteGroundedAnswer(messageID: UUID())
         #expect(c.groundedCardMessageID == nil)
     }
 
     @Test func panelThanksAtTwentyUses() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         for _ in 0..<20 { c.noteEvent(.panelUse) }
         #expect(c.activeSheet == .panelThanks)
     }
 
     @Test func disabledTriggerNeverPrompts() {
-        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name) }
+        let (c, d, name) = make(); defer { d.removePersistentDomain(forName: name); UpsellCoordinator.enabledTriggers = [.groundedAnswer] }
         let saved = UpsellCoordinator.enabledTriggers
         UpsellCoordinator.enabledTriggers = []
         defer { UpsellCoordinator.enabledTriggers = saved }

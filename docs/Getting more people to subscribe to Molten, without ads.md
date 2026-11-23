@@ -82,7 +82,7 @@ Steps 1 and 2 alone probably more than double how often people actually see the 
   (3 active days + 30 messages + install ≥ 5 days), subscription lapse
   ("Sync is paused. Your documents are all still here."), panel supporter
   thank-you at 20 uses. `UpsellCoordinator.enabledTriggers` is the
-  per-release dial for the "one trigger per version" measurement advice.
+  per-release dial (2.0.1 build 13 ships `.groundedAnswer` only) for the "one trigger per version" measurement advice.
   12 unit tests cover the rules.
 
 **Corrections to the original text:**
