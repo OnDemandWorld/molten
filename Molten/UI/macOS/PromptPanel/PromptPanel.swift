@@ -22,10 +22,17 @@ struct PromptPanel: View {
     
     @MainActor
     func sendMessage(prompt: String, image: Image?) {
+        // No model selected (provider down / first launch / model removed):
+        // surface an error instead of trapping on a force unwrap
+        // (review 2026-11-24). Matches the guarded completion paths below.
+        guard let selectedModel = languageModelStore.selectedModel else {
+            appStore.uiLog(message: "No model selected — check that a provider is running", status: .error)
+            return
+        }
         conversationStore.selectedConversation = nil
         conversationStore.sendPrompt(
             userPrompt: prompt,
-            model: languageModelStore.selectedModel!,
+            model: selectedModel,
             image: image,
             systemPrompt: systemPrompt
         )

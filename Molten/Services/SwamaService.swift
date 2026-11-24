@@ -27,16 +27,31 @@ struct ModelData: Codable {
 final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     static let shared = SwamaService()
     
-    private var baseURL: URL
-    private var apiKey: String?
-    private var isConfigured: Bool = false
-    private var isUsingDefaultLocalhost: Bool = true // Track if using default vs user-configured URL
-    
+    /// Endpoint config is written by initEndpoint (main actor, Settings)
+    /// and read by polling/stream tasks on the cooperative pool. Snapshot
+    /// under a lock so a URL can never pair with a stale API key
+    /// (review 2026-11-24).
+    private struct EndpointState {
+        var baseURL: URL
+        var apiKey: String?
+        var configured: Bool
+        var usingDefaultLocalhost: Bool
+    }
+    private let endpointLock = NSLock()
+    private var endpointState: EndpointState
+
     init() {
-        baseURL = URL(string: "http://localhost:28100")!
+        endpointState = EndpointState(
+            baseURL: URL(string: "http://localhost:28100")!,
+            apiKey: nil, configured: false, usingDefaultLocalhost: true)
         initEndpoint()
     }
-    
+
+    private func currentEndpoint() -> EndpointState {
+        endpointLock.lock(); defer { endpointLock.unlock() }
+        return endpointState
+    }
+
     func initEndpoint(url: String? = nil, apiKey: String? = nil) {
         // Shared resolution (URL priority, empty-disables, token semantics)
         // lives in ProviderEndpointResolver so Ollama and Swama can't drift.
@@ -47,16 +62,20 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
             tokenKey: "swamaApiKey",
             defaultLocalhost: URL(string: "http://localhost:28100")!
         )
-        baseURL = endpoint.baseURL
-        self.apiKey = endpoint.bearerToken
-        isConfigured = !endpoint.disabled
-        isUsingDefaultLocalhost = endpoint.usingDefaultLocalhost
+        let newState = EndpointState(
+            baseURL: endpoint.baseURL,
+            apiKey: endpoint.bearerToken,
+            configured: !endpoint.disabled,
+            usingDefaultLocalhost: endpoint.usingDefaultLocalhost)
+        endpointLock.lock()
+        endpointState = newState
+        endpointLock.unlock()
     }
-    
+
     /// Returns true if using default localhost (vs user-configured URL)
     /// Used to determine backoff strategy
     var usingDefaultLocalhost: Bool {
-        isUsingDefaultLocalhost
+        currentEndpoint().usingDefaultLocalhost
     }
 
     // MARK: - Request timeouts (F-42)
@@ -72,14 +91,15 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     /// Builds an authenticated request against the configured base URL.
     /// Internal so unit tests can verify method/timeout/header wiring.
     func makeRequest(path: String, method: String = "GET", timeout: TimeInterval, accept: String? = nil) -> URLRequest {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        let endpoint = currentEndpoint()
+        var request = URLRequest(url: endpoint.baseURL.appendingPathComponent(path))
         request.httpMethod = method
         request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let accept {
             request.setValue(accept, forHTTPHeaderField: "Accept")
         }
-        if let apiKey, !apiKey.isEmpty {
+        if let apiKey = endpoint.apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
         return request
@@ -116,15 +136,16 @@ final class SwamaService: @unchecked Sendable, ModelProviderProtocol {
     
     func reachable() async -> Bool {
         // Don't poll if not configured
-        guard isConfigured else { return false }
-        
-        let url = baseURL.appendingPathComponent("/v1/models")
+        let endpoint = currentEndpoint()
+        guard endpoint.configured else { return false }
+
+        let url = endpoint.baseURL.appendingPathComponent("/v1/models")
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 2.0
-        
+
         // Add API key if available
-        if let apiKey = apiKey, !apiKey.isEmpty {
+        if let apiKey = endpoint.apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
         

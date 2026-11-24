@@ -18,14 +18,33 @@ struct ApplicationEntry: View {
     @State private var completionsStore = CompletionsStore.shared
     @State private var appStore = AppStore.shared
     @State private var entitlementUI = EntitlementUIModel.shared
+    @State private var upsell = UpsellCoordinator.shared
 
     var body: some View {
         VStack {
             Chat(languageModelStore: languageModelStore, conversationStore: conversationStore, appStore: appStore)
         }
         // M5: one-time Early Supporter thank-you sheet.
-        .sheet(isPresented: Bindable(entitlementUI).showEarlySupporterThankYou) {
+        .sheet(isPresented: Bindable(entitlementUI).showEarlySupporterThankYou, onDismiss: {
+            // Acknowledge on ANY dismissal (incl. interactive): only the
+            // Continue button used to set the flag, so the "one-time" sheet
+            // re-presented on every refresh (review 2026-11-24).
+            Task { await EntitlementManager.shared.acknowledgeThankYou() }
+        }) {
             EarlySupporterThankYouView()
+        }
+        // Soft upsell sheets ("without ads" doc) — frequency rules live in
+        // UpsellCoordinator; paying tiers never reach these.
+        .sheet(item: Bindable(upsell).activeSheet, onDismiss: {
+            upsell.dismissPrompt()
+        }) { prompt in
+            UpsellSheetView(prompt: prompt)
+        }
+        .sheet(isPresented: Bindable(upsell).showPaywall) {
+            PaywallView()
+        }
+        .onChange(of: entitlementUI.tier) { _, tier in
+            upsell.noteTierChange(tier: tier, source: entitlementUI.source)
         }
         .task {
             #if DEBUG
@@ -35,6 +54,10 @@ struct ApplicationEntry: View {
 
             // M8: entitlements listener + evaluation from launch.
             await EntitlementManager.shared.start()
+
+            // Upsell: record the active day, check lapse/settled triggers.
+            upsell.noteTierChange(tier: entitlementUI.tier, source: entitlementUI.source)
+            upsell.noteEvent(.appLaunch)
 
             // M4: resolve the Knowledge root (Plus → iCloud), migrate local
             // bases on upgrade, start sync watchers.

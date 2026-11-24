@@ -39,6 +39,14 @@ final class ConversationStore: @unchecked Sendable {
     /// conversations mid-stream cannot write content into the wrong message.
     private var streamingMessage: MessageSD?
 
+    /// Monotonic generation counter (main-actor only). Every reset bumps it;
+    /// each generation task captures the value at start and its callbacks
+    /// no-op once it goes stale. Cancelling a Task is not enough: an
+    /// AsyncThrowingStream can end *normally* on consumer cancellation, so
+    /// the completion path would otherwise finalize a stopped generation or
+    /// — after Stop→resend — the NEW streaming message (review 2026-11-24).
+    @MainActor private var generationEpoch: Int = 0
+
     // Analytics tracking
     private var requestStartTime: Date?
     /// When the first non-empty content chunk arrived. Internal for unit tests (AN-3).
@@ -74,6 +82,7 @@ final class ConversationStore: @unchecked Sendable {
         streamingMessage = nil
         generationTask?.cancel()
         generationTask = nil
+        generationEpoch += 1
     }
     
     func loadConversations() async throws {
@@ -83,11 +92,35 @@ final class ConversationStore: @unchecked Sendable {
         }
     }
     
+    /// Stop any generation whose message belongs to a conversation about to
+    /// be deleted. Without this, the cascade delete invalidates the streaming
+    /// MessageSD mid-stream and the next throttler flush/completion writes to
+    /// an invalidated model instance (trap) — review 2026-11-24.
+    @MainActor
+    private func cancelGeneration(forDeletionOf conversationID: UUID?) {
+        let streamingDeleted = conversationID != nil
+            && streamingMessage?.conversation?.id == conversationID
+        let selectedDeleted = conversationID != nil
+            && selectedConversation?.id == conversationID
+        if streamingDeleted || selectedDeleted {
+            resetStreamingState()
+            if conversationState == .loading {
+                conversationState = .completed
+            }
+        }
+    }
+
     func deleteAllConversations() {
         Task {
-            DispatchQueue.main.async { [weak self] in
-                self?.messages = []
-                self?.selectedConversation = nil
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                // Everything is going away: stop any active generation first.
+                self.resetStreamingState()
+                if self.conversationState == .loading {
+                    self.conversationState = .completed
+                }
+                self.messages = []
+                self.selectedConversation = nil
             }
             try? await swiftDataService.deleteConversations()
             try? await swiftDataService.deleteMessages()
@@ -103,6 +136,15 @@ final class ConversationStore: @unchecked Sendable {
         let deletesSelectedConversation = selectedConversation.map {
             Calendar.current.isDate($0.updatedAt, inSameDayAs: date)
         } ?? false
+        let deletesStreamingConversation = streamingMessage?.conversation.map {
+            Calendar.current.isDate($0.updatedAt, inSameDayAs: date)
+        } ?? false
+        if deletesSelectedConversation || deletesStreamingConversation {
+            resetStreamingState()
+            if conversationState == .loading {
+                conversationState = .completed
+            }
+        }
 
         do {
             try await swiftDataService.deleteConversations(date)
@@ -163,10 +205,16 @@ final class ConversationStore: @unchecked Sendable {
     }
     
     func delete(_ conversation: ConversationSD) async throws {
+        await MainActor.run {
+            self.cancelGeneration(forDeletionOf: conversation.id)
+        }
         try await swiftDataService.deleteConversation(conversation)
         let fetchedConversations = try await swiftDataService.fetchConversations()
         DispatchQueue.main.async {
             self.selectedConversation = nil
+            // The old messages array holds cascade-deleted instances; an
+            // ungated Copy chat would read them (review 2026-11-24).
+            self.messages = []
             self.conversations = fetchedConversations
         }
     }
@@ -240,6 +288,9 @@ final class ConversationStore: @unchecked Sendable {
     func sendPrompt(userPrompt: String, model: LanguageModelSD, image: Image? = nil, systemPrompt: String = "", trimmingMessageId: String? = nil) {
         guard userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 else { return }
 
+        // Upsell counters (local-only suite; tier-gated inside).
+        UpsellCoordinator.shared.noteEvent(.messageSent)
+
         // K-R1: "@Base name …" attaches a knowledge base for this conversation.
         var userPrompt = userPrompt
         if userPrompt.hasPrefix("@") {
@@ -255,6 +306,7 @@ final class ConversationStore: @unchecked Sendable {
 
         // Reset any previous streaming state before starting new request
         resetStreamingState()
+        let epoch = generationEpoch
 
         let conversation = selectedConversation ?? ConversationSD(name: userPrompt)
         conversation.updatedAt = Date.now
@@ -262,9 +314,20 @@ final class ConversationStore: @unchecked Sendable {
 
         /// trim conversation if on edit mode
         if let trimmingMessageId = trimmingMessageId {
-            conversation.messages = conversation.messages
-                .sorted{$0.createdAt < $1.createdAt}
-                .prefix(while: {$0.id.uuidString != trimmingMessageId})
+            let sorted = conversation.messages.sorted { $0.createdAt < $1.createdAt }
+            let kept = sorted.prefix(while: { $0.id.uuidString != trimmingMessageId })
+            let removed = Array(sorted.dropFirst(kept.count))
+            conversation.messages = Array(kept)
+            // Delete the trimmed messages and their FTS rows — reassigning
+            // the relationship only orphans them, leaving ghost search hits
+            // and growing the store (review 2026-11-24).
+            if !removed.isEmpty {
+                Task(priority: .background) { [swiftDataService] in
+                    for message in removed {
+                        try? await swiftDataService.deleteMessage(message)
+                    }
+                }
+            }
         }
 
         /// add system prompt to very first message in the conversation
@@ -354,10 +417,14 @@ final class ConversationStore: @unchecked Sendable {
                 history: requestHistory.filter { $0.role != "system" })
             requestHistory = systemMessages + allocation.history
 
+            // A Stop or a newer sendPrompt during setup bumps the epoch;
+            // don't start streaming for a generation that is already stale.
+            guard await MainActor.run(body: { self.generationEpoch == epoch }) else { return }
+
             // Get the appropriate provider based on model
             guard let provider = getProvider(for: model) else {
                 await MainActor.run {
-                    handleError("Unknown model provider")
+                    handleError("Unknown model provider", epoch: epoch)
                 }
                 return
             }
@@ -365,7 +432,7 @@ final class ConversationStore: @unchecked Sendable {
             // Check if provider is reachable
             guard await provider.reachable() else {
                 await MainActor.run {
-                    handleError("\(model.modelProvider?.displayName ?? "Provider") is not reachable")
+                    handleError("\(model.modelProvider?.displayName ?? "Provider") is not reachable", epoch: epoch)
                 }
                 return
             }
@@ -373,43 +440,51 @@ final class ConversationStore: @unchecked Sendable {
             // Track request start time for analytics
             let requestStart = Date()
 
-            generationTask = Task { [weak self] in
-                guard let self = self else { return }
+            // Assign generationTask on the main actor: resetStreamingState
+            // reads/cancels it there, and a Stop racing this assignment must
+            // see the new task (review 2026-11-24).
+            await MainActor.run {
+                guard self.generationEpoch == epoch else { return }
+                self.requestStartTime = requestStart
+                self.hasReceivedFirstToken = false
 
-                await MainActor.run {
-                    self.requestStartTime = requestStart
-                    self.hasReceivedFirstToken = false
-                }
+                self.generationTask = Task { [weak self] in
+                    guard let self = self else { return }
 
-                do {
-                    let stream = provider.chatStream(
-                        model: model.name,
-                        messages: requestHistory,
-                        temperature: 0.0,
-                        maxTokens: nil
-                    )
+                    do {
+                        let stream = provider.chatStream(
+                            model: model.name,
+                            messages: requestHistory,
+                            temperature: 0.0,
+                            maxTokens: nil
+                        )
 
-                    for try await response in stream {
-                        if Task.isCancelled {
-                            break
+                        for try await response in stream {
+                            if Task.isCancelled {
+                                break
+                            }
+                            await MainActor.run {
+                                self.handleReceive(response, requestStart: requestStart, epoch: epoch)
+                            }
                         }
+
+                        // Cancellation can end the stream *normally* (no throw),
+                        // so guard the completion path explicitly: stopGenerate
+                        // already flushed and finalized with partial analytics.
+                        if Task.isCancelled { return }
+
+                        // Stream completed normally - finalize message and calculate analytics
                         await MainActor.run {
-                            self.handleReceive(response, requestStart: requestStart)
+                            self.handleComplete(requestStart: requestStart, epoch: epoch)
                         }
-                    }
-
-                    // Stream completed normally - finalize message and calculate analytics
-                    // Call directly on MainActor to ensure state updates propagate
-                    await MainActor.run {
-                        self.handleComplete(requestStart: requestStart)
-                    }
-                } catch {
-                    if !Task.isCancelled {
-                        await MainActor.run {
-                            self.handleError(error.localizedDescription)
+                    } catch {
+                        if !Task.isCancelled {
+                            await MainActor.run {
+                                self.handleError(error.localizedDescription, epoch: epoch)
+                            }
                         }
+                        // If cancelled, stopGenerate already called finalizeMessage
                     }
-                    // If cancelled, stopGenerate already called finalizeMessage
                 }
             }
         }
@@ -504,9 +579,13 @@ final class ConversationStore: @unchecked Sendable {
             }
     }
 
-    /// Handle successful stream completion - calculate analytics and finalize
+    /// Handle successful stream completion - calculate analytics and finalize.
+    /// `epoch` identifies the generation this completion belongs to; a stale
+    /// epoch (Stop, resend, or deletion since start) must not finalize the
+    /// current message (review 2026-11-24). Nil skips the guard (unit tests).
     @MainActor
-    func handleComplete(requestStart: Date) {
+    func handleComplete(requestStart: Date, epoch: Int? = nil) {
+        if let epoch, epoch != generationEpoch { return }
         guard let lastMessage = streamingMessage ?? messages.last else {
             finalizeMessage()
             return
@@ -537,8 +616,16 @@ final class ConversationStore: @unchecked Sendable {
         lastMessage.error = false
         lastMessage.done = true
 
+        // First cited answer → inline Plus card (soft, frequency-ruled).
+        if lastMessage.knowledgeCitationsData != nil {
+            UpsellCoordinator.shared.noteGroundedAnswer(messageID: lastMessage.id)
+        }
+
         Task(priority: .background) {
-            try await swiftDataService.updateMessage(lastMessage)
+            // try?: an unobserved throwing Task silently loses the final
+            // message state on persistence failure (review 2026-11-24);
+            // match the other save paths instead of trapping the task.
+            try? await swiftDataService.updateMessage(lastMessage)
         }
 
         // Finalize message and reset state
@@ -549,9 +636,10 @@ final class ConversationStore: @unchecked Sendable {
         if let conversation = selectedConversation {
             let fallbackModel = conversation.model
             let fallbackProvider = fallbackModel.flatMap { getProvider(for: $0) }
+            let conversationID = conversation.id
             Task {
                 await AutoTitler.shared.titleIfNeeded(
-                    conversation: conversation,
+                    conversationID: conversationID,
                     fallbackProvider: fallbackProvider,
                     fallbackModel: fallbackModel?.name)
             }
@@ -559,7 +647,9 @@ final class ConversationStore: @unchecked Sendable {
     }
 
     @MainActor
-    func handleReceive(_ response: ChatCompletionResponse, requestStart: Date) {
+    func handleReceive(_ response: ChatCompletionResponse, requestStart: Date, epoch: Int? = nil) {
+        // Drop chunks from a stale generation (stopped/superseded/deleted).
+        if let epoch, epoch != generationEpoch { return }
         // Keep the latest server-reported usage (final chunk carries it).
         if let usage = response.usage {
             lastUsage = usage
@@ -618,7 +708,10 @@ final class ConversationStore: @unchecked Sendable {
     }
 
     @MainActor
-    private func handleError(_ errorMessage: String) {
+    private func handleError(_ errorMessage: String, epoch: Int? = nil) {
+        // A stale generation's error must not flag the current message or
+        // overwrite a newer state (review 2026-11-24).
+        if let epoch, epoch != generationEpoch { return }
         let target = streamingMessage ?? messages.last
         if let target {
             target.error = true

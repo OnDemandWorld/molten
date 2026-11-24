@@ -80,6 +80,21 @@ struct PDFExtractor: Extractor {
     let ocrAllowed: Bool
     static let ocrThreshold = 50 // K-P8
 
+    /// Upsell visibility ("without ads" doc): count pages whose text layer
+    /// is below the OCR threshold — the pages a Free user's scan-skip
+    /// leaves unread. Text-layer check only; no rendering or OCR.
+    static func pagesNeedingOCR(in url: URL) -> Int {
+        guard let document = PDFDocument(url: url) else { return 0 }
+        var count = 0
+        for i in 0..<document.pageCount {
+            let text = document.page(at: i)?.string ?? ""
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).count < ocrThreshold {
+                count += 1
+            }
+        }
+        return count
+    }
+
     func extract(from url: URL) async throws -> ExtractedDocument {
         guard let document = PDFDocument(url: url) else {
             throw ExtractionError.unreadable(url.lastPathComponent)
@@ -209,15 +224,19 @@ enum MiniZip {
             guard nameStart + nameLen <= data.count else { break }
             let fileName = String(decoding: data.subdata(in: nameStart..<nameStart + nameLen), as: UTF8.self)
             let bodyStart = nameStart + nameLen + extraLen
-            if fileName == name {
-                if compSize == 0 {
-                    // Data-descriptor archives: find the next header boundary.
-                    if let next = nextHeaderOffset(data, from: bodyStart) {
-                        compSize = next - bodyStart
-                    } else {
-                        compSize = data.count - bodyStart
-                    }
+            // Data-descriptor entries (streamed zips, e.g. Java
+            // ZipOutputStream) carry compSize 0 in the local header.
+            // Resolve the real extent for SKIPPED entries too — advancing
+            // by 0 landed inside compressed bytes and aborted the scan
+            // before the wanted file (review 2026-11-24).
+            if compSize == 0 {
+                if let next = nextHeaderOffset(data, from: bodyStart) {
+                    compSize = next - bodyStart
+                } else {
+                    compSize = data.count - bodyStart
                 }
+            }
+            if fileName == name {
                 guard bodyStart + compSize <= data.count else { return nil }
                 let body = data.subdata(in: bodyStart..<bodyStart + compSize)
                 if method == 0 { return body }
@@ -248,7 +267,12 @@ enum MiniZip {
 }
 
 func inflateRawDeflate(_ input: Data) -> Data? {
-    var capacity = max(input.count * 4, 65536)
+    // Hard cap on decompressed output: DOCX parts are untrusted input, and
+    // an unbounded x4 growth loop lets a deflate bomb allocate many GB and
+    // OOM/jetsam the app (review 2026-11-24). 64 MiB is far above any
+    // legitimate document.xml; extraction truncates to a token budget anyway.
+    let maxOutput = 64 * 1024 * 1024
+    var capacity = min(max(input.count * 4, 65536), maxOutput)
     for _ in 0..<10 {
         var output = Data(count: capacity)
         let written = input.withUnsafeBytes { src in
@@ -261,7 +285,10 @@ func inflateRawDeflate(_ input: Data) -> Data? {
         }
         if written == 0 { return nil }
         if written < capacity { return output.prefix(written) }
-        capacity *= 4
+        // Buffer completely filled: either the part exceeds the cap or the
+        // input is a bomb — refuse rather than grow without bound.
+        if capacity >= maxOutput { return nil }
+        capacity = min(capacity * 4, maxOutput)
     }
     return nil
 }

@@ -29,6 +29,12 @@ final class MessageSD: Identifiable {
     /// re-encoded for every image on every prompt turn.
     @Transient private var cachedImageDataURL: String?
 
+    /// The think cache is read from the main actor (rendering) and the data
+    /// actor (FTS indexing) on the same instance at stream completion —
+    /// guard mutation and reads (review 2026-11-24: String data race).
+    /// @Transient var: the @Model macro can't expand accessors on a let.
+    @Transient private var thinkCacheLock = NSLock()
+
     // Invalidate cache when content changes; parse ONCE and fill all caches
     // (previously each getter re-ran parseThink, up to 4 full O(n) scans per
     // content change during streaming).
@@ -76,8 +82,12 @@ final class MessageSD: Identifiable {
 
         if thinkComplete {
             // Extract think content between <think> and </think>
-            guard let endRange = content.range(of: thinkEnd) else {
-                return (hasThink, nil, false, content)
+            // The closing tag must come after the opening one: user-typed
+            // text or malformed model output can contain "</think>" first,
+            // which would trap on the Range precondition (review 2026-11-24).
+            guard let endRange = content.range(of: thinkEnd),
+                  endRange.lowerBound >= startRange.upperBound else {
+                return (false, nil, false, content)
             }
             let thinkContent = String(content[startRange.upperBound..<endRange.lowerBound])
             let realContent = String(content[endRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -90,21 +100,25 @@ final class MessageSD: Identifiable {
     }
 
     var think: String? {
+        thinkCacheLock.lock(); defer { thinkCacheLock.unlock() }
         ensureCacheValid(content)
         return cachedThink
     }
 
     var hasThink: Bool {
+        thinkCacheLock.lock(); defer { thinkCacheLock.unlock() }
         ensureCacheValid(content)
         return cachedHasThink ?? false
     }
 
     var thinkComplete: Bool {
+        thinkCacheLock.lock(); defer { thinkCacheLock.unlock() }
         ensureCacheValid(content)
         return cachedThinkComplete ?? false
     }
 
     var realContent: String? {
+        thinkCacheLock.lock(); defer { thinkCacheLock.unlock() }
         ensureCacheValid(content)
         return cachedRealContent
     }

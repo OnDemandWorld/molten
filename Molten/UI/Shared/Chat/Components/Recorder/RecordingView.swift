@@ -24,7 +24,12 @@ struct RecordingView: View {
     private func toggleTranscribing() async {
         if isRecording {
             speechRecognizer.stopTranscribing()
-            onComplete(speechRecognizer.transcript)
+            // Never hand the "<< error >>" sentinel to the caller as if it
+            // were the user's words (review 2026-11-24).
+            let transcript = speechRecognizer.transcript
+            if !(transcript.hasPrefix("<<") && transcript.hasSuffix(">>")) {
+                onComplete(transcript)
+            }
             isRecording = false
         } else {
             speechRecognizer.resetTranscript()
@@ -68,6 +73,16 @@ struct RecordingView: View {
             if newValue == false {
                 speechRecognizer.stopTranscribing()
             }
+        }
+        // Recognition can end on its own (final result, error, ~1-minute
+        // limit): reflect that in the button instead of staying stuck on
+        // "recording" (review 2026-11-24).
+        .onChange(of: speechRecognizer.isActive) { _, active in
+            if !active { isRecording = false }
+        }
+        // Don't leave the mic capturing after the view goes away.
+        .onDisappear {
+            speechRecognizer.stopTranscribing()
         }
     }
 }

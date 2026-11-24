@@ -64,11 +64,11 @@ extension SwiftDataService {
         return models
     }
     
-    func saveModels(models: [LanguageModelSD]) throws {
-        // Upsert by unique name instead of delete-all + re-insert: existing
-        // rows keep their identity, so conversation.model relationships and
-        // the current selection survive a refresh. Only models that actually
-        // disappeared are deleted (nullifying just their conversations).
+    /// Upsert by unique name; delete only models from providers that
+    /// actually responded. A provider that was down or threw keeps its
+    /// stored rows — a transient fetch error must not wipe the catalog and
+    /// nullify every conversation.model (review 2026-11-24).
+    func saveModels(models: [LanguageModelSD], respondedProviders: Set<ModelProvider>) throws {
         let existing = try modelContext.fetch(FetchDescriptor<LanguageModelSD>())
         let existingByName = Dictionary(
             existing.map { ($0.name, $0) },
@@ -84,7 +84,9 @@ extension SwiftDataService {
             }
         }
         for stored in existing where !incomingNames.contains(stored.name) {
-            modelContext.delete(stored)
+            if let provider = stored.modelProvider, respondedProviders.contains(provider) {
+                modelContext.delete(stored)
+            }
         }
         try modelContext.saveChanges()
     }
@@ -105,6 +107,34 @@ extension SwiftDataService {
     func renameConversation(_ conversation: ConversationSD) throws {
         try modelContext.saveChanges()
         ConversationSearch.shared.renameConversation(conversationID: conversation.id, name: conversation.name)
+    }
+
+    /// Rename by ID, fetching on the data actor — callers off the owning
+    /// context (AutoTitler) must not mutate the model directly
+    /// (review 2026-11-24).
+    func renameConversation(id: UUID, name: String) throws {
+        guard let conversation = try getConversation(id) else { return }
+        conversation.name = name
+        try renameConversation(conversation)
+    }
+
+    /// Everything AutoTitler needs, read on the owning context.
+    struct TitleSnapshot {
+        let name: String
+        let firstUserContent: String
+        let firstAssistantContent: String
+    }
+
+    func titleSnapshot(conversationID: UUID) throws -> TitleSnapshot? {
+        guard let conversation = try getConversation(conversationID) else { return nil }
+        let messages = conversation.messages.sorted { $0.createdAt < $1.createdAt }
+        guard let firstUser = messages.first(where: { $0.role == "user" }),
+              let firstAssistant = messages.first(where: { $0.role == "assistant" && $0.done })
+        else { return nil }
+        return TitleSnapshot(
+            name: conversation.name,
+            firstUserContent: firstUser.content,
+            firstAssistantContent: firstAssistant.realContent ?? firstAssistant.content)
     }
 
     func deleteConversation(_ conversation: ConversationSD) throws {
@@ -157,7 +187,12 @@ extension SwiftDataService {
         let predicate = #Predicate<ConversationSD> { $0.updatedAt >= startOfDay && $0.updatedAt < startOfNextDay }
         // C1: capture IDs before deletion so the FTS sidecar stays in sync.
         let doomed = try modelContext.fetch(FetchDescriptor<ConversationSD>(predicate: predicate))
-        try modelContext.delete(model: ConversationSD.self, where: predicate)
+        // Delete per-object, NOT via the batch API: batch delete bypasses
+        // the .cascade rule and orphans every message of the deleted day
+        // (review 2026-11-24).
+        for conversation in doomed {
+            modelContext.delete(conversation)
+        }
         try modelContext.saveChanges()
         for conversation in doomed {
             ConversationSearch.shared.removeConversation(conversationID: conversation.id)
@@ -188,6 +223,15 @@ extension SwiftDataService {
         if let conversation = message.conversation {
             ConversationSearch.shared.indexMessage(message, conversation: conversation)
         }
+    }
+
+    /// Delete one message and its FTS row (review 2026-11-24: edit-trim
+    /// used to orphan messages and leave ghost search hits).
+    func deleteMessage(_ message: MessageSD) throws {
+        let id = message.id
+        modelContext.delete(message)
+        try modelContext.saveChanges()
+        ConversationSearch.shared.removeMessage(messageID: id)
     }
 }
 

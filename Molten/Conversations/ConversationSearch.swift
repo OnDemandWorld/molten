@@ -98,8 +98,11 @@ final class ConversationSearch: @unchecked Sendable {
     }
 
     /// C1: backfill on first launch (idempotent — clears and rebuilds).
+    /// One transaction: per-row autocommit fsynced every insert and hung
+    /// the UI for multi-second on large histories (review 2026-11-24).
     func rebuild(conversations: [ConversationSD]) {
         lock.lock(); defer { lock.unlock() }
+        exec("BEGIN TRANSACTION;")
         exec("DELETE FROM messages_fts;")
         for conversation in conversations {
             for message in conversation.messages {
@@ -115,6 +118,7 @@ final class ConversationSearch: @unchecked Sendable {
                     })
             }
         }
+        exec("COMMIT;")
     }
 
     // MARK: - Search

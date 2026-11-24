@@ -18,17 +18,33 @@ private final class CancellableHolder: @unchecked Sendable {
 final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     static let shared = OllamaService()
     
-    private var ollamaKit: OllamaKit
-    private var isConfigured: Bool = false
-    private var isUsingDefaultLocalhost: Bool = true // Track if using default vs user-configured URL
-    private var currentBaseURL = URL(string: "http://localhost:11434")!
-    private var currentToken: String?
-    
+    /// Endpoint config is written by initEndpoint (main actor, Settings)
+    /// and read by polling/stream tasks on the cooperative pool. Snapshot
+    /// it under a lock so a URL can never pair with a stale token
+    /// (review 2026-11-24). OllamaKit is an immutable struct.
+    private struct EndpointState {
+        var kit: OllamaKit
+        var baseURL: URL
+        var token: String?
+        var configured: Bool
+        var usingDefaultLocalhost: Bool
+    }
+    private let endpointLock = NSLock()
+    private var endpointState: EndpointState
+
     init() {
-        ollamaKit = OllamaKit(baseURL: URL(string: "http://localhost:11434")!)
+        endpointState = EndpointState(
+            kit: OllamaKit(baseURL: URL(string: "http://localhost:11434")!),
+            baseURL: URL(string: "http://localhost:11434")!,
+            token: nil, configured: false, usingDefaultLocalhost: true)
         initEndpoint()
     }
-    
+
+    private func currentEndpoint() -> EndpointState {
+        endpointLock.lock(); defer { endpointLock.unlock() }
+        return endpointState
+    }
+
     func initEndpoint(url: String? = nil, bearerToken: String? = nil) {
         // Shared resolution (URL priority, empty-disables, F-44/F-48 token
         // semantics) lives in ProviderEndpointResolver so Ollama and Swama
@@ -40,21 +56,26 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
             tokenKey: "ollamaBearerToken",
             defaultLocalhost: URL(string: "http://localhost:11434")!
         )
-        ollamaKit = OllamaKit(baseURL: endpoint.baseURL, bearerToken: endpoint.bearerToken)
-        currentBaseURL = endpoint.baseURL
-        currentToken = endpoint.bearerToken
-        isConfigured = !endpoint.disabled
-        isUsingDefaultLocalhost = endpoint.usingDefaultLocalhost
+        let newState = EndpointState(
+            kit: OllamaKit(baseURL: endpoint.baseURL, bearerToken: endpoint.bearerToken),
+            baseURL: endpoint.baseURL,
+            token: endpoint.bearerToken,
+            configured: !endpoint.disabled,
+            usingDefaultLocalhost: endpoint.usingDefaultLocalhost)
+        endpointLock.lock()
+        endpointState = newState
+        endpointLock.unlock()
     }
 
     /// X1: context window from Ollama /api/show (model_info "<arch>.context_length").
     func contextLength(model: String) async -> Int? {
-        guard isConfigured else { return nil }
-        var request = URLRequest(url: currentBaseURL.appendingPathComponent("api/show"))
+        let endpoint = currentEndpoint()
+        guard endpoint.configured else { return nil }
+        var request = URLRequest(url: endpoint.baseURL.appendingPathComponent("api/show"))
         request.httpMethod = "POST"
         request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let currentToken { request.setValue("Bearer \(currentToken)", forHTTPHeaderField: "Authorization") }
+        if let token = endpoint.token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": model])
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
@@ -70,11 +91,11 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     /// Returns true if using default localhost (vs user-configured URL)
     /// Used to determine backoff strategy
     var usingDefaultLocalhost: Bool {
-        isUsingDefaultLocalhost
+        currentEndpoint().usingDefaultLocalhost
     }
-    
+
     func getModels() async throws -> [LanguageModel] {
-        let response = try await ollamaKit.models()
+        let response = try await currentEndpoint().kit.models()
         let models = response.models.map{
             LanguageModel(
                 name: $0.name,
@@ -87,11 +108,12 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
     
     func reachable() async -> Bool {
         // Don't poll if not configured
-        guard isConfigured else { return false }
-        
+        let endpoint = currentEndpoint()
+        guard endpoint.configured else { return false }
+
         // Add timeout to prevent long waits when Ollama isn't running
-        return await withTimeout(seconds: 2.0) { [self] in
-            await self.ollamaKit.reachable()
+        return await withTimeout(seconds: 2.0) {
+            await endpoint.kit.reachable()
         } ?? false
     }
     
@@ -132,11 +154,19 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
                     case .string(let text):
                         content = text
                     case .array(let parts):
-                        // For multimodal, extract text parts only (Ollama may not support images in streaming)
                         content = parts.compactMap { $0.text }.joined(separator: " ")
                     }
                 } else {
                     content = ""
+                }
+
+                // Vision: Ollama takes base64 images alongside the text.
+                // These used to be dropped, silently disabling image input
+                // for models advertised as image-capable (review 2026-11-24).
+                var images: [String] = []
+                if let dataURL = chatMessage.image_url?.url,
+                   let marker = dataURL.range(of: "base64,") {
+                    images.append(String(dataURL[marker.upperBound...]))
                 }
 
                 // Map role to Ollama role enum
@@ -152,7 +182,7 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
                     messageRole = .user
                 }
 
-                return OKChatRequestData.Message(role: messageRole, content: content)
+                return OKChatRequestData.Message(role: messageRole, content: content, images: images)
             }
 
             // Create options if needed
@@ -170,7 +200,7 @@ final class OllamaService: @unchecked Sendable, ModelProviderProtocol {
 
             // Convert Combine Publisher to AsyncThrowingStream
             // OllamaKit returns AnyPublisher<OKChatResponse, Error>
-            let publisher = ollamaKit.chat(data: request)
+            let publisher = currentEndpoint().kit.chat(data: request)
 
             let holder = CancellableHolder()
 

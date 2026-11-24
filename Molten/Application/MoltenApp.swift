@@ -39,6 +39,18 @@ struct MoltenApp: App {
         // background launches, so the system never runs the handler.
         KnowledgeBackgroundTask.register()
         #endif
+
+        // G2 (review 2026-11-24): a mid-session tier change must re-resolve
+        // the Knowledge root and start/stop sync — not wait for relaunch.
+        // The handler is idempotent (same work as the launch flow).
+        NotificationCenter.default.addObserver(
+            forName: EntitlementManager.tierDidChangeNotification,
+            object: nil, queue: .main
+        ) { _ in
+            Task { @MainActor in
+                await KnowledgeSync.shared.refreshForEntitlementChange()
+            }
+        }
     }
 
     var body: some Scene {

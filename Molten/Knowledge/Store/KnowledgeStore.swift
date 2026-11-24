@@ -44,6 +44,8 @@ actor KnowledgeStore {
         dbURL = base.appendingPathComponent("knowledge.sqlite")
         var handle: OpaquePointer?
         guard sqlite3_open(dbURL.path, &handle) == SQLITE_OK else {
+            // sqlite3_open allocates a handle even on failure — close it.
+            if let handle { sqlite3_close(handle) }
             logger.error("Failed to open knowledge store at \(self.dbURL.path, privacy: .public)")
             return
         }
@@ -177,52 +179,69 @@ actor KnowledgeStore {
 
     // MARK: - Ingest (K-D1/K-D2/K-D3)
 
+    /// Transactional: a mid-insert failure (e.g. disk full) rolls back
+    /// instead of leaving a documents row with missing chunks that the
+    /// mtime/hasDocument gates would never retry (review 2026-11-24).
     func ingest(mkt: URL, base: BaseID, name: String) throws {
         let document = try MKTCodec.decode(Data(contentsOf: mkt))
         createBase(base)
-        run("INSERT OR REPLACE INTO documents(hash, base, name, mime, created_at) VALUES (?, ?, ?, ?, ?)",
-            bind: { stmt in
-                sqlite3_bind_text(stmt, 1, document.sourceHash, -1, SQLITE_TRANSIENT)
-                sqlite3_bind_text(stmt, 2, base, -1, SQLITE_TRANSIENT)
-                sqlite3_bind_text(stmt, 3, name, -1, SQLITE_TRANSIENT)
-                sqlite3_bind_text(stmt, 4, document.mime, -1, SQLITE_TRANSIENT)
-                sqlite3_bind_text(stmt, 5, document.createdAt, -1, SQLITE_TRANSIENT)
-            })
-        run("DELETE FROM chunks WHERE hash = ?", bind: { stmt in
-            sqlite3_bind_text(stmt, 1, document.sourceHash, -1, SQLITE_TRANSIENT)
-        })
-        for chunk in document.chunks {
-            run("INSERT INTO chunks(hash, i, text, page, char_start, char_end, tokens) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        Self.exec(db, "BEGIN TRANSACTION;")
+        do {
+            try runChecked("INSERT OR REPLACE INTO documents(hash, base, name, mime, created_at) VALUES (?, ?, ?, ?, ?)",
                 bind: { stmt in
                     sqlite3_bind_text(stmt, 1, document.sourceHash, -1, SQLITE_TRANSIENT)
-                    sqlite3_bind_int64(stmt, 2, Int64(chunk.i))
-                    sqlite3_bind_text(stmt, 3, chunk.text, -1, SQLITE_TRANSIENT)
-                    if let page = chunk.page {
-                        sqlite3_bind_int64(stmt, 3 + 1, Int64(page))
-                    } else {
-                        sqlite3_bind_null(stmt, 4)
-                    }
-                    sqlite3_bind_int64(stmt, 5, Int64(chunk.charStart))
-                    sqlite3_bind_int64(stmt, 6, Int64(chunk.charEnd))
-                    sqlite3_bind_int64(stmt, 7, Int64(chunk.tokens))
+                    sqlite3_bind_text(stmt, 2, base, -1, SQLITE_TRANSIENT)
+                    sqlite3_bind_text(stmt, 3, name, -1, SQLITE_TRANSIENT)
+                    sqlite3_bind_text(stmt, 4, document.mime, -1, SQLITE_TRANSIENT)
+                    sqlite3_bind_text(stmt, 5, document.createdAt, -1, SQLITE_TRANSIENT)
                 })
+            try runChecked("DELETE FROM chunks WHERE hash = ?", bind: { stmt in
+                sqlite3_bind_text(stmt, 1, document.sourceHash, -1, SQLITE_TRANSIENT)
+            })
+            for chunk in document.chunks {
+                try runChecked("INSERT INTO chunks(hash, i, text, page, char_start, char_end, tokens) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    bind: { stmt in
+                        sqlite3_bind_text(stmt, 1, document.sourceHash, -1, SQLITE_TRANSIENT)
+                        sqlite3_bind_int64(stmt, 2, Int64(chunk.i))
+                        sqlite3_bind_text(stmt, 3, chunk.text, -1, SQLITE_TRANSIENT)
+                        if let page = chunk.page {
+                            sqlite3_bind_int64(stmt, 3 + 1, Int64(page))
+                        } else {
+                            sqlite3_bind_null(stmt, 4)
+                        }
+                        sqlite3_bind_int64(stmt, 5, Int64(chunk.charStart))
+                        sqlite3_bind_int64(stmt, 6, Int64(chunk.charEnd))
+                        sqlite3_bind_int64(stmt, 7, Int64(chunk.tokens))
+                    })
+            }
+            Self.exec(db, "COMMIT;")
+        } catch {
+            Self.exec(db, "ROLLBACK;")
+            throw error
         }
     }
 
     func ingest(mkv: URL) throws {
         let (header, vectors) = try MKVCodec.decode(Data(contentsOf: mkv))
-        for (index, vector) in vectors.enumerated() {
-            let blob = vector.withUnsafeBufferPointer { buf in
-                Data(bytes: buf.baseAddress!, count: buf.count * MemoryLayout<Float>.size)
+        Self.exec(db, "BEGIN TRANSACTION;")
+        do {
+            for (index, vector) in vectors.enumerated() {
+                let blob = vector.withUnsafeBufferPointer { buf in
+                    Data(bytes: buf.baseAddress!, count: buf.count * MemoryLayout<Float>.size)
+                }
+                try runChecked("INSERT OR REPLACE INTO vectors(hash, i, profile, revision, vec) VALUES (?, ?, ?, ?, ?)",
+                    bind: { stmt in
+                        sqlite3_bind_text(stmt, 1, header.sourceHash, -1, SQLITE_TRANSIENT)
+                        sqlite3_bind_int64(stmt, 2, Int64(index))
+                        sqlite3_bind_text(stmt, 3, header.profileID, -1, SQLITE_TRANSIENT)
+                        sqlite3_bind_text(stmt, 4, header.modelRevision, -1, SQLITE_TRANSIENT)
+                        _ = blob.withUnsafeBytes { sqlite3_bind_blob(stmt, 5, $0.baseAddress, Int32(blob.count), SQLITE_TRANSIENT) }
+                    })
             }
-            run("INSERT OR REPLACE INTO vectors(hash, i, profile, revision, vec) VALUES (?, ?, ?, ?, ?)",
-                bind: { stmt in
-                    sqlite3_bind_text(stmt, 1, header.sourceHash, -1, SQLITE_TRANSIENT)
-                    sqlite3_bind_int64(stmt, 2, Int64(index))
-                    sqlite3_bind_text(stmt, 3, header.profileID, -1, SQLITE_TRANSIENT)
-                    sqlite3_bind_text(stmt, 4, header.modelRevision, -1, SQLITE_TRANSIENT)
-                    _ = blob.withUnsafeBytes { sqlite3_bind_blob(stmt, 5, $0.baseAddress, Int32(blob.count), SQLITE_TRANSIENT) }
-                })
+            Self.exec(db, "COMMIT;")
+        } catch {
+            Self.exec(db, "ROLLBACK;")
+            throw error
         }
     }
 
@@ -350,22 +369,48 @@ actor KnowledgeStore {
     // MARK: - SQLite helpers
 
     private func run(_ sql: String, bind: (OpaquePointer) -> Void) {
+        // A failed sqlite3_open leaves db nil; passing NULL to the sqlite
+        // API segfaults. Degrade gracefully instead (review 2026-11-24).
+        guard let db else {
+            logger.error("Knowledge store unavailable — skipping statement")
+            return
+        }
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
-            logger.error("SQLite prepare failed: \(String(cString: sqlite3_errmsg(self.db)), privacy: .public)")
+            logger.error("SQLite prepare failed: \(String(cString: sqlite3_errmsg(db)), privacy: .public)")
             return
         }
         bind(stmt!)
         if sqlite3_step(stmt) != SQLITE_DONE {
-            logger.error("SQLite step failed: \(String(cString: sqlite3_errmsg(self.db)), privacy: .public)")
+            logger.error("SQLite step failed: \(String(cString: sqlite3_errmsg(db)), privacy: .public)")
         }
         sqlite3_finalize(stmt)
     }
 
-    private func query(_ sql: String, bind: ((OpaquePointer) -> Void)? = nil, row: (OpaquePointer) -> Void) {
+    /// Throwing variant for ingest: partial failures must surface so the
+    /// caller can retry, not leave a documents row with missing chunks
+    /// (review 2026-11-24).
+    private func runChecked(_ sql: String, bind: (OpaquePointer) -> Void) throws {
+        guard let db else { throw KnowledgeError.store("Knowledge store unavailable") }
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
-            logger.error("SQLite prepare failed: \(String(cString: sqlite3_errmsg(self.db)), privacy: .public)")
+            throw KnowledgeError.store(String(cString: sqlite3_errmsg(db)))
+        }
+        bind(stmt!)
+        defer { sqlite3_finalize(stmt) }
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw KnowledgeError.store(String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    private func query(_ sql: String, bind: ((OpaquePointer) -> Void)? = nil, row: (OpaquePointer) -> Void) {
+        guard let db else {
+            logger.error("Knowledge store unavailable — skipping query")
+            return
+        }
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            logger.error("SQLite prepare failed: \(String(cString: sqlite3_errmsg(db)), privacy: .public)")
             return
         }
         bind?(stmt!)

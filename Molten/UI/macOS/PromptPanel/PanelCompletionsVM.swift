@@ -15,11 +15,9 @@ private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "pa
 final class CompletionsPanelVM {
     var selectedText: String?
     var onReceiveText: (String) -> ()
-    var messageResponse: String = ""
     var isReady = false
     let sentenceQueue = AsyncQueue<String>()
     private var generationTask: Task<Void, Never>?
-    private var currentMessageBuffer: String = ""
 
     
     init(onReceiveText: @escaping (String) -> Void = {_ in}) {
@@ -42,18 +40,20 @@ final class CompletionsPanelVM {
     func sendPrompt(completion: CompletionInstructionSD, model: LanguageModelSD)  {
         guard let selectedText = selectedText, !isReady else { return }
         let prompt = CompletionsPanelVM.constructPrompt(completion: completion, selectedText: selectedText)
-        
+
         let messages: [ChatMessage] = [
             ChatMessage(role: "user", content: prompt, image_url: nil)
         ]
-        currentMessageBuffer = ""
-        messageResponse = ""
+        // Cancel any previous stream before starting a new one — overwriting
+        // the task let two generations interleave (review 2026-11-24).
+        generationTask?.cancel()
+        isReady = true
 
         Task {
             if await SwamaService.shared.reachable() {
                 generationTask = Task { [weak self] in
                     guard let self = self else { return }
-                    
+
                     do {
                         let stream = SwamaService.shared.chatStream(
                             model: model.name,
@@ -61,14 +61,15 @@ final class CompletionsPanelVM {
                             temperature: completion.modelTemperature.map { Double($0) } ?? 0.8,
                             maxTokens: nil
                         )
-                        
+
                         for try await response in stream {
                             if Task.isCancelled { break }
-                            await MainActor.run {
-                                self.handleReceive(response)
-                            }
+                            // Awaited inline: FIFO order and cancellation
+                            // tied to this task (per-chunk detached Tasks
+                            // leaked past cancel and reordered text).
+                            await self.handleReceive(response)
                         }
-                        
+
                         if !Task.isCancelled {
                             await MainActor.run {
                                 self.handleComplete()
@@ -87,52 +88,52 @@ final class CompletionsPanelVM {
             }
         }
     }
-    
+
     @MainActor
-    private func handleReceive(_ response: ChatCompletionResponse) {
-        Task {
-            // Handle streaming response - content can be in delta or message
-            // Extract text content from ContentType enum
-            let deltaContent = response.choices?.first?.delta?.content
-            let messageContent = response.choices?.first?.message?.content
-            
-            let responseContent: String? = {
-                if let delta = deltaContent {
-                    switch delta {
-                    case .string(let text):
-                        return text
-                    case .array(let parts):
-                        return parts.compactMap { $0.text }.joined()
-                    }
-                } else if let message = messageContent {
-                    switch message {
-                    case .string(let text):
-                        return text
-                    case .array(let parts):
-                        return parts.compactMap { $0.text }.joined()
-                    }
+    private func handleReceive(_ response: ChatCompletionResponse) async {
+        // Handle streaming response - content can be in delta or message
+        // Extract text content from ContentType enum
+        let deltaContent = response.choices?.first?.delta?.content
+        let messageContent = response.choices?.first?.message?.content
+
+        let responseContent: String? = {
+            if let delta = deltaContent {
+                switch delta {
+                case .string(let text):
+                    return text
+                case .array(let parts):
+                    return parts.compactMap { $0.text }.joined()
                 }
-                return nil
-            }()
-            
-            if let responseContent = responseContent, !responseContent.isEmpty {
-                await sentenceQueue.enqueue(responseContent)
-                self.messageResponse = self.messageResponse + responseContent
+            } else if let message = messageContent {
+                switch message {
+                case .string(let text):
+                    return text
+                case .array(let parts):
+                    return parts.compactMap { $0.text }.joined()
+                }
             }
+            return nil
+        }()
+
+        if let responseContent = responseContent, !responseContent.isEmpty {
+            await sentenceQueue.enqueue(responseContent)
         }
     }
-    
+
     @MainActor
     private func handleError(_ errorMessage: String) {
         logger.error("CompletionsPanel: \(errorMessage, privacy: .private)")
+        isReady = false
     }
 
     @MainActor
     private func handleComplete() {
+        isReady = false
     }
-    
+
     @MainActor
     func cancel() {
         generationTask?.cancel()
+        isReady = false
     }
 }

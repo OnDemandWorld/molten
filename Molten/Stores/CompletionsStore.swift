@@ -42,9 +42,14 @@ final class CompletionsStore {
                 try? await SwiftDataService.shared.updateCompletionInstructions(CompletionInstructionSD.samples)
                 loadedCompletions = (try? await SwiftDataService.shared.fetchCompletionInstructions()) ?? []
             }
-            
-            withAnimation {
-                completions = loadedCompletions
+
+            // UI-bound state must mutate on the main actor — SwiftUI reads
+            // and binds `completions` there (review 2026-11-24: this was an
+            // off-main data race).
+            await MainActor.run {
+                withAnimation {
+                    self.completions = loadedCompletions
+                }
             }
         }
     }

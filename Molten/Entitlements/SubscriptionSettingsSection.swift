@@ -15,6 +15,7 @@ struct SubscriptionSettingsSection: View {
     // sections get torn down by the Form's update cycle).
     @Binding var showPaywall: Bool
     @Binding var showPlanDetail: Bool
+    @State private var restoreMessage: String?
 
     var body: some View {
         Section("Subscription") {
@@ -42,7 +43,12 @@ struct SubscriptionSettingsSection: View {
                 LabeledContent("Renews") { Text(renewal, style: .date) }
             }
             Button("Restore Purchases") {
-                Task { await EntitlementManager.shared.restore() }
+                Task { await restorePurchases() }
+            }
+            if let restoreMessage {
+                Text(restoreMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Link("Manage Subscription",
                  destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
@@ -58,10 +64,23 @@ struct SubscriptionSettingsSection: View {
         }
     }
 
+    /// G5 (review 2026-11-24): restore must tell success and failure apart —
+    /// an offline restore used to look identical to "nothing to restore".
+    private func restorePurchases() async {
+        do {
+            try await EntitlementManager.shared.restore()
+            restoreMessage = ui.tier == .free
+                ? "Restore completed — no active purchases found."
+                : "Restore completed."
+        } catch {
+            restoreMessage = "Restore failed: \(error.localizedDescription)"
+        }
+    }
+
     private var planText: String {
         switch (ui.tier, ui.source) {
         case (.plus, .earlySupporter):
-            return "Molten Plus — Early Supporter (lifetime)" // M5
+            return "Molten Plus — Early Supporter ❤︎" // M5
         case (.plus, .subscription):
             return "Molten Plus"
         case (.plus, .lifetime):
@@ -69,7 +88,7 @@ struct SubscriptionSettingsSection: View {
         case (.pro, _):
             return "Molten Pro"
         default:
-            return "Free"
+            return "Free · See what Plus adds"
         }
     }
 }
@@ -78,6 +97,7 @@ struct SubscriptionSettingsSection: View {
 struct PlanDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var ui = EntitlementUIModel.shared
+    @State private var restoreMessage: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -101,7 +121,19 @@ struct PlanDetailView: View {
                 Link("Manage Subscription",
                      destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
                 Button("Restore Purchases") {
-                    Task { await EntitlementManager.shared.restore() }
+                    Task {
+                        do {
+                            try await EntitlementManager.shared.restore()
+                            restoreMessage = "Restore completed."
+                        } catch {
+                            restoreMessage = "Restore failed: \(error.localizedDescription)"
+                        }
+                    }
+                }
+                if let restoreMessage {
+                    Text(restoreMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Button("Done") { dismiss() }
                     .buttonStyle(.borderedProminent)

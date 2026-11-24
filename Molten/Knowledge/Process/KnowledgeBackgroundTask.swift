@@ -15,6 +15,23 @@ import BackgroundTasks
 enum KnowledgeBackgroundTask {
     static let identifier = "com.ondemandworld.molten.knowledge.processing"
 
+    // The processing task and completion flag are touched from the launch
+    // handler, the expiration handler, and the task itself (arbitrary
+    // threads) — guard them with a lock. Completing a BGTask twice is a
+    // programmer error, so completion must go through completeOnce
+    // (review 2026-11-24).
+    private static let stateLock = NSLock()
+    private nonisolated(unsafe) static var processingTask: Task<Void, Never>?
+    private nonisolated(unsafe) static var completed = false
+
+    private static func completeOnce(_ task: BGTask, success: Bool) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        guard !completed else { return }
+        completed = true
+        task.setTaskCompleted(success: success)
+    }
+
     /// Register at launch (before the end of application(_:didFinishLaunching…)).
     static func register() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: nil) { task in
@@ -22,16 +39,30 @@ enum KnowledgeBackgroundTask {
                 task.setTaskCompleted(success: false)
                 return
             }
+            stateLock.lock()
+            completed = false
+            stateLock.unlock()
+
             continued.expirationHandler = {
                 // Per-file/per-stage outputs are already persisted (K-D3).
-                continued.setTaskCompleted(success: false)
+                // Cancel the work so nothing keeps running (or completes the
+                // task a second time) after the system reclaimed it.
+                stateLock.lock()
+                let running = processingTask
+                stateLock.unlock()
+                running?.cancel()
+                completeOnce(continued, success: false)
             }
-            Task {
+            let work = Task {
                 for base in await KnowledgeStore.shared.bases() {
+                    if Task.isCancelled { break }
                     try? await KnowledgeIndexer.shared.scan(base: base, force: true)
                 }
-                continued.setTaskCompleted(success: true)
+                completeOnce(continued, success: !Task.isCancelled)
             }
+            stateLock.lock()
+            processingTask = work
+            stateLock.unlock()
         }
     }
 

@@ -81,6 +81,12 @@ enum Chunker {
             }
             current.append(block)
             currentTokens += blockTokens
+            // Overlap + block can exceed the hard cap: keep only the block
+            // (itself verified ≤ maxTokens above) — review 2026-11-24.
+            if currentTokens > maxTokens {
+                current = [block]
+                currentTokens = blockTokens
+            }
         }
         await flush()
         return chunks
@@ -172,15 +178,40 @@ enum Chunker {
         for wEnd in wordEnds {
             let candidate = ns.substring(with: NSRange(location: start, length: wEnd - start))
             if await tokenCount(prefix + candidate) > maxTokens && end > start {
-                pieces.append(makePiece(ns, base, start, end))
+                pieces.append(contentsOf: await hardSplit(ns, base: base, from: start, to: end, prefix: prefix, tokenCount: tokenCount))
                 start = end
             }
             end = wEnd
         }
         if end > start {
-            pieces.append(makePiece(ns, base, start, end))
+            pieces.append(contentsOf: await hardSplit(ns, base: base, from: start, to: end, prefix: prefix, tokenCount: tokenCount))
         }
         return pieces
+    }
+
+    /// Character-bisection fallback for a single unbroken run (long URL,
+    /// base64, CJK without spaces) that exceeds the cap on its own —
+    /// splitByWords used to emit it as one oversized chunk (review
+    /// 2026-11-24). Returns the piece unchanged when it already fits.
+    static func hardSplit(
+        _ ns: NSString,
+        base: Int,
+        from: Int,
+        to: Int,
+        prefix: String,
+        tokenCount: (String) async -> Int
+    ) async -> [Segment] {
+        let text = ns.substring(with: NSRange(location: from, length: to - from))
+        let fits = await tokenCount(prefix + text) <= maxTokens
+        if to - from <= 1 || fits {
+            let piece = makePiece(ns, base, from, to)
+            return piece.text.isEmpty ? [] : [piece]
+        }
+        let mid = from + (to - from) / 2
+        var out = await hardSplit(ns, base: base, from: from, to: mid, prefix: prefix, tokenCount: tokenCount)
+        let tail = await hardSplit(ns, base: base, from: mid, to: to, prefix: prefix, tokenCount: tokenCount)
+        out += tail
+        return out
     }
 
     static func makePiece(_ ns: NSString, _ base: Int, _ start: Int, _ end: Int) -> Segment {
@@ -198,7 +229,10 @@ enum Chunker {
         var tokens = 0
         for segment in segments.reversed() {
             let t = await tokenCount(segment.text)
-            if tokens + t > budget && !result.isEmpty { break }
+            // Never exceed the budget, even for a single oversized trailing
+            // segment — it used to become the entire overlap and blow the
+            // hard cap (review 2026-11-24). Empty overlap is acceptable.
+            if tokens + t > budget { break }
             result.insert(segment, at: 0)
             tokens += t
             if tokens >= budget { break }

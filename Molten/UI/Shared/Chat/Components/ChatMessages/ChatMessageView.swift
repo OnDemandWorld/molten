@@ -115,6 +115,16 @@ struct ChatMessageView: View {
                        let citations = try? JSONDecoder().decode([CitationRef].self, from: data),
                        !citations.isEmpty {
                         CitationChips(citations: citations)
+                        // First grounded answer: inline Plus card (soft,
+                        // dismissible; "without ads" doc).
+                        if UpsellCoordinator.shared.groundedCardMessageID == message.id {
+                            GroundedAnswerCard(
+                                onSeePlus: {
+                                    UpsellCoordinator.shared.dismissPrompt()
+                                    UpsellCoordinator.shared.showPaywall = true
+                                },
+                                onDismiss: { UpsellCoordinator.shared.dismissPrompt() })
+                        }
                     }
 
                     // Analytics footer for assistant messages
@@ -146,10 +156,14 @@ struct ChatMessageView: View {
                 Button(action: {
                     Task {
                         await speechSynthesizer.stopSpeaking()
+                        // Only show Stop when speech can actually start:
+                        // no voice or empty content means no delegate
+                        // callbacks, which used to leave the row stuck on
+                        // Stop (review 2026-11-24).
+                        guard !message.content.isEmpty,
+                              speechSynthesizer.getVoiceIdentifier() != nil else { return }
+                        isSpeaking = true
                         await speechSynthesizer.speak(text: message.content, onFinished: { isSpeaking = false })
-                        DispatchQueue.main.asyncAfter(deadline: .now()+0.1) {
-                            isSpeaking = true
-                        }
                     }
                 }) {
                     Image(systemName: "speaker.wave.2.fill")

@@ -34,6 +34,7 @@ struct ChatView: View {
     /// Image selection
     @State private var pickerSelectorActive: PhotosPickerItem?
     @State private var selectedImage: Image?
+    @State private var imageLoadTask: Task<Void, Never>?
     @State private var docSelectingActive: Bool = false
     
     init(
@@ -143,8 +144,12 @@ struct ChatView: View {
             }
             .accessibilityLabel("Add image")
             .onChange(of: pickerSelectorActive) {
-                Task {
-                    if let loaded = try? await pickerSelectorActive?.loadTransferable(type: Image.self) {
+                // Cancel the previous load so a slow earlier pick can't
+                // overwrite a newer one (review 2026-11-24).
+                imageLoadTask?.cancel()
+                imageLoadTask = Task {
+                    if let loaded = try? await pickerSelectorActive?.loadTransferable(type: Image.self),
+                       !Task.isCancelled {
                         selectedImage = loaded
                     }
                 }
@@ -171,8 +176,13 @@ struct ChatView: View {
                 SimpleFloatingButton(systemImage: "doc.text", onClick: { docSelectingActive.toggle() }, accessibilityTitle: "Use document once")
                     .fileImporter(isPresented: $docSelectingActive, allowedContentTypes: [.pdf, .plainText, .rtf, .html], allowsMultipleSelection: false) { result in
                         if case .success(let urls) = result, let url = urls.first {
+                            // Staleness guard: if the input changed while
+                            // extracting (e.g. the message was sent), don't
+                            // contaminate the next one (review 2026-11-24).
+                            let baseline = message
                             Task {
-                                if let text = await UseOnce.extractText(from: url) {
+                                if let text = await UseOnce.extractText(from: url),
+                                   message == baseline {
                                     message += "\n\n[Document: \(url.lastPathComponent)]\n" + text
                                 }
                             }

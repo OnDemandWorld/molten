@@ -38,6 +38,13 @@ final class AppStore {
     private let minCheckInterval: TimeInterval = 5 // Minimum 5 seconds between checks
 
     init() {
+        applyPingInterval()
+    }
+
+    /// (Re)read the user's ping interval and reschedule the timer.
+    /// Settings calls this on save — the setting used to apply only after
+    /// relaunch (review 2026-11-24).
+    func applyPingInterval() {
         let defaultInterval: TimeInterval = {
             #if os(macOS)
             return 15
@@ -45,13 +52,13 @@ final class AppStore {
             return 30
             #endif
         }()
-        
         if let storedIntervalString = UserDefaults.standard.string(forKey: "pingInterval") {
             pingInterval = Double(storedIntervalString) ?? defaultInterval
-            
             if pingInterval <= 0 {
                 pingInterval = .infinity
             }
+        } else {
+            pingInterval = defaultInterval
         }
         startCheckingReachability(interval: pingInterval)
     }
@@ -175,6 +182,11 @@ final class AppStore {
             } else {
                 consecutiveFailures += 1
             }
+            // Reschedule to match the new backoff state: zeroing failures
+            // without restarting left the timer stuck at up to 300s — the
+            // next tick saw wasInBackoff=false and never restarted
+            // (review 2026-11-24).
+            startCheckingReachability(interval: pingInterval)
         }
     }
 

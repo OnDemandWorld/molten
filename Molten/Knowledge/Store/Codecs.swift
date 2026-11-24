@@ -120,6 +120,12 @@ enum MKVCodec {
         }
         let header = try JSONDecoder().decode(MKVHeader.self, from: data.subdata(in: 8..<headerEnd))
         let payload = data.dropFirst(headerEnd)
+        // Validate sign/overflow before any arithmetic or reserveCapacity:
+        // a corrupted synced .mkv must throw, not trap (review 2026-11-24).
+        guard header.count >= 0, header.dims > 0,
+              header.count <= (Int.max / 2) / header.dims else {
+            throw KnowledgeError.notImplemented("MKV header count/dims invalid")
+        }
         let expected = header.count * header.dims * 2
         guard payload.count == expected else {
             throw KnowledgeError.notImplemented("MKV payload size mismatch")

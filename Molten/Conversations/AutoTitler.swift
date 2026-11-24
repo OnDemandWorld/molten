@@ -21,21 +21,22 @@ actor AutoTitler {
 
     /// Generate a short title after the first exchange, only while the
     /// conversation still carries its default name (the first prompt).
+    /// Takes an ID, not a model instance: all reads/writes go through
+    /// SwiftDataService so this actor never touches another context's
+    /// objects (review 2026-11-24).
     func titleIfNeeded(
-        conversation: ConversationSD,
+        conversationID: UUID,
         fallbackProvider: ModelProviderProtocol?,
         fallbackModel: String?
     ) async {
         guard Self.enabled else { return }
-        let messages = conversation.messages.sorted { $0.createdAt < $1.createdAt }
-        guard let firstUser = messages.first(where: { $0.role == "user" }),
-              let firstAssistant = messages.first(where: { $0.role == "assistant" && $0.done }),
-              conversation.name == firstUser.content else { return }
+        guard let snapshot = try? await SwiftDataService.shared.titleSnapshot(conversationID: conversationID),
+              snapshot.name == snapshot.firstUserContent else { return }
 
         let prompt = """
             Give this conversation a title of at most 6 words. Reply with only the title, no quotes.
-            User: \(String(firstUser.content.prefix(500)))
-            Assistant: \(String((firstAssistant.realContent ?? firstAssistant.content).prefix(500)))
+            User: \(String(snapshot.firstUserContent.prefix(500)))
+            Assistant: \(String(snapshot.firstAssistantContent.prefix(500)))
             """
         var title: String?
         // C3: Apple's on-device model first.
@@ -48,9 +49,9 @@ actor AutoTitler {
         guard let clean = title?.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\"'.")),
               !clean.isEmpty else { return }
-        conversation.name = String(clean.prefix(80))
         do {
-            try await SwiftDataService.shared.renameConversation(conversation)
+            try await SwiftDataService.shared.renameConversation(
+                id: conversationID, name: String(clean.prefix(80)))
         } catch {
             logger.error("Auto-title save failed: \(error.localizedDescription, privacy: .private)")
         }

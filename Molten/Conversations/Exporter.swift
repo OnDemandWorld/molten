@@ -23,6 +23,9 @@ struct ExportedMessage: Codable, Sendable {
     let content: String
     let createdAt: Date
     let analytics: ExportedAnalytics?
+    /// Image attachment (review 2026-11-24: exports used to drop images,
+    /// so backup→import lost them). Optional: older exports decode as nil.
+    var image: Data? = nil
 }
 
 struct ExportedConversation: Codable, Sendable {
@@ -37,17 +40,21 @@ enum Exporter {
         let messages = conversation.messages
             .sorted { $0.createdAt < $1.createdAt }
             .map { message in
-                ExportedMessage(
-                    role: message.role,
-                    content: message.realContent ?? message.content,
-                    createdAt: message.createdAt,
-                    analytics: includeAnalytics ? ExportedAnalytics(
+                let analytics: ExportedAnalytics? = includeAnalytics
+                    ? ExportedAnalytics(
                         promptTokens: message.promptTokens,
                         completionTokens: message.completionTokens,
                         totalTokens: message.totalTokens,
                         totalTime: message.totalTime,
                         promptEvalTime: message.promptEvalTime,
-                        evalTime: message.evalTime) : nil)
+                        evalTime: message.evalTime)
+                    : nil
+                return ExportedMessage(
+                    role: message.role,
+                    content: message.realContent ?? message.content,
+                    createdAt: message.createdAt,
+                    analytics: analytics,
+                    image: message.image)
             }
         return ExportedConversation(
             name: conversation.name,
@@ -81,6 +88,12 @@ enum Exporter {
 
     /// C2: export everything as a zip (one JSON file per conversation).
     static func zipAll(_ conversations: [ConversationSD], includeAnalytics: Bool) throws -> Data {
+        try zipAll(exported: conversations.map { exported($0, includeAnalytics: includeAnalytics) })
+    }
+
+    /// Sendable-input variant so the encoding/zip work can run off the main
+    /// actor (review 2026-11-24: it used to block the UI for large histories).
+    static func zipAll(exported conversations: [ExportedConversation]) throws -> Data {
         var files: [(name: String, data: Data)] = []
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -89,7 +102,7 @@ enum Exporter {
                 .components(separatedBy: CharacterSet(charactersIn: "/\\:?*\"<>|"))
                 .joined(separator: "-")
             let name = String(format: "%03d-%@.json", index + 1, String(safe.prefix(60)))
-            files.append((name, try encoder.encode(exported(conversation, includeAnalytics: includeAnalytics))))
+            files.append((name, try encoder.encode(conversation)))
         }
         return ZipWriter.archive(files: files)
     }

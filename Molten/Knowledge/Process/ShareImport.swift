@@ -14,7 +14,21 @@ import OSLog
 private let logger = Logger(subsystem: "com.ondemandworld.molten", category: "knowledge.share")
 
 enum ShareImport {
-    enum ShareError: Error { case noBase, writeFailed }
+    enum ShareError: Error { case noBase, writeFailed, invalidName }
+
+    /// G3 (review 2026-11-24): base names become path components under
+    /// Documents/. Reject anything that could escape the base layout
+    /// ("..", "/"), hide the folder (leading "."), or break Finder/POSIX
+    /// conventions. Returns the trimmed name, or nil when invalid.
+    static func sanitizedBaseName(_ raw: String) -> String? {
+        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 64,
+              name != ".", name != "..",
+              !name.hasPrefix("."),
+              !name.contains("/"), !name.contains("\\"), !name.contains(":")
+        else { return nil }
+        return name
+    }
 
     /// K-S3: top-level folders under Documents/ are the bases.
     static func availableBases() -> [String] {
@@ -28,7 +42,8 @@ enum ShareImport {
     }
 
     static func createBase(_ name: String) throws {
-        let dir = KnowledgeContainer.baseDirectory(name)
+        guard let clean = sanitizedBaseName(name) else { throw ShareError.invalidName }
+        let dir = KnowledgeContainer.baseDirectory(clean)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
@@ -36,10 +51,13 @@ enum ShareImport {
     /// naming downstream means duplicate shares never reprocess (G4).
     @discardableResult
     static func importFile(_ data: Data, fileName: String, intoBase base: String) throws -> URL {
-        guard !base.isEmpty else { throw ShareError.noBase }
-        let dir = KnowledgeContainer.baseDirectory(base)
+        guard let clean = sanitizedBaseName(base) else { throw ShareError.noBase }
+        let dir = KnowledgeContainer.baseDirectory(clean)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        var destination = dir.appendingPathComponent(fileName)
+        // File names are path components too: strip any directory parts.
+        let leaf = URL(fileURLWithPath: fileName).lastPathComponent
+        guard !leaf.isEmpty, leaf != ".", leaf != ".." else { throw ShareError.writeFailed }
+        var destination = dir.appendingPathComponent(leaf)
         // Avoid clobbering an existing file with different content.
         if FileManager.default.fileExists(atPath: destination.path) {
             let stem = destination.deletingPathExtension().lastPathComponent

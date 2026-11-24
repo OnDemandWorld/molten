@@ -226,7 +226,12 @@ enum ProviderEndpointResolver {
 
         if let candidate {
             var finalURL = candidate
-            if !finalURL.contains("http") {
+            // Prefix check, not a substring heuristic: "HTTP://…" is valid,
+            // hosts like "myhttpserver.local" need a scheme, and bare
+            // "localhost:11434" parses with scheme "localhost"
+            // (review 2026-11-24).
+            let lowercased = finalURL.lowercased()
+            if !lowercased.hasPrefix("http://") && !lowercased.hasPrefix("https://") {
                 finalURL = "http://" + finalURL
             }
             if let parsed = URL(string: finalURL) {

@@ -191,7 +191,10 @@ struct SettingsView: View {
                     
                     Picker(selection: $colorScheme) {
                         ForEach(AppColorScheme.allCases, id:\.self) { scheme in
-                            Text(scheme.toString).tag(scheme.id)
+                            // Tag must match the selection type (AppColorScheme,
+                            // not its String id) or the picker never reflects
+                            // or updates the choice (review 2026-11-24).
+                            Text(scheme.toString).tag(scheme)
                         }
                     } label: {
                         Label("Appearance", systemImage: "sun.max")
@@ -262,11 +265,13 @@ struct SettingsView: View {
         .preferredColorScheme(colorScheme.toiOSFormat)
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .sheet(isPresented: $showPlanDetail) { PlanDetailView() }
-        .confirmationDialog("Delete All Conversations?", isPresented: $deleteConversationsDialog) {
+        // Scope matches Settings.deleteAll(), which also wipes saved models
+        // (review 2026-11-24: the dialog used to mention only conversations).
+        .confirmationDialog("Delete All Conversations and Saved Models?", isPresented: $deleteConversationsDialog) {
             Button("Delete", role: .destructive) { deleteAll() }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Delete All Conversations?")
+            Text("This permanently deletes every conversation and the saved model list. Providers will be re-queried for models afterwards.")
         }
     }
 }

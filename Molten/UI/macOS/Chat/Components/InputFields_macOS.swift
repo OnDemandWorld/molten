@@ -55,6 +55,12 @@ struct InputFieldsView: View {
                 if let nsImage = Clipboard.shared.getImage() {
                     let image = Image(nsImage: nsImage)
                     updateSelectedImage(image)
+                } else if let text = Clipboard.shared.getText() {
+                    // This interceptor consumes the ⌘V key equivalent even
+                    // when the clipboard holds no image, so it must also
+                    // handle plain text or paste is swallowed (review
+                    // 2026-11-24). Mirrors PromptPanelView's handler.
+                    message += text
                 }
             }
         ]
@@ -110,8 +116,13 @@ struct InputFieldsView: View {
                     SimpleFloatingButton(systemImage: "doc.text", onClick: { docSelectingActive.toggle() }, accessibilityTitle: "Use document once")
                         .fileImporter(isPresented: $docSelectingActive, allowedContentTypes: [.pdf, .plainText, .rtf, .html], allowsMultipleSelection: false) { result in
                             if case .success(let urls) = result, let url = urls.first {
+                                // Staleness guard: if the input changed while
+                                // extracting (e.g. the message was sent), don't
+                                // contaminate the next one (review 2026-11-24).
+                                let baseline = message
                                 Task {
-                                    if let text = await UseOnce.extractText(from: url) {
+                                    if let text = await UseOnce.extractText(from: url),
+                                       message == baseline {
                                         message += "\n\n[Document: \(url.lastPathComponent)]\n" + text
                                     }
                                 }

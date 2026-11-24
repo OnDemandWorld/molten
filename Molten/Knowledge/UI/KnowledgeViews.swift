@@ -39,6 +39,8 @@ struct KnowledgeSidebar: View {
     @State private var newBaseName = ""
     @State private var showNewBase = false
     @State private var selectedBase: BaseID?
+    @State private var baseError: String?
+    @State private var ui = EntitlementUIModel.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -49,7 +51,9 @@ struct KnowledgeSidebar: View {
                 Button {
                     attemptNewBase()
                 } label: {
-                    Image(systemName: "plus")
+                    // Lock once the Free base limit is reached, so the limit
+                    // is visible before the tap ("without ads" doc).
+                    Image(systemName: ui.tier == .free && !bases.isEmpty ? "lock.fill" : "plus")
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("New knowledge base")
@@ -62,9 +66,17 @@ struct KnowledgeSidebar: View {
                         Image(systemName: "books.vertical")
                         VStack(alignment: .leading) {
                             Text(base).font(.body)
-                            Text("\(counts[base] ?? 0) documents")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            // Free users see the limit coming: "7 of 10
+                            // documents" (files present, not indexed count).
+                            if ui.tier == .free {
+                                Text("\(counts[base] ?? 0) of \(KnowledgeLimits.freeDocumentCount) documents")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("\(counts[base] ?? 0) documents")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -74,6 +86,23 @@ struct KnowledgeSidebar: View {
                 Text("Drop files into a folder to add them to a knowledge base.") // knowledge.rootFileHint
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            if let baseError {
+                Text(baseError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            // Permanent, non-interrupting sync disclosure for Free users
+            // ("without ads" doc): the gate was invisible before.
+            if ui.tier == .free {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Label("On this device only · Sync with Plus", systemImage: "icloud")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 8)
@@ -99,9 +128,17 @@ struct KnowledgeSidebar: View {
 
     private func refresh() async {
         let currentBases = await KnowledgeStore.shared.bases()
+        let unlimited = await EntitlementManager.shared.allows(.unlimitedKnowledge)
         var newCounts: [BaseID: Int] = [:]
         for base in currentBases {
-            newCounts[base] = await KnowledgeStore.shared.documentCount(base: base)
+            if unlimited {
+                newCounts[base] = await KnowledgeStore.shared.documentCount(base: base)
+            } else {
+                // Free: count files present (matches the add-files gate),
+                // off-main — the indexed count lags on iOS (G1).
+                let dir = KnowledgeContainer.baseDirectory(base)
+                newCounts[base] = await Task.detached { BaseDetailView.countFiles(in: dir) }.value
+            }
         }
         // Assign together and drop counts for bases that no longer exist.
         bases = currentBases
@@ -120,12 +157,22 @@ struct KnowledgeSidebar: View {
     }
 
     private func createBase() {
-        let name = newBaseName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
+        // G3 (review 2026-11-24): validate the name (no ".."/"/"/hidden
+        // folders) and only register the base if the folder was created.
+        guard let name = ShareImport.sanitizedBaseName(newBaseName) else {
+            baseError = "Invalid name — avoid “/”, “..”, and leading dots."
+            return
+        }
         newBaseName = ""
+        baseError = nil
         Task {
-            try? FileManager.default.createDirectory(
-                at: KnowledgeContainer.baseDirectory(name), withIntermediateDirectories: true)
+            do {
+                try FileManager.default.createDirectory(
+                    at: KnowledgeContainer.baseDirectory(name), withIntermediateDirectories: true)
+            } catch {
+                baseError = "Could not create base: \(error.localizedDescription)"
+                return
+            }
             await KnowledgeStore.shared.createBase(name)
             await refresh()
             if bases.count == 1 { showOnboarding = true }
@@ -147,6 +194,9 @@ struct BaseDetailView: View {
     @State private var showDownloadConsent = false
     @State private var showPaywall = false
     @State private var fileToRemove: URL?
+    /// Upsell visibility: scanned pages the Free tier can't read, per file.
+    @State private var ocrNeeded: [URL: Int] = [:]
+    @State private var ocrAllowed = true
 
     var body: some View {
         NavigationStack {
@@ -160,9 +210,24 @@ struct BaseDetailView: View {
                         HStack(spacing: 10) {
                             Image(systemName: Self.isPlaceholder(file) ? "icloud" : "doc")
                                 .foregroundStyle(.secondary)
-                            Text(Self.displayName(file))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(Self.displayName(file))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                // Make the OCR gate visible at the moment it
+                                // matters ("without ads" doc): the file looks
+                                // inert to Free users otherwise.
+                                if let pages = ocrNeeded[file], pages > 0 {
+                                    Button {
+                                        showPaywall = true
+                                    } label: {
+                                        Text("Needs text recognition · Plus — \(pages) scanned page\(pages == 1 ? "" : "s") unread")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                         .contextMenu {
                             Button(role: .destructive) {
@@ -342,7 +407,33 @@ struct BaseDetailView: View {
                 Self.enumerateFiles(in: dir)
             }.value
             files = sorted
+            await refreshOCRState()
         }
+    }
+
+    /// Which files have unread scanned pages for the current tier.
+    private func refreshOCRState() async {
+        ocrAllowed = await EntitlementManager.shared.allows(.ocr)
+        guard !ocrAllowed else {
+            ocrNeeded = [:]
+            return
+        }
+        let currentFiles = files
+        let needed = await Task.detached(priority: .utility) { () -> [URL: Int] in
+            var result: [URL: Int] = [:]
+            for file in currentFiles {
+                if Self.isPlaceholder(file) { continue }
+                let ext = file.pathExtension.lowercased()
+                if ExtractorFactory.imageExtensions.contains(ext) {
+                    result[file] = 1 // images always need OCR
+                } else if ext == "pdf" {
+                    let pages = PDFExtractor.pagesNeedingOCR(in: file)
+                    if pages > 0 { result[file] = pages }
+                }
+            }
+            return result
+        }.value
+        ocrNeeded = needed
     }
 
     /// K-R1: attach the base to the open conversation (or start a new one),
@@ -405,11 +496,27 @@ struct BaseDetailView: View {
         }
     }
 
+    /// G1 (review 2026-11-24): the Free limit must count files PRESENT in
+    /// the base, not indexed documents — on iOS processing defers to Mac,
+    /// so the indexed count stays 0 and the paywall never fired.
+    nonisolated static func countFiles(in dir: URL) -> Int {
+        guard let enumerator = FileManager.default.enumerator(
+            at: dir, includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]) else { return 0 }
+        var count = 0
+        for case let url as URL in enumerator {
+            if (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
+                count += 1
+            }
+        }
+        return count
+    }
+
     private func addFiles(_ urls: [URL]) {
         Task {
             let unlimited = await EntitlementManager.shared.allows(.unlimitedKnowledge)
-            let existing = await KnowledgeStore.shared.documentCount(base: base)
             let dir = KnowledgeContainer.baseDirectory(base)
+            let existing = await Task.detached { Self.countFiles(in: dir) }.value
             let result = await Task.detached(priority: .userInitiated) {
                 Self.copyImportedFiles(urls, into: dir, existing: existing, unlimited: unlimited)
             }.value
@@ -495,6 +602,7 @@ struct KnowledgeAttachmentBanner: View {
 
 struct KnowledgeOnboarding: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var showPaywall = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -506,11 +614,25 @@ struct KnowledgeOnboarding: View {
             Text("Your files sync with your own iCloud account. Molten has no servers. For end-to-end encryption, turn on Advanced Data Protection.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Got it") { dismiss() }
-                .buttonStyle(.borderedProminent)
+            // Non-blocking trial line after the privacy disclosure
+            // ("without ads" doc, step: end of first-base onboarding).
+            if EntitlementUIModel.shared.tier == .free {
+                Text("Plus adds unlimited bases, scanned-PDF reading and sync across devices. Try it free for a week.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Try free for a week") { showPaywall = true }
+                        .buttonStyle(.borderedProminent)
+                    Button("Not now") { dismiss() }
+                }
+            } else {
+                Button("Got it") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+            }
         }
         .padding(24)
         .frame(maxWidth: 480)
+        .sheet(isPresented: $showPaywall) { PaywallView() }
     }
 }
 
@@ -539,10 +661,22 @@ struct ConversationsSettingsSection: View {
         .fileExporter(isPresented: $exporting, document: ZipDocument(), contentType: .zip, defaultFilename: "Molten-Conversations") { result in
             if case .success(let url) = result {
                 Task {
-                    let conversations = (try? await SwiftDataService.shared.fetchConversations()) ?? []
-                    if let data = try? Exporter.zipAll(conversations, includeAnalytics: includeAnalytics) {
-                        try? data.write(to: url)
+                    // Review 2026-11-24: report failures instead of a fake
+                    // success, and keep the heavy zip work off the main actor.
+                    do {
+                        let conversations = try await SwiftDataService.shared.fetchConversations()
+                        let exported = conversations.map {
+                            Exporter.exported($0, includeAnalytics: includeAnalytics)
+                        }
+                        let data = try await Task.detached {
+                            try Exporter.zipAll(exported: exported)
+                        }.value
+                        try data.write(to: url)
                         status = "Exported \(conversations.count) conversations"
+                    } catch {
+                        // Don't leave the 0-byte ZipDocument placeholder behind.
+                        try? FileManager.default.removeItem(at: url)
+                        status = "Export failed: \(error.localizedDescription)"
                     }
                 }
             }
@@ -550,12 +684,17 @@ struct ConversationsSettingsSection: View {
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 Task {
-                    let secured = url.startAccessingSecurityScopedResource()
-                    defer { if secured { url.stopAccessingSecurityScopedResource() } }
-                    if let data = try? Data(contentsOf: url) {
-                        let count = (try? await Importer.importJSON(data)) ?? 0
+                    do {
+                        let data = try await Task.detached { () -> Data in
+                            let secured = url.startAccessingSecurityScopedResource()
+                            defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                            return try Data(contentsOf: url)
+                        }.value
+                        let count = try await Importer.importJSON(data)
                         status = "Imported \(count) conversations"
                         try? await ConversationStore.shared.loadConversations()
+                    } catch {
+                        status = "Import failed: \(error.localizedDescription)"
                     }
                 }
             }

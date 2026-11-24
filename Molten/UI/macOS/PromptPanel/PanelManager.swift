@@ -11,9 +11,11 @@ import Carbon
 import AsyncAlgorithms
 
 final actor Printer {
-    func write(_ message: String) {
+    func write(_ message: String) async {
         Clipboard.shared.setString(message)
-        usleep(50000)
+        // Task.sleep, not usleep: blocking an actor thread stalls a
+        // cooperative-pool thread for every paste tick (review 2026-11-24).
+        try? await Task.sleep(nanoseconds: 50_000_000)
         Accessibility.simulatePasteCommand()
     }
 }
@@ -75,8 +77,10 @@ class PanelManager: NSObject, NSApplicationDelegate {
         targetApplication = NSWorkspace.shared.runningApplications.first{$0.isActive}
 
         Task {
-            completionsPanelVM.selectedText = Accessibility.shared.getSelectedText()
-            
+            // Await off-main: the copy fallback sleeps and posts events;
+            // running it synchronously blocked the UI (review 2026-11-24).
+            completionsPanelVM.selectedText = await Accessibility.shared.getSelectedText()
+
             if panel == nil || !panel.isVisible {
                 showPanel()
                 
@@ -99,13 +103,18 @@ class PanelManager: NSObject, NSApplicationDelegate {
     
     @MainActor
     @objc func showPanel() {
-        createPanel()
+        // Reuse the panel instead of recreating it on every show — the old
+        // instance was never closed (review 2026-11-24).
+        if panel == nil {
+            createPanel()
+        }
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
     
     @MainActor
     @objc func onSubmitMessage() {
+        UpsellCoordinator.shared.noteEvent(.panelUse)
         allowPrinting = true
         hidePanel()
         
@@ -123,6 +132,7 @@ class PanelManager: NSObject, NSApplicationDelegate {
     
     @MainActor
     @objc func onSubmitCompletion(scheduledTyping: Bool) {
+        UpsellCoordinator.shared.noteEvent(.panelUse)
         allowPrinting = true
         
         if scheduledTyping {
@@ -139,20 +149,26 @@ class PanelManager: NSObject, NSApplicationDelegate {
     
     @MainActor
     func createPanel() {
+        // Weak captures: the hosting view's rootView closures otherwise
+        // retain PanelManager, which retains the panel → cycle
+        // (review 2026-11-24).
         let contentView = PromptPanel(
             completionsPanelVM: completionsPanelVM,
-            onSubmitPanel: onSubmitMessage,
-            onSubmitCompletion: onSubmitCompletion,
-            onLayoutUpdate: updatePanelSizeIfNeeded
+            onSubmitPanel: { [weak self] in self?.onSubmitMessage() },
+            onSubmitCompletion: { [weak self] scheduled in
+                self?.onSubmitCompletion(scheduledTyping: scheduled)
+            },
+            onLayoutUpdate: { [weak self] in self?.updatePanelSizeIfNeeded() }
         )
         let hostingView = NSHostingView(rootView: contentView)
         let idealSize = hostingView.fittingSize
-        
+
         panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: idealSize.width, height: idealSize.height),
             backing: .buffered,
             defer: false
         )
+        panel.isReleasedWhenClosed = false
         panel.contentView = hostingView
         panel.backgroundColor = .clear
         panel.center()
@@ -196,7 +212,8 @@ class PanelManager: NSObject, NSApplicationDelegate {
 extension PanelManager {
     @MainActor func windowDidResignKey(_ notification: Notification) {
         if let panel = notification.object as? FloatingPanel, panel == self.panel {
-            panel.close()
+            // Hide, don't close: the instance is reused on the next show.
+            panel.orderOut(nil)
         }
     }
 }

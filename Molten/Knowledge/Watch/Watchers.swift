@@ -98,6 +98,11 @@ final class DocumentWatcher: NSObject, @unchecked Sendable {
 final class IndexWatcher: NSObject, @unchecked Sendable {
     private let query = NSMetadataQuery()
     private let store: KnowledgeStore
+    /// Outputs are write-once and content-hash named, so a name seen once
+    /// never needs re-ingesting — every metadata update used to re-read
+    /// and DELETE+re-INSERT every synced file (review 2026-11-24).
+    private let ingestedLock = NSLock()
+    private var ingestedNames: Set<String> = []
 
     init(store: KnowledgeStore = .shared) {
         self.store = store
@@ -127,18 +132,48 @@ final class IndexWatcher: NSObject, @unchecked Sendable {
     }
 
     @objc private func queryUpdated() {
-        Task { await ingestNewOutputs() }
+        // NSMetadataQuery is bound to the run loop that started it (main —
+        // KnowledgeSync.start is @MainActor) and is not thread-safe. Snapshot
+        // the results on the main actor, then do the file/DB work off-main
+        // (review 2026-11-24: this used to read the query from the
+        // cooperative pool, racing its main-run-loop mutations).
+        Task { @MainActor in
+            let urls = self.snapshotResults()
+            await self.ingestNewOutputs(urls)
+        }
+    }
+
+    @MainActor
+    private func snapshotResults() -> [URL] {
+        query.disableUpdates()
+        defer { query.enableUpdates() }
+        var urls: [URL] = []
+        for i in 0..<query.resultCount {
+            if let item = query.result(at: i) as? NSMetadataItem,
+               let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL {
+                urls.append(url)
+            }
+        }
+        return urls
     }
 
     /// Copy synced outputs into the local cache and ingest them. A2: the
     /// iPhone does zero extraction/embedding — it only reads finished files.
-    func ingestNewOutputs() async {
+    private func markIngested(_ key: String) {
+        ingestedLock.lock()
+        ingestedNames.insert(key)
+        ingestedLock.unlock()
+    }
+
+    func ingestNewOutputs(_ urls: [URL]) async {
         let manifest = ManifestStore.loadOrCreate()
-        query.disableUpdates()
-        defer { query.enableUpdates() }
-        for i in 0..<query.resultCount {
-            guard let item = query.result(at: i) as? NSMetadataItem,
-                  let url = item.value(forAttribute: NSMetadataItemURLKey) as? URL else { continue }
+        for url in urls {
+            // Key by full path: profile directories can hold same-named
+            // outputs for different embedding profiles.
+            ingestedLock.lock()
+            let seen = ingestedNames.contains(url.path)
+            ingestedLock.unlock()
+            if seen { continue }
             if CoordinatedIO.isPlaceholderOrConflict(url) { continue }
             CoordinatedIO.downloadIfNeeded(url)
             guard let data = CoordinatedIO.read(url) else { continue }
@@ -155,12 +190,19 @@ final class IndexWatcher: NSObject, @unchecked Sendable {
                     let mapping = await FileMapping.shared.all()
                     if let entry = mapping.values.first(where: { $0.hash == document.sourceHash }) {
                         try await store.ingest(mkt: cached, base: entry.base, name: entry.name)
+                        markIngested(url.path)
                     }
+                    // No mapping entry yet: leave unmarked so a later
+                    // update retries once the source is mapped.
                 } else if url.pathExtension == "mkv" {
                     let (header, _) = try MKVCodec.decode(data)
                     // K-E2/A6: never mix profiles or revisions.
-                    guard ManifestStore.accepts(header: header, manifest: manifest) else { continue }
+                    guard ManifestStore.accepts(header: header, manifest: manifest) else {
+                        markIngested(url.path) // permanent for this profile
+                        continue
+                    }
                     try await store.ingest(mkv: cached)
+                    markIngested(url.path)
                 }
             } catch {
                 logger.error("Index ingest failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -192,9 +234,38 @@ final class KnowledgeSync {
         Task { await Self.refreshMapping() }
     }
 
+    /// Stop watchers (Plus lapse). Nothing is deleted — existing knowledge
+    /// stays searchable on each device (T6).
+    func stop() {
+        guard started else { return }
+        documentWatcher.stop()
+        indexWatcher.stop()
+        started = false
+    }
+
+    /// G2/G4 (review 2026-11-24): react to a mid-session tier change.
+    /// Upgrade: resolve the iCloud root, migrate local bases, start sync.
+    /// Downgrade: stop sync and fall back to the local root. Previously
+    /// this only happened at launch, so a Plus bought mid-session left
+    /// iCloud Knowledge inert until relaunch.
+    func refreshForEntitlementChange() async {
+        let plus = await EntitlementManager.shared.allows(.iCloudKnowledge)
+        if plus {
+            await KnowledgeContainer.resolveRoot()
+            try? await KnowledgeContainer.migrateLocalToICloud()
+            start()
+        } else {
+            stop()
+            await KnowledgeContainer.resolveRoot()
+        }
+    }
+
     /// K-D5: local path→hash mapping. Renames/moves only update the mapping;
     /// content-hash outputs are never regenerated (A5).
-    static func refreshMapping() async {
+    /// nonisolated: directory enumeration, per-file resource values, and
+    /// SHA-256 of changed files must not run on the main actor
+    /// (review 2026-11-24: this stalled the UI on every watcher update).
+    nonisolated static func refreshMapping() async {
         let fm = FileManager.default
         let documents = KnowledgeContainer.documentsRoot()
         guard let bases = try? fm.contentsOfDirectory(at: documents, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
@@ -225,24 +296,45 @@ final class KnowledgeSync {
                 }
             }
         }
-        // Prune mapping entries for files deleted on this or another device,
-        // and drop their index rows so deleted documents stop appearing in
-        // search. Evicted iCloud files still exist as ".name.icloud"
-        // placeholders — keep those entries.
-        let mapping = await FileMapping.shared.all()
-        for (path, entry) in mapping {
-            if fm.fileExists(atPath: path) { continue }
+        // Drop mapping entries and index rows for files deleted on this or
+        // another device (see pruneMapping for the collision/K-D5 rules).
+        await pruneMapping(mapping: .shared, store: .shared)
+    }
+
+    /// Prune mapping entries whose files vanished (here or on another
+    /// device) and drop their index rows. Evicted iCloud files still exist
+    /// as ".name.icloud" placeholders — keep those entries.
+    ///
+    /// The base+name row goes only when no remaining mapping entry shares
+    /// it: two live files can share one base+name (same filename in
+    /// different subfolders), and deleting one must not drop the survivor's
+    /// row — the survivor is never re-ingested (mtime-unchanged skip), so
+    /// the loss would be permanent. When the last path for a base+name
+    /// goes, the row still goes unconditionally, preserving the K-D5
+    /// stale-count fix (review 2026-11-24).
+    nonisolated static func pruneMapping(
+        mapping: FileMapping,
+        store: KnowledgeStore,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) async {
+        let entries = await mapping.all()
+        for (path, entry) in entries {
+            if fileExists(path) { continue }
             let url = URL(fileURLWithPath: path)
             let placeholder = url.deletingLastPathComponent()
                 .appendingPathComponent(".\(url.lastPathComponent).icloud")
-            if fm.fileExists(atPath: placeholder.path) { continue }
-            await FileMapping.shared.remove(path: path)
-            // Drop the row by base+name unconditionally (see removeFile): the
-            // hash gate alone can leave stale rows when path keys duplicate.
-            await KnowledgeStore.shared.removeDocument(base: entry.base, name: entry.name)
-            let stillReferenced = await FileMapping.shared.referencedHashes().contains(entry.hash)
+            if fileExists(placeholder.path) { continue }
+            await mapping.remove(path: path)
+            let remaining = await mapping.all()
+            let nameStillReferenced = remaining.values.contains {
+                $0.base == entry.base && $0.name == entry.name
+            }
+            if !nameStillReferenced {
+                await store.removeDocument(base: entry.base, name: entry.name)
+            }
+            let stillReferenced = await mapping.referencedHashes().contains(entry.hash)
             if !stillReferenced {
-                await KnowledgeStore.shared.removeDocument(hash: entry.hash)
+                await store.removeDocument(hash: entry.hash)
             }
         }
     }
